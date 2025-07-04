@@ -45,15 +45,14 @@ export default function DashboardPage() {
     } catch (error: any) {
       console.error("Erro detalhado ao gravar no Firestore:", error);
       let description = "Não foi possível gravar os dados de teste. Verifique o console para mais detalhes.";
+      
       if (error.code === 'permission-denied') {
-        description = "Permissão negada. Verifique suas regras de segurança do Firestore.";
-      } else if (error.message.includes('firestore.googleapis.com')) {
-        description = "Falha na conexão. Verifique se a API Cloud Firestore está ativada no seu projeto Google Cloud.";
+        description = "Permissão negada. Isso geralmente significa que as Regras de Segurança do Firestore estão incorretas OU a API do Cloud Firestore não está ativada no seu projeto. Verifique ambos.";
       }
       
       toast({
         variant: "destructive",
-        title: "Erro no Banco de Dados",
+        title: "Erro de Permissão no Firestore",
         description: description,
       });
     } finally {
