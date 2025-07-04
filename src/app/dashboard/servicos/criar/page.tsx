@@ -10,7 +10,6 @@ import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDo
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -19,12 +18,9 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CalendarIcon, Check, ChevronsUpDown, ArrowLeft, UserPlus } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const serviceOrderSchema = z.object({
@@ -34,7 +30,7 @@ const serviceOrderSchema = z.object({
   problemDescription: z.string().min(10, { message: 'Descreva o problema com mais detalhes.' }),
   technician: z.string().min(3, { message: 'O nome do técnico é obrigatório.' }),
   status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
-  dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
+  dueDate: z.coerce.date({ required_error: "A data de vencimento é obrigatória." }),
 });
 
 const newCustomerSchema = z.object({
@@ -43,7 +39,7 @@ const newCustomerSchema = z.object({
   email: z.string().email({ message: 'Insira um e-mail válido.' }).optional().or(z.literal('')),
   address: z.string().optional(),
   cpfCnpj: z.string().optional(),
-  birthDate: z.date().optional().nullable(),
+  birthDate: z.coerce.date().optional().nullable(),
   notes: z.string().optional(),
 });
 
@@ -63,7 +59,6 @@ export default function CriarOrdemDeServicoPage() {
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isNewClientSubmitting, setIsNewClientSubmitting] = useState(false);
 
@@ -179,67 +174,48 @@ export default function CriarOrdemDeServicoPage() {
         <CardContent>
              <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                <FormField
+                 <FormField
                   control={form.control}
                   name="clientId"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Cliente</FormLabel>
-                      <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span className="truncate">
-                                  {form.getValues('clientName') || "Selecione um cliente"}
-                                </span>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </div>
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Buscar cliente..." />
-                            <CommandList>
-                                <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                                <CommandGroup>
-                                <CommandItem
-                                    onSelect={() => {
-                                        setIsComboboxOpen(false);
-                                        setIsNewClientDialogOpen(true);
-                                    }}
-                                    className="cursor-pointer"
-                                >
-                                    <UserPlus className="mr-2 h-4 w-4" />
-                                    <span>Cadastrar Novo Cliente</span>
-                                </CommandItem>
-                                {customers.map((customer) => (
-                                    <CommandItem
-                                    value={customer.name}
-                                    key={customer.id}
-                                    onSelect={() => {
-                                        form.setValue("clientId", customer.id);
-                                        form.setValue("clientName", customer.name);
-                                        setIsComboboxOpen(false);
-                                    }}
-                                    >
-                                    <Check className={cn("mr-2 h-4 w-4", customer.id === field.value ? "opacity-100" : "opacity-0")} />
-                                    <div>
-                                        <div>{customer.name}</div>
-                                        <div className="text-xs text-muted-foreground">{customer.phone}</div>
-                                    </div>
-                                    </CommandItem>
-                                ))}
-                                </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
+                    <FormItem>
+                      <div className="flex items-center gap-4">
+                        <FormLabel>Cliente</FormLabel>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7"
+                          onClick={() => setIsNewClientDialogOpen(true)}
+                        >
+                          <UserPlus className="mr-2 h-4 w-4" />
+                          <span>Novo Cliente</span>
+                        </Button>
+                      </div>
+                      <Select
+                        onValueChange={(value) => {
+                          const selectedCustomer = customers.find(c => c.id === value);
+                          if(selectedCustomer) {
+                            field.onChange(value);
+                            form.setValue("clientName", selectedCustomer.name);
+                          }
+                        }}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione um cliente existente" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {customers.length === 0 && <p className='p-4 text-sm text-muted-foreground'>Nenhum cliente cadastrado.</p>}
+                          {customers.map((customer) => (
+                            <SelectItem key={customer.id} value={customer.id}>
+                              {customer.name} ({customer.phone})
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -251,42 +227,15 @@ export default function CriarOrdemDeServicoPage() {
                   control={form.control}
                   name="dueDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Data de Vencimento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span>
-                                  {field.value ? (
-                                    format(field.value, "PPP", { locale: ptBR })
-                                  ) : (
-                                    "Escolha uma data"
-                                  )}
-                                </span>
-                                <CalendarIcon className="h-4 w-4 opacity-50" />
-                              </div>
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
-                            initialFocus
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                         <Input
+                          type="date"
+                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -323,41 +272,15 @@ export default function CriarOrdemDeServicoPage() {
                       control={newClientForm.control}
                       name="birthDate"
                       render={({ field }) => (
-                        <FormItem className="flex flex-col">
+                        <FormItem>
                           <FormLabel>Data de Nascimento (Opcional)</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                >
-                                  <div className="flex justify-between items-center w-full">
-                                    <span>
-                                      {field.value ? (
-                                        format(field.value, "PPP", { locale: ptBR })
-                                      ) : (
-                                        "Escolha uma data"
-                                      )}
-                                    </span>
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </div>
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value ?? undefined}
-                                onSelect={field.onChange}
-                                initialFocus
-                                locale={ptBR}
-                              />
-                            </PopoverContent>
-                          </Popover>
+                          <FormControl>
+                            <Input
+                              type="date"
+                              value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                              onChange={(e) => field.onChange(e.target.value)}
+                            />
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

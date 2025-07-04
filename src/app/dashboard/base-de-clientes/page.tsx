@@ -9,7 +9,6 @@ import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDo
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -20,9 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, CalendarIcon, Search } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
+import { Loader2, MoreHorizontal, UserPlus, Users, Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
@@ -32,7 +29,7 @@ const customerSchema = z.object({
   email: z.string().email({ message: 'Insira um e-mail válido.' }).optional().or(z.literal('')),
   address: z.string().optional(),
   cpfCnpj: z.string().optional(),
-  birthDate: z.date().optional().nullable(),
+  birthDate: z.coerce.date().optional().nullable(),
   notes: z.string().optional(),
 });
 
@@ -206,37 +203,15 @@ export default function BaseDeClientesPage() {
                   control={form.control}
                   name="birthDate"
                   render={({ field }) => (
-                    <FormItem className="flex flex-col">
+                    <FormItem>
                       <FormLabel>Data de Nascimento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full justify-start text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              <div className="flex justify-between items-center w-full">
-                                <span>
-                                  {field.value ? format(field.value, "PPP", { locale: ptBR }) : "Escolha uma data"}
-                                </span>
-                                <CalendarIcon className="h-4 w-4 opacity-50" />
-                              </div>
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value ?? undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            locale={ptBR}
-                          />
-                        </PopoverContent>
-                      </Popover>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
+                          onChange={(e) => field.onChange(e.target.value)}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
