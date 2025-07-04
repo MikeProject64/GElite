@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -23,7 +24,7 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon, Wrench } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
@@ -264,7 +265,8 @@ export default function OrdensDeServicoPage() {
             </div>
           ) : serviceOrders.length === 0 ? (
             <div className="text-center py-10">
-                <h3 className="text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3>
+                <Wrench className="mx-auto h-12 w-12 text-muted-foreground" />
+                <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3>
                 <p className="text-sm text-muted-foreground">Que tal criar a primeira?</p>
             </div>
           ) : (
@@ -286,7 +288,7 @@ export default function OrdensDeServicoPage() {
                     <div className="text-sm text-muted-foreground hidden md:inline">{order.serviceType}</div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{order.technician}</TableCell>
-                   <TableCell className="hidden md:table-cell">{format(order.dueDate.toDate(), 'dd/MM/yyyy')}</TableCell>
+                   <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                   <TableCell>
                      <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                   </TableCell>
