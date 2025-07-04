@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, getDocs, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Edit, Eye } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Edit, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 interface ServiceOrder {
@@ -41,6 +41,8 @@ const getStatusVariant = (status: string) => {
   }
 };
 
+const ITEMS_PER_PAGE = 10;
+
 export default function ServicosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -52,36 +54,65 @@ export default function ServicosPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [firstVisible, setFirstVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [lastVisible, setLastVisible] = useState<QueryDocumentSnapshot<DocumentData> | null>(null);
+  const [isFirstPage, setIsFirstPage] = useState(true);
+  const [isLastPage, setIsLastPage] = useState(false);
+
+  const fetchOrders = useCallback((pageDirection?: 'next' | 'prev') => {
     if (!user) return;
     setIsLoading(true);
+
+    let q = query(
+        collection(db, 'serviceOrders'), 
+        where('userId', '==', user.uid), 
+        orderBy('createdAt', 'desc'),
+    );
+
+    if (pageDirection === 'next' && lastVisible) {
+        q = query(q, startAfter(lastVisible), limit(ITEMS_PER_PAGE));
+    } else if (pageDirection === 'prev' && firstVisible) {
+        q = query(q, endBefore(firstVisible), limitToLast(ITEMS_PER_PAGE));
+    } else {
+        q = query(q, limit(ITEMS_PER_PAGE));
+    }
     
-    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
-    const unsubscribeOrders = onSnapshot(qOrders, (querySnapshot) => {
-      const orders = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as ServiceOrder));
-      setServiceOrders(orders);
-      setIsLoading(false);
+    const unsubscribe = onSnapshot(q, async (querySnapshot) => {
+        const orders = querySnapshot.docs.map(doc => ({
+            id: doc.id, ...doc.data()
+        } as ServiceOrder));
+        
+        setServiceOrders(orders);
+
+        if (querySnapshot.docs.length > 0) {
+            setFirstVisible(querySnapshot.docs[0]);
+            setLastVisible(querySnapshot.docs[querySnapshot.docs.length - 1]);
+        }
+        
+        setIsFirstPage(!pageDirection || (pageDirection === 'prev' && querySnapshot.docs.length < ITEMS_PER_PAGE));
+        
+        const nextQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), startAfter(querySnapshot.docs[querySnapshot.docs.length - 1]), limit(1));
+        const nextDocs = await getDocs(nextQuery);
+        setIsLastPage(nextDocs.empty);
+
+        setIsLoading(false);
     }, (error: any) => {
         console.error("Error fetching service orders: ", error);
-        let description = "Não foi possível carregar as ordens de serviço. Verifique suas regras de segurança do Firestore.";
-        if (error.code === 'failed-precondition' && error.message.includes('index')) {
-            description = "A consulta ao banco de dados requer um índice. Verifique o console de depuração do navegador para obter o link para criar o índice.";
-        }
         toast({
             variant: "destructive",
             title: "Erro ao buscar dados",
-            description: description,
+            description: "Não foi possível carregar as ordens de serviço.",
         });
         setIsLoading(false);
     });
 
-    return () => {
-        unsubscribeOrders();
-    };
-  }, [user, toast]);
+    return unsubscribe;
+  }, [user, toast, lastVisible, firstVisible]);
+
+  useEffect(() => {
+    const unsubscribe = fetchOrders();
+    return () => unsubscribe && unsubscribe();
+  }, [user]); // Only run on user change
 
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
@@ -242,9 +273,19 @@ export default function ServicosPage() {
           )}
         </CardContent>
          <CardFooter>
-          <div className="text-xs text-muted-foreground">
-            Mostrando <strong>{filteredOrders.length}</strong> de <strong>{serviceOrders.length}</strong> ordens de serviço.
-          </div>
+            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+                <span>Mostrando {filteredOrders.length} ordens de serviço</span>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => fetchOrders('prev')} disabled={isFirstPage || isLoading}>
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => fetchOrders('next')} disabled={isLastPage || isLoading}>
+                        Próximo
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
         </CardFooter>
       </Card>
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>

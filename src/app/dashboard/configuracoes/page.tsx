@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -37,7 +37,7 @@ interface CustomFieldManagerProps {
   onUpdateFields: (fields: CustomField[]) => void;
 }
 
-const CustomFieldManager: React.FC<CustomFieldManagerProps> = ({ title, icon, fields, onUpdateFields }) => {
+const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, icon, fields, onUpdateFields }) => {
     const [newFieldName, setNewFieldName] = useState('');
     const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
 
@@ -99,7 +99,8 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = ({ title, icon, fi
             </CardContent>
         </Card>
     );
-};
+});
+CustomFieldManager.displayName = "CustomFieldManager";
 
 
 export default function ConfiguracoesPage() {
