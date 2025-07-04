@@ -210,6 +210,7 @@ export default function BaseDeClientesPage() {
                       <FormLabel>Data de Nascimento</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
+                          <FormControl>
                            <Button
                               variant={"outline"}
                               className={cn(
@@ -226,6 +227,7 @@ export default function BaseDeClientesPage() {
                                 <CalendarIcon className="h-4 w-4 opacity-50" />
                               </div>
                             </Button>
+                          </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-auto p-0" align="start">
                           <Calendar
