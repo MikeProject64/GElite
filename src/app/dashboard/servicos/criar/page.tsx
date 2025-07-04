@@ -124,7 +124,7 @@ export default function CriarOrdemDeServicoPage() {
         createdAt: Timestamp.now(),
       });
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      serviceOrderForm.setValue('clientId', docRef.id);
+      serviceOrderForm.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
       setIsNewClientDialogOpen(false);
     } catch (error) {
       toast({ variant: "destructive", title: "Erro", description: "Falha ao cadastrar o cliente." });
@@ -197,7 +197,7 @@ export default function CriarOrdemDeServicoPage() {
                                 value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
                                 onSelect={() => {
-                                  serviceOrderForm.setValue("clientId", customer.id);
+                                  field.onChange(customer.id);
                                   setIsComboboxOpen(false);
                                 }}
                               >
