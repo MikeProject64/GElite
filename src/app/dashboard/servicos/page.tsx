@@ -106,9 +106,11 @@ export default function ServicosPage() {
 
        <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-                <Filter className="h-5 w-5"/>
-                Filtros de Acompanhamento
+            <CardTitle>
+                <span className="flex items-center gap-2">
+                    <Filter className="h-5 w-5"/>
+                    Filtros de Acompanhamento
+                </span>
             </CardTitle>
              <CardDescription>Use os filtros abaixo para refinar a visualização das suas ordens de serviço.</CardDescription>
           </CardHeader>

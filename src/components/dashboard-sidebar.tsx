@@ -17,15 +17,17 @@ import {
   Wrench,
   CalendarClock,
   PlusCircle,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 
 const navItems = [
   { href: '/dashboard', label: 'Painel', icon: Home },
-  { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
   { href: '/dashboard/servicos/criar', label: 'Criar OS', icon: PlusCircle },
+  { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
   { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
   { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
+  { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
 ];
 
 function NavContent() {
