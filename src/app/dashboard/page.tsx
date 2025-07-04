@@ -220,6 +220,7 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {/* Search Bar */}
       <Card>
         <CardHeader>
             <CardTitle className="flex items-center gap-2 text-xl"><Search /> Busca Rápida</CardTitle>
@@ -270,8 +271,9 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
       
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-         <div className="grid gap-6 lg:col-span-1">
+      {/* Main Grid: Stats and Recent Activity */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-1 flex flex-col gap-6">
             <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Ordens de Serviço Ativas</CardTitle>
@@ -292,36 +294,41 @@ export default function DashboardPage() {
                 <p className="text-xs text-muted-foreground">Total de clientes em sua base.</p>
             </CardContent>
             </Card>
-         </div>
-          <Card className='lg:col-span-2'>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-xl"><History/> Atividade Recente</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? <div className='flex justify-center'><Loader2 className="h-6 w-6 animate-spin" /></div> : (
-                 recentActivity.length > 0 ? (
-                    <ul className="space-y-4">
-                        {recentActivity.map(activity => (
-                             <li key={activity.id} className="flex items-start gap-3">
-                                <div className="mt-1">
-                                    {getRecentActivityIcon(activity.type)}
-                                </div>
-                                <div className="flex-1">
-                                    <Link href={activity.href} className="hover:underline">
-                                        <p className="text-sm">{activity.description}</p>
-                                    </Link>
-                                    <p className="text-xs text-muted-foreground">
-                                        {formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}
-                                    </p>
-                                </div>
-                             </li>
-                        ))}
-                    </ul>
-                 ) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>
-            )}
-          </CardContent>
-        </Card>
+        </div>
+        <div className="lg:col-span-2">
+            <Card className='h-full'>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl"><History/> Atividade Recente</CardTitle>
+                    <CardDescription>Últimas movimentações no sistema.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (
+                        recentActivity.length > 0 ? (
+                            <ul className="space-y-4">
+                                {recentActivity.map(activity => (
+                                    <li key={activity.id} className="flex items-start gap-3">
+                                        <div className="mt-1">
+                                            {getRecentActivityIcon(activity.type)}
+                                        </div>
+                                        <div className="flex-1">
+                                            <Link href={activity.href} className="hover:underline">
+                                                <p className="text-sm">{activity.description}</p>
+                                            </Link>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>
+                    )}
+                </CardContent>
+            </Card>
+        </div>
       </div>
+      
+       {/* Charts Grid */}
        <div className="grid gap-6 md:grid-cols-2">
         {loading ? (
           <>
