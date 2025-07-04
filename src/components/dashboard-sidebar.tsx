@@ -20,6 +20,8 @@ import {
   Settings,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
+import { useSettings } from './settings-provider';
+import { availableIcons } from './icon-map';
 
 const navItems = [
   { href: '/dashboard', label: 'Painel', icon: Home },
@@ -34,18 +36,22 @@ function NavContent() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { settings } = useSettings();
 
   const handleLogout = async () => {
     await signOut(auth);
     router.push('/');
   };
 
+  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
+  const siteName = settings.siteName || 'ServiceWise';
+
   return (
     <div className="flex h-full max-h-screen flex-col gap-2">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Wrench className="h-6 w-6 text-primary" />
-          <span className="">ServiceWise</span>
+          <Icon className="h-6 w-6 text-primary" />
+          <span className="">{siteName}</span>
         </Link>
       </div>
       <div className="flex-1">
@@ -81,6 +87,10 @@ function NavContent() {
 }
 
 export function DashboardSidebar() {
+  const { settings } = useSettings();
+  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
+  const siteName = settings.siteName || 'ServiceWise';
+
   return (
     <>
       <div className="hidden border-r bg-card md:block">
@@ -99,8 +109,8 @@ export function DashboardSidebar() {
             </SheetContent>
           </Sheet>
            <div className="flex items-center gap-2 font-semibold">
-             <Wrench className="h-6 w-6 text-primary" />
-             <span className="">ServiceWise</span>
+             <Icon className="h-6 w-6 text-primary" />
+             <span className="">{siteName}</span>
            </div>
       </header>
     </>

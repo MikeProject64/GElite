@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { AuthProvider } from '@/components/auth-provider';
+import { SettingsProvider } from '@/components/settings-provider';
+import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 
 export const metadata: Metadata = {
   title: 'ServiceWise',
@@ -22,8 +24,11 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <AuthProvider>
-          {children}
-          <Toaster />
+          <SettingsProvider>
+            <DynamicLayoutEffects />
+            {children}
+            <Toaster />
+          </SettingsProvider>
         </AuthProvider>
       </body>
     </html>
