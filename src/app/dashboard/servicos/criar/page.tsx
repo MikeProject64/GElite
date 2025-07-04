@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -190,7 +189,12 @@ export default function CriarOrdemDeServicoPage() {
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
+                      <Command
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                        }}
+                      >
                         <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
                           <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
@@ -203,13 +207,10 @@ export default function CriarOrdemDeServicoPage() {
                                   field.onChange(customer.id);
                                   setIsComboboxOpen(false);
                                 }}
-                                onPointerDown={(e) => {
-                                  e.preventDefault();
-                                }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
-                                <span className="ml-auto text-xs text-muted-foreground">{customer.phone}</span>
+                                <span className="ml-auto text-xs">{customer.phone}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
