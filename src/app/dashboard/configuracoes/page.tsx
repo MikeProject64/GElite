@@ -7,7 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useSettings, UserSettings } from '@/components/settings-provider';
 import { useToast } from '@/hooks/use-toast';
-import { availableIcons, iconNames } from '@/components/icon-map';
+import { availableIcons } from '@/components/icon-map';
+import type { iconNames as IconNamesType } from '@/components/icon-map';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +18,8 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+
+const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
 
 const settingsFormSchema = z.object({
   siteName: z.string().min(3, { message: 'O nome do site deve ter pelo menos 3 caracteres.' }).max(30, { message: 'O nome do site deve ter no máximo 30 caracteres.' }),
@@ -119,18 +122,17 @@ export default function ConfiguracoesPage() {
                             <RadioGroup
                               onValueChange={field.onChange}
                               defaultValue={field.value}
-                              className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-4"
+                              className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-4"
                             >
                               {iconNames.map((iconName) => {
-                                const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
+                                const IconComponent = availableIcons[iconName];
                                 return (
                                   <FormItem key={iconName}>
                                     <FormControl>
                                       <RadioGroupItem value={iconName} className="sr-only" />
                                     </FormControl>
-                                    <FormLabel className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer">
-                                      <IconComponent className="h-6 w-6 mb-2" />
-                                      <span className="text-xs">{iconName}</span>
+                                    <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer aspect-square">
+                                      <IconComponent className="h-6 w-6" />
                                     </FormLabel>
                                   </FormItem>
                                 );

@@ -1,4 +1,3 @@
-
 import {
   Wrench,
   Rocket,
@@ -16,6 +15,26 @@ import {
   Bike,
   Book,
   Camera,
+  Package,
+  Truck,
+  User,
+  Clock,
+  Calendar,
+  DollarSign,
+  CreditCard,
+  BarChart,
+  PieChart,
+  Clipboard,
+  File,
+  Folder,
+  Tag,
+  MessageSquare,
+  Phone,
+  Mail,
+  Laptop,
+  Server,
+  HardDrive,
+  Database,
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -35,6 +54,26 @@ export const availableIcons = {
   Bike,
   Book,
   Camera,
+  Package,
+  Truck,
+  User,
+  Clock,
+  Calendar,
+  DollarSign,
+  CreditCard,
+  BarChart,
+  PieChart,
+  Clipboard,
+  File,
+  Folder,
+  Tag,
+  MessageSquare,
+  Phone,
+  Mail,
+  Laptop,
+  Server,
+  HardDrive,
+  Database,
 };
 
 export const iconNames = Object.keys(availableIcons);
