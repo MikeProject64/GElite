@@ -20,7 +20,6 @@ const fontHeading = Poppins({
 });
 
 export const metadata: Metadata = {
-  title: 'ServiceWise',
   description: 'Otimize sua gestão de serviços com o ServiceWise.',
 };
 
