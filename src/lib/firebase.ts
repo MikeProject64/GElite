@@ -12,6 +12,23 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+// CRITICAL: Ensure all Firebase environment variables are set.
+// If this error is thrown, it means you have not created a '.env' file
+// or the file is missing required variables.
+if (
+  !firebaseConfig.apiKey ||
+  !firebaseConfig.authDomain ||
+  !firebaseConfig.projectId ||
+  !firebaseConfig.storageBucket ||
+  !firebaseConfig.messagingSenderId ||
+  !firebaseConfig.appId
+) {
+  throw new Error(
+    "Firebase config is not set. Please create a .env file in the root of the project with the necessary Firebase environment variables. See the .env.example file for the required variables."
+  );
+}
+
+
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
