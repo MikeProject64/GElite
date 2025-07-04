@@ -147,7 +147,7 @@ export default function CriarOrdemDeServicoPage() {
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       router.push('/dashboard/servicos');
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao criar a ordem de serviço." });
+      toast({ variant: "destructive", title: "Erro", description: `Falha ao criar a ordem de serviço: ${error.message}` });
     }
   };
 
@@ -199,9 +199,7 @@ export default function CriarOrdemDeServicoPage() {
                               <CommandItem
                                 value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
-                                onMouseDown={(e) => {
-                                  e.preventDefault();
-                                }}
+                                onPointerDown={(e) => e.preventDefault()}
                                 onSelect={() => {
                                   field.onChange(customer.id)
                                   setIsComboboxOpen(false)
@@ -209,7 +207,7 @@ export default function CriarOrdemDeServicoPage() {
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
-                                <span className="ml-auto text-xs">{customer.phone}</span>
+                                <span className="ml-auto text-xs text-foreground">{customer.phone}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
