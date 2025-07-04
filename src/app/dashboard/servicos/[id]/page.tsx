@@ -3,7 +3,7 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion, collection, query, where, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,8 +20,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Calendar, Wrench, Thermometer, UserCheck, Paperclip, Upload, File, Loader2, Info, Printer } from 'lucide-react';
-import { ServiceOrder } from '@/types';
+import { ArrowLeft, User, Calendar, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign } from 'lucide-react';
+import { ServiceOrder, Manager } from '@/types';
+import { useAuth } from '@/components/auth-provider';
 
 
 const getStatusVariant = (status: string) => {
@@ -33,13 +34,19 @@ const getStatusVariant = (status: string) => {
   }
 };
 
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
 export default function ServicoDetailPage() {
   const { id } = useParams();
   const router = useRouter();
+  const { user } = useAuth();
   const { toast } = useToast();
   const { settings } = useSettings();
 
   const [order, setOrder] = useState<ServiceOrder | null>(null);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
@@ -64,14 +71,49 @@ export default function ServicoDetailPage() {
     return () => unsubscribe();
   }, [orderId, router, toast]);
 
+  // Fetch Managers
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'managers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      setManagers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Manager)));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
   const handleStatusChange = async (newStatus: ServiceOrder['status']) => {
     if (!order) return;
     try {
       const orderRef = doc(db, 'serviceOrders', order.id);
-      await updateDoc(orderRef, { status: newStatus });
+      const updateData: any = { status: newStatus };
+
+      if (newStatus === 'Concluída' && !order.completedAt) {
+        updateData.completedAt = Timestamp.now();
+      } else if (newStatus !== 'Concluída' && order.completedAt) {
+        updateData.completedAt = null;
+      }
+
+      await updateDoc(orderRef, updateData);
       toast({ title: 'Sucesso!', description: 'Status da ordem de serviço atualizado.' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
+    }
+  };
+
+  const handleManagerChange = async (newManagerId: string) => {
+    if (!order || !newManagerId) return;
+    const selectedManager = managers.find(m => m.id === newManagerId);
+    if (!selectedManager) return;
+
+    try {
+        const orderRef = doc(db, 'serviceOrders', order.id);
+        await updateDoc(orderRef, {
+            managerId: selectedManager.id,
+            managerName: selectedManager.name
+        });
+        toast({ title: 'Sucesso!', description: 'Responsável atualizado.' });
+    } catch (error) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o responsável.' });
     }
   };
 
@@ -162,11 +204,27 @@ export default function ServicoDetailPage() {
                             <p className="font-medium">{order.clientName}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <UserCheck className="h-5 w-5 text-muted-foreground" />
+                     <div className="flex items-center gap-3">
+                        <DollarSign className="h-5 w-5 text-muted-foreground" />
                         <div>
-                            <p className="text-sm text-muted-foreground">Técnico</p>
-                            <p className="font-medium">{order.technician}</p>
+                            <p className="text-sm text-muted-foreground">Valor Total</p>
+                            <p className="font-medium">{formatCurrency(order.totalValue)}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Briefcase className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Responsável / Setor</p>
+                            <Select value={order.managerId} onValueChange={handleManagerChange}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Definir responsável" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {managers.map(manager => (
+                                        <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

@@ -1,3 +1,4 @@
+
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { notFound } from 'next/navigation';
@@ -6,6 +7,10 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Wrench } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
+
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
 
 async function getServiceOrder(id: string): Promise<ServiceOrder | null> {
     const orderRef = doc(db, 'serviceOrders', id);
@@ -49,8 +54,8 @@ export default async function PrintServicoPage({ params }: { params: { id: strin
                         <p className="font-bold">{order.clientName}</p>
                     </div>
                      <div>
-                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Técnico</h3>
-                        <p className="font-bold">{order.technician}</p>
+                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Responsável / Setor</h3>
+                        <p className="font-bold">{order.managerName || 'Não definido'}</p>
                     </div>
                      <div>
                         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prazo de Entrega</h3>
@@ -81,6 +86,10 @@ export default async function PrintServicoPage({ params }: { params: { id: strin
             </main>
 
             <footer className="pt-4 border-t-2 border-gray-200">
+                 <div className="text-right">
+                    <p className="text-sm text-gray-500">Valor Total</p>
+                    <p className="text-3xl font-bold font-headline">{formatCurrency(order.totalValue)}</p>
+                </div>
                 <div className="mt-8 text-center text-xs text-gray-400">
                     <p>Obrigado pela sua preferência!</p>
                     <p>{siteName}</p>

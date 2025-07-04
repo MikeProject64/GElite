@@ -29,13 +29,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Customer, Manager } from '@/types';
 
 // Schemas
 const serviceOrderSchema = z.object({
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   serviceType: z.string().min(1, "O tipo de serviço é obrigatório."),
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
-  technician: z.string().min(1, "O técnico é obrigatório."),
+  managerId: z.string({ required_error: "Por favor, selecione um responsável." }).min(1, "Por favor, selecione um responsável."),
+  totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
   status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
   customFields: z.record(z.any()).optional(),
@@ -49,12 +51,6 @@ const newCustomerSchema = z.object({
 type ServiceOrderValues = z.infer<typeof serviceOrderSchema>;
 type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-}
-
 export default function CriarOrdemDeServicoPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -62,11 +58,12 @@ export default function CriarOrdemDeServicoPage() {
   const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [managers, setManagers] = useState<Manager[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
 
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
 
   const serviceOrderForm = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -74,7 +71,8 @@ export default function CriarOrdemDeServicoPage() {
       clientId: '',
       serviceType: '',
       problemDescription: '',
-      technician: '',
+      managerId: '',
+      totalValue: 0,
       status: 'Pendente',
       dueDate: new Date(),
       customFields: {},
@@ -88,17 +86,25 @@ export default function CriarOrdemDeServicoPage() {
     },
   });
 
+  // Fetch Customers
   useEffect(() => {
     if (!user) return;
     const q = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       setCustomers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
-    }, (error) => {
-        console.error("Error fetching customers: ", error);
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar a lista de clientes." });
     });
     return () => unsubscribe();
-  }, [user, toast]);
+  }, [user]);
+
+  // Fetch Managers
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'managers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+      setManagers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Manager)));
+    });
+    return () => unsubscribe();
+  }, [user]);
   
   useEffect(() => {
     if(!isNewClientDialogOpen) {
@@ -108,15 +114,15 @@ export default function CriarOrdemDeServicoPage() {
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsDropdownOpen(false);
+      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+        setIsCustomerDropdownOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [dropdownRef]);
+  }, [customerDropdownRef]);
 
   const onNewClientSubmit = async (data: NewCustomerValues) => {
     if (!user) return;
@@ -146,6 +152,9 @@ export default function CriarOrdemDeServicoPage() {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
       if (!selectedCustomer) throw new Error("Cliente não encontrado");
 
+      const selectedManager = managers.find(m => m.id === data.managerId);
+      if (!selectedManager) throw new Error("Responsável não encontrado");
+
       const customFieldsData = { ...data.customFields };
       settings.serviceOrderCustomFields?.forEach(field => {
             if (field.type === 'date' && customFieldsData[field.id]) {
@@ -156,10 +165,12 @@ export default function CriarOrdemDeServicoPage() {
       await addDoc(collection(db, 'serviceOrders'), {
         ...data,
         clientName: selectedCustomer.name,
+        managerName: selectedManager.name,
         dueDate: Timestamp.fromDate(data.dueDate),
         customFields: customFieldsData,
         userId: user.uid,
         createdAt: Timestamp.now(),
+        completedAt: null,
       });
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       router.push('/dashboard/servicos');
@@ -169,8 +180,8 @@ export default function CriarOrdemDeServicoPage() {
   };
 
   const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
 
   return (
@@ -200,20 +211,20 @@ export default function CriarOrdemDeServicoPage() {
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
-                  <div className="relative" ref={dropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)}>
+                  <div className="relative" ref={customerDropdownRef}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
-                    {isDropdownOpen && (
+                    {isCustomerDropdownOpen && (
                       <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
                         <div className="p-2">
                           <Input
                             placeholder="Buscar cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={customerSearchTerm}
+                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
                             autoFocus
                           />
                         </div>
@@ -226,8 +237,8 @@ export default function CriarOrdemDeServicoPage() {
                                 className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
                                 onClick={() => {
                                   field.onChange(customer.id);
-                                  setIsDropdownOpen(false);
-                                  setSearchTerm('');
+                                  setIsCustomerDropdownOpen(false);
+                                  setCustomerSearchTerm('');
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
@@ -253,8 +264,22 @@ export default function CriarOrdemDeServicoPage() {
               <FormField control={serviceOrderForm.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
-              <FormField control={serviceOrderForm.control} name="technician" render={({ field }) => (
-                <FormItem><FormLabel>Técnico Responsável *</FormLabel><FormControl><Input placeholder="Ex: Carlos Pereira" {...field} /></FormControl><FormMessage /></FormItem>
+               <FormField control={serviceOrderForm.control} name="managerId" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Responsável / Setor *</FormLabel>
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger></FormControl>
+                    <SelectContent>
+                      {managers.map(manager => (
+                        <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}/>
+               <FormField control={serviceOrderForm.control} name="totalValue" render={({ field }) => (
+                <FormItem><FormLabel>Valor Total (R$) *</FormLabel><FormControl><Input type="number" step="0.01" placeholder="250,00" {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
               <FormField control={serviceOrderForm.control} name="dueDate" render={({ field }) => (
                 <FormItem className="flex flex-col">

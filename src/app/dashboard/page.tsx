@@ -104,16 +104,14 @@ export default function DashboardPage() {
             }));
 
             // 2. Monthly Revenue Bar Chart
-            const approvedQuotes = quotesSnap.docs
-                .map(doc => doc.data() as Quote)
-                .filter(q => ['Aprovado', 'Convertido'].includes(q.status));
+            const completedOrders = allOrders.filter(o => o.status === 'Concluída' && o.completedAt);
 
             const sixMonthsAgo = subMonths(new Date(), 5);
-            const monthlyRevenueMap = approvedQuotes.reduce((acc, quote) => {
-                const quoteDate = quote.createdAt.toDate();
-                if (quoteDate >= startOfMonth(sixMonthsAgo)) {
-                    const monthKey = format(quoteDate, 'yyyy-MM');
-                    acc[monthKey] = (acc[monthKey] || 0) + quote.totalValue;
+            const monthlyRevenueMap = completedOrders.reduce((acc, order) => {
+                const completionDate = order.completedAt!.toDate();
+                if (completionDate >= startOfMonth(sixMonthsAgo)) {
+                    const monthKey = format(completionDate, 'yyyy-MM');
+                    acc[monthKey] = (acc[monthKey] || 0) + order.totalValue;
                 }
                 return acc;
             }, {} as Record<string, number>);
@@ -128,9 +126,9 @@ export default function DashboardPage() {
             setChartData({ orderStatus, monthlyRevenue });
 
             // --- Fetch for Recent Activity ---
-            const recentOrders = allOrders.sort((a,b) => b.createdAt.seconds - a.createdAt.seconds).slice(0,3);
-            const recentCustomers = customersSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Customer).sort((a,b) => b.createdAt.seconds - a.createdAt.seconds).slice(0,3);
-            const recentQuotes = quotesSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Quote).sort((a,b) => b.createdAt.seconds - a.createdAt.seconds).slice(0,3);
+            const recentOrders = allOrders.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+            const recentCustomers = customersSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Customer).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+            const recentQuotes = quotesSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Quote).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
             
             const ordersActivity: RecentActivity[] = recentOrders.map(data => ({ id: data.id, type: 'serviço', description: `Nova OS: ${data.serviceType} para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/servicos/${data.id}`}));
             const customersActivity: RecentActivity[] = recentCustomers.map(data => ({ id: data.id, type: 'cliente', description: `Novo cliente: ${data.name}`, timestamp: data.createdAt.toDate(), href: `/dashboard/base-de-clientes/${data.id}`}));

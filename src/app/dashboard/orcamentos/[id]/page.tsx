@@ -85,21 +85,22 @@ export default function OrcamentoDetailPage() {
             clientName: quote.clientName,
             problemDescription: `Serviços baseados no orçamento #${quote.id.substring(0, 6)}:\n\n${quote.description}`,
             serviceType: "Serviço a partir de orçamento",
-            technician: "A definir",
             status: 'Pendente',
             dueDate: Timestamp.fromDate(new Date()), // Define a default due date
+            totalValue: quote.totalValue,
             attachments: [],
             userId: user.uid,
             createdAt: Timestamp.now(),
             customFields: quote.customFields || {},
+            completedAt: null,
         };
-        await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
+        const docRef = await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
         
         const quoteRef = doc(db, 'quotes', quote.id);
         await updateDoc(quoteRef, { status: 'Convertido' });
 
         toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
-        router.push('/dashboard/servicos');
+        router.push(`/dashboard/servicos/${docRef.id}`);
     } catch (error) {
         console.error("Conversion error:", error);
         toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao converter o orçamento.' });

@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, doc, updateDoc, getDocs, limit, startAfter, endBefore, limitToLast, DocumentData, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, updateDoc, getDocs, limit, startAfter, endBefore, limitToLast, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
@@ -18,19 +18,9 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Edit, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Label } from '@/components/ui/label';
-
-interface ServiceOrder {
-    id: string;
-    clientName: string;
-    serviceType: string;
-    technician: string;
-    status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
-    createdAt: { toDate: () => Date };
-    userId: string;
-    dueDate: { toDate: () => Date };
-}
+import { ServiceOrder } from '@/types';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -49,7 +39,7 @@ export default function ServicosPage() {
   const router = useRouter();
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', technician: '', clientName: '' });
+  const [filters, setFilters] = useState({ status: '', managerName: '', clientName: '' });
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
@@ -115,15 +105,16 @@ export default function ServicosPage() {
     if(user){
       fetchServiceOrders('first');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
 
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
         const statusMatch = filters.status ? order.status === filters.status : true;
-        const technicianMatch = filters.technician ? order.technician.toLowerCase().includes(filters.technician.toLowerCase()) : true;
+        const managerMatch = filters.managerName ? (order.managerName || '').toLowerCase().includes(filters.managerName.toLowerCase()) : true;
         const clientMatch = filters.clientName ? order.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        return statusMatch && technicianMatch && clientMatch;
+        return statusMatch && managerMatch && clientMatch;
     });
   }, [serviceOrders, filters]);
 
@@ -183,8 +174,8 @@ export default function ServicosPage() {
                 <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="technician-filter">Filtrar por Técnico</Label>
-                <Input id="technician-filter" placeholder="Nome do técnico..." value={filters.technician} onChange={e => handleFilterChange('technician', e.target.value)} />
+                <Label htmlFor="manager-filter">Filtrar por Responsável</Label>
+                <Input id="manager-filter" placeholder="Nome do responsável..." value={filters.managerName} onChange={e => handleFilterChange('managerName', e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="status-filter">Filtrar por Status</Label>
@@ -228,7 +219,7 @@ export default function ServicosPage() {
                 <TableRow>
                     <TableHead>Cliente</TableHead>
                     <TableHead className="hidden lg:table-cell">Serviço</TableHead>
-                    <TableHead className="hidden md:table-cell">Técnico</TableHead>
+                    <TableHead className="hidden md:table-cell">Responsável</TableHead>
                     <TableHead className="hidden lg:table-cell">Criação</TableHead>
                     <TableHead className="hidden md:table-cell">Vencimento</TableHead>
                     <TableHead>Status</TableHead>
@@ -243,7 +234,7 @@ export default function ServicosPage() {
                         <div className="text-sm text-muted-foreground lg:hidden">{order.serviceType}</div>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{order.serviceType}</TableCell>
-                    <TableCell className="hidden md:table-cell">{order.technician}</TableCell>
+                    <TableCell className="hidden md:table-cell">{order.managerName || 'Não definido'}</TableCell>
                     <TableCell className="hidden lg:table-cell">{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                     <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                     <TableCell>
@@ -260,10 +251,7 @@ export default function ServicosPage() {
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
-                                <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
-                                <Edit className="mr-2 h-4 w-4" /> Editar / Atualizar
+                                <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onSelect={() => openCancelDialog(order.id)}>

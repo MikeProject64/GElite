@@ -5,6 +5,13 @@ export interface CustomFields {
   [key: string]: string | number | Timestamp | Date;
 }
 
+export interface Manager {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: Timestamp;
+}
+
 export interface Customer {
   id: string;
   userId: string;
@@ -26,11 +33,14 @@ export interface ServiceOrder {
     clientName: string;
     serviceType: string;
     problemDescription: string;
-    technician: string;
+    managerId?: string;
+    managerName?: string;
+    totalValue: number;
     status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
     dueDate: Timestamp;
     attachments?: { name: string; url: string; }[];
     createdAt: Timestamp;
+    completedAt?: Timestamp | null;
     customFields?: CustomFields;
 }
 
