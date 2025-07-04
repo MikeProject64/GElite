@@ -158,7 +158,7 @@ export default function BaseDeClientesPage() {
               </span>
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
               <DialogDescription>
@@ -166,7 +166,7 @@ export default function BaseDeClientesPage() {
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Nome Completo</FormLabel>
@@ -245,7 +245,7 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                 <DialogFooter>
+                 <DialogFooter className='pt-4'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                     <Button type="submit" disabled={isFormSubmitting}>
                         {isFormSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
@@ -290,52 +290,54 @@ export default function BaseDeClientesPage() {
                 </p>
             </div>
           ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead className="hidden md:table-cell">Contato</TableHead>
-                <TableHead className="hidden lg:table-cell">CPF/CNPJ</TableHead>
-                <TableHead className="hidden md:table-cell">Cadastro</TableHead>
-                <TableHead><span className="sr-only">Ações</span></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCustomers.map((customer) => (
-                <TableRow key={customer.id}>
-                  <TableCell>
-                    <div className="font-medium">{customer.name}</div>
-                    <div className="text-sm text-muted-foreground md:hidden">{customer.phone}</div>
-                  </TableCell>
-                  <TableCell className="hidden md:table-cell">
-                    <div>{customer.phone}</div>
-                    <div className="text-xs text-muted-foreground">{customer.email}</div>
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell">{customer.cpfCnpj || 'N/A'}</TableCell>
-                  <TableCell className="hidden md:table-cell">{new Date(customer.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A visualização de detalhes do cliente será implementada." })}>
-                          Ver Detalhes
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A edição de clientes será implementada." })}>
-                          Editar Cliente
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="hidden md:table-cell">Contato</TableHead>
+                    <TableHead className="hidden lg:table-cell">CPF/CNPJ</TableHead>
+                    <TableHead className="hidden md:table-cell">Cadastro</TableHead>
+                    <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {filteredCustomers.map((customer) => (
+                    <TableRow key={customer.id}>
+                    <TableCell>
+                        <div className="font-medium">{customer.name}</div>
+                        <div className="text-sm text-muted-foreground md:hidden">{customer.phone}</div>
+                    </TableCell>
+                    <TableCell className="hidden md:table-cell">
+                        <div>{customer.phone}</div>
+                        <div className="text-xs text-muted-foreground">{customer.email}</div>
+                    </TableCell>
+                    <TableCell className="hidden lg:table-cell">{customer.cpfCnpj || 'N/A'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{customer.createdAt? format(customer.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                    <TableCell>
+                        <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A visualização de detalhes do cliente será implementada." })}>
+                            Ver Detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A edição de clientes será implementada." })}>
+                            Editar Cliente
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+          </div>
           )}
         </CardContent>
          <CardFooter>
