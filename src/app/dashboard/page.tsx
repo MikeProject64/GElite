@@ -42,12 +42,19 @@ export default function DashboardPage() {
         title: "Sucesso!",
         description: "Dados de teste gravados no Firestore. Verifique seu console do Firebase.",
       });
-    } catch (error) {
-      console.error("Erro ao gravar no Firestore:", error);
+    } catch (error: any) {
+      console.error("Erro detalhado ao gravar no Firestore:", error);
+      let description = "Não foi possível gravar os dados de teste. Verifique o console para mais detalhes.";
+      if (error.code === 'permission-denied') {
+        description = "Permissão negada. Verifique suas regras de segurança do Firestore.";
+      } else if (error.message.includes('firestore.googleapis.com')) {
+        description = "Falha na conexão. Verifique se a API Cloud Firestore está ativada no seu projeto Google Cloud.";
+      }
+      
       toast({
         variant: "destructive",
         title: "Erro no Banco de Dados",
-        description: "Não foi possível gravar os dados de teste. Verifique o console do navegador e as regras do Firestore.",
+        description: description,
       });
     } finally {
       setIsTestingDb(false);
