@@ -1,57 +1,45 @@
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { Loader2 } from 'lucide-react';
+import { Wrench } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login');
-    }
-  }, [user, loading, router]);
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/');
-  };
-
-  if (loading || !user) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  const { user } = useAuth();
 
   return (
-    <main className="flex items-center justify-center min-h-screen bg-secondary p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex flex-col gap-4">
+       <Card>
         <CardHeader>
-          <CardTitle className="font-headline text-3xl">Bem-vindo ao seu Painel</CardTitle>
-          <CardDescription>Aqui você pode gerenciar suas operações.</CardDescription>
+          <CardTitle>Bem-vindo ao ServiceWise, {user?.email}!</CardTitle>
+          <CardDescription>Este é o seu painel central de gerenciamento.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="font-body">
-            Você está logado como: <span className="font-bold text-primary">{user.email}</span>
-          </p>
-          <p className="text-muted-foreground text-sm">
-            Este é um espaço seguro. Em breve, adicionaremos mais funcionalidades aqui, como o gerenciamento de suas ordens de serviço.
-          </p>
-
-          <Button onClick={handleLogout} variant="destructive" className="w-full">
-            Sair
-          </Button>
+        <CardContent>
+          <p>Selecione uma das opções no menu ao lado para começar a gerenciar suas operações.</p>
         </CardContent>
       </Card>
-    </main>
+      <div className="grid gap-4 md:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Ordens de Serviço Ativas</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">12</div>
+            <p className="text-xs text-muted-foreground">+2 do que no mês passado</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Clientes Atendidos</CardTitle>
+            <Wrench className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">152</div>
+            <p className="text-xs text-muted-foreground">+15.3% de crescimento</p>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
