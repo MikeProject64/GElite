@@ -1,8 +1,10 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
@@ -14,8 +16,9 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Edit, Eye } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 
 interface ServiceOrder {
@@ -41,9 +44,13 @@ const getStatusVariant = (status: string) => {
 export default function ServicosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', technician: '', clientName: '' });
+
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -89,6 +96,24 @@ export default function ServicosPage() {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
 
+  const openCancelDialog = (orderId: string) => {
+    setCancellingOrderId(orderId);
+    setIsAlertOpen(true);
+  };
+
+  const handleCancelOrder = async () => {
+    if (!cancellingOrderId) return;
+    try {
+      const orderRef = doc(db, 'serviceOrders', cancellingOrderId);
+      await updateDoc(orderRef, { status: 'Cancelada' });
+      toast({ title: 'Sucesso', description: 'Ordem de serviço cancelada.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível cancelar a ordem de serviço.' });
+    } finally {
+      setIsAlertOpen(false);
+      setCancellingOrderId(null);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -196,10 +221,16 @@ export default function ServicosPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem>Ver Detalhes</DropdownMenuItem>
-                            <DropdownMenuItem>Editar</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
+                                <Eye className="mr-2 h-4 w-4" /> Ver Detalhes
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
+                                <Edit className="mr-2 h-4 w-4" /> Editar / Atualizar
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-red-600">Cancelar OS</DropdownMenuItem>
+                            <DropdownMenuItem className="text-destructive" onSelect={() => openCancelDialog(order.id)}>
+                               <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
+                            </DropdownMenuItem>
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
@@ -216,6 +247,22 @@ export default function ServicosPage() {
           </div>
         </CardFooter>
       </Card>
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manualmente.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCancellingOrderId(null)}>Voltar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleCancelOrder} className="bg-destructive hover:bg-destructive/90">
+                Sim, cancelar
+            </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
     </div>
   );
 }

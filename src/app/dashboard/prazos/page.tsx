@@ -145,7 +145,7 @@ export default function PrazosPage() {
     })), [orders]);
 
     const handleRowClick = (orderId: string) => {
-        toast({ title: "Funcionalidade Futura", description: `Redirecionaria para detalhes da OS: ${orderId}`});
+        router.push(`/dashboard/servicos/${orderId}`);
     };
 
     return (
