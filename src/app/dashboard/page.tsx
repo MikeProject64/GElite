@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wrench, Users, Loader2, ListTodo, History, FilePlus, UserPlus } from 'lucide-react';
+import { Wrench, Users, Loader2, ListTodo, History, FilePlus, UserPlus, FileText } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useEffect, useState } from 'react';
@@ -23,7 +23,11 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+        setLoading(false);
+        return;
+    }
+    
     setLoading(true);
 
     const activeStatuses = ['Pendente', 'Em Andamento', 'Aguardando Peça'];
@@ -40,12 +44,7 @@ export default function DashboardPage() {
       
       setStats(prevStats => ({...prevStats, activeOrders: activeCount}));
       setUpcomingOrders(upcoming);
-      
-      // We set loading to false here, but other data might still be loading
-      // It's a trade-off for perceived performance.
-      if(loading) setLoading(false); 
-
-    }, () => setLoading(false));
+    });
 
     // Listener for customers stats
     const customersQuery = query(collection(db, 'customers'), where('userId', '==', user.uid));
@@ -54,7 +53,7 @@ export default function DashboardPage() {
         setStats(prevStats => ({...prevStats, totalCustomers: customerCount}));
     });
     
-    // Fetch recent activities
+    // Fetch recent activities (one-time fetch)
     const fetchRecentActivities = async () => {
         try {
             const recentOrdersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
@@ -108,19 +107,22 @@ export default function DashboardPage() {
 
         } catch (error) {
             console.error("Error fetching recent activities: ", error);
-        } finally {
-            if(loading) setLoading(false);
         }
     };
 
-    fetchRecentActivities();
+    // After setting up listeners, run one-time fetches and then turn off loading.
+    fetchRecentActivities().finally(() => {
+        setLoading(false);
+    });
 
+
+    // Cleanup function for listeners
     return () => {
       unsubscribeOrders();
       unsubscribeCustomers();
     };
 
-  }, [user, loading]);
+  }, [user]); // The effect now only depends on the user object.
 
   const getRecentActivityIcon = (type: RecentActivity['type']) => {
     switch (type) {
