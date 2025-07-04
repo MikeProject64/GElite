@@ -10,10 +10,10 @@ const DynamicLayoutEffects = () => {
   const { settings, loadingSettings } = useSettings();
 
   useEffect(() => {
-    if (!loadingSettings && settings.siteName) {
+    if (settings.siteName) {
       document.title = settings.siteName;
     }
-  }, [settings.siteName, loadingSettings]);
+  }, [settings.siteName]);
 
   useEffect(() => {
     if (!loadingSettings && settings.iconName) {

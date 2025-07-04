@@ -119,25 +119,27 @@ export default function ConfiguracoesPage() {
                         <FormItem className="space-y-3">
                           <FormLabel>Ícone do Site</FormLabel>
                           <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 lg:grid-cols-12 gap-4"
-                            >
-                              {iconNames.map((iconName) => {
-                                const IconComponent = availableIcons[iconName];
-                                return (
-                                  <FormItem key={iconName}>
-                                    <FormControl>
-                                      <RadioGroupItem value={iconName} className="sr-only" />
-                                    </FormControl>
-                                    <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer aspect-square">
-                                      <IconComponent className="h-6 w-6" />
-                                    </FormLabel>
-                                  </FormItem>
-                                );
-                              })}
-                            </RadioGroup>
+                            <div className="max-w-2xl">
+                              <RadioGroup
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                                className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-4"
+                              >
+                                {iconNames.map((iconName) => {
+                                  const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
+                                  return (
+                                    <FormItem key={iconName}>
+                                      <FormControl>
+                                        <RadioGroupItem value={iconName as string} className="sr-only" />
+                                      </FormControl>
+                                      <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer aspect-square">
+                                        <IconComponent className="h-6 w-6" />
+                                      </FormLabel>
+                                    </FormItem>
+                                  );
+                                })}
+                              </RadioGroup>
+                            </div>
                           </FormControl>
                           <FormMessage />
                         </FormItem>
