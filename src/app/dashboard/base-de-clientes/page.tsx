@@ -202,7 +202,7 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                 <FormField
+                <FormField
                   control={form.control}
                   name="birthDate"
                   render={({ field }) => (
@@ -218,14 +218,12 @@ export default function BaseDeClientesPage() {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              <span className="flex items-center justify-between w-full">
+                              <div className="flex justify-between items-center w-full">
                                 <span>
-                                  {field.value
-                                    ? format(field.value, "PPP", { locale: ptBR })
-                                    : "Escolha uma data"}
+                                  {field.value ? format(field.value, "PPP", { locale: ptBR }) : "Escolha uma data"}
                                 </span>
                                 <CalendarIcon className="h-4 w-4 opacity-50" />
-                              </span>
+                              </div>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -354,3 +352,5 @@ export default function BaseDeClientesPage() {
     </div>
   );
 }
+
+    

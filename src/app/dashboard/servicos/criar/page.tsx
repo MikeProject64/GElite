@@ -193,12 +193,12 @@ export default function CriarOrdemDeServicoPage() {
                               role="combobox"
                               className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
                             >
-                              <span className="flex items-center justify-between w-full">
+                              <div className="flex justify-between items-center w-full">
                                 <span className="truncate">
                                   {form.getValues('clientName') || "Selecione um cliente"}
                                 </span>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </span>
+                              </div>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -216,7 +216,7 @@ export default function CriarOrdemDeServicoPage() {
                                     className="cursor-pointer"
                                 >
                                     <UserPlus className="mr-2 h-4 w-4" />
-                                    Cadastrar Novo Cliente
+                                    <span>Cadastrar Novo Cliente</span>
                                 </CommandItem>
                                 {customers.map((customer) => (
                                     <CommandItem
@@ -263,7 +263,7 @@ export default function CriarOrdemDeServicoPage() {
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              <span className="flex items-center justify-between w-full">
+                              <div className="flex justify-between items-center w-full">
                                 <span>
                                   {field.value ? (
                                     format(field.value, "PPP", { locale: ptBR })
@@ -272,7 +272,7 @@ export default function CriarOrdemDeServicoPage() {
                                   )}
                                 </span>
                                 <CalendarIcon className="h-4 w-4 opacity-50" />
-                              </span>
+                              </div>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -335,7 +335,7 @@ export default function CriarOrdemDeServicoPage() {
                                     !field.value && "text-muted-foreground"
                                   )}
                                 >
-                                  <span className="flex items-center justify-between w-full">
+                                  <div className="flex justify-between items-center w-full">
                                     <span>
                                       {field.value ? (
                                         format(field.value, "PPP", { locale: ptBR })
@@ -344,7 +344,7 @@ export default function CriarOrdemDeServicoPage() {
                                       )}
                                     </span>
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </span>
+                                  </div>
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
@@ -377,3 +377,5 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
+
+    
