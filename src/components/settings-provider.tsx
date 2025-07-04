@@ -6,9 +6,17 @@ import { useAuth } from './auth-provider';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+export interface CustomField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'date';
+}
+
 export interface UserSettings {
   siteName: string;
   iconName: string;
+  customerCustomFields?: CustomField[];
+  serviceOrderCustomFields?: CustomField[];
 }
 
 interface SettingsContextType {
@@ -20,6 +28,8 @@ interface SettingsContextType {
 const defaultSettings: UserSettings = {
   siteName: 'ServiceWise',
   iconName: 'Wrench',
+  customerCustomFields: [],
+  serviceOrderCustomFields: [],
 };
 
 const SettingsContext = createContext<SettingsContextType>({

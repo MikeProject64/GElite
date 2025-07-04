@@ -1,38 +1,35 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only create their own user document on signup.
-    // And can only read/update their own document.
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if the user is the owner of the document
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users can only read their own user document
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      allow create: if request.auth.uid == userId;
+      allow read, write: if isAuthenticated() && isOwner(userId);
     }
-
-    // User-specific settings document is identified by the user's UID.
+    
+    // Allow users to read and write their own settings
     match /userSettings/{userId} {
-      allow read, write: if request.auth.uid == userId;
+       allow read, write: if isAuthenticated() && isOwner(userId);
     }
 
-    // Customers are owned by users.
-    match /customers/{customerId} {
-      // Allow create if the new document's userId matches the authenticated user.
-      allow create: if request.auth.uid == request.resource.data.userId;
-      // Allow read, update, delete if the authenticated user's ID matches the userId on the document.
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-    }
-
-    // Inventory items are owned by users.
-    match /inventory/{itemId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-    }
-
-    // Service Orders are owned by users.
-    match /serviceOrders/{orderId} {
-      allow create: if request.auth.uid == request.resource.data.userId;
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
+    // Generic rule for user-owned data collections
+    // This applies to customers, serviceOrders, inventory, quotes
+    match /{collection}/{docId} {
+      allow read, write: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow create: if isAuthenticated() && isOwner(request.resource.data.userId);
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
     }
   }
 }
