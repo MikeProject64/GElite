@@ -26,6 +26,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon, Wrench, Filter } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 
 const serviceOrderSchema = z.object({
@@ -133,7 +134,7 @@ export default function OrdensDeServicoPage() {
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       form.reset();
       setIsDialogOpen(false);
-    } catch (error) => {
+    } catch (error: any) {
       console.error("Error adding document: ", error);
       toast({
         variant: "destructive",
