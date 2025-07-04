@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -188,12 +189,7 @@ export default function CriarOrdemDeServicoPage() {
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent
-                      className="w-[--radix-popover-trigger-width] p-0"
-                      onMouseDown={(e) => {
-                        e.preventDefault()
-                      }}
-                    >
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
                         <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
@@ -203,6 +199,9 @@ export default function CriarOrdemDeServicoPage() {
                               <CommandItem
                                 value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                }}
                                 onSelect={() => {
                                   field.onChange(customer.id)
                                   setIsComboboxOpen(false)

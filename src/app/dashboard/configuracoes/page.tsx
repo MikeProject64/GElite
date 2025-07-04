@@ -119,11 +119,11 @@ export default function ConfiguracoesPage() {
                         <FormItem className="space-y-3">
                           <FormLabel>Ícone do Site</FormLabel>
                           <FormControl>
-                            <div className="max-w-2xl">
+                            <div className="max-w-lg">
                               <RadioGroup
                                 onValueChange={field.onChange}
                                 defaultValue={field.value}
-                                className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-4"
+                                className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-2"
                               >
                                 {iconNames.map((iconName) => {
                                   const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
@@ -132,8 +132,8 @@ export default function ConfiguracoesPage() {
                                       <FormControl>
                                         <RadioGroupItem value={iconName as string} className="sr-only" />
                                       </FormControl>
-                                      <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary cursor-pointer aspect-square">
-                                        <IconComponent className="h-6 w-6" />
+                                      <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/10 cursor-pointer aspect-square">
+                                        <IconComponent className="h-5 w-5" />
                                       </FormLabel>
                                     </FormItem>
                                   );

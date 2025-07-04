@@ -12,13 +12,16 @@ const DynamicLayoutEffects = () => {
   useEffect(() => {
     if (loadingSettings) return;
 
+    // Update title
     if (settings.siteName) {
       document.title = settings.siteName;
     }
 
+    // Update favicon
     if (settings.iconName) {
       const IconComponent = availableIcons[settings.iconName as keyof typeof availableIcons];
       if (IconComponent) {
+        // This is a client-side only operation
         const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
         const svgString = ReactDOMServer.renderToString(
           <IconComponent color={`hsl(${primaryColor})`} size={32} />
