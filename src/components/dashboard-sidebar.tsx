@@ -16,27 +16,25 @@ import {
   Users,
   Wrench,
   CalendarClock,
-  PlusCircle,
   Settings,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
 
-const navItems = [
-  { href: '/dashboard', label: 'Painel', icon: Home },
-  { href: '/dashboard/servicos/criar', label: 'Criar OS', icon: PlusCircle },
-  { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
-  { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
-  { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
-  { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
-];
-
 function NavContent() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { settings } = useSettings();
+
+  const navItems = [
+    { href: '/dashboard', label: 'Painel', icon: Home },
+    { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
+    { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
+    { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
+    { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
+  ];
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -56,19 +54,22 @@ function NavContent() {
       </div>
       <div className="flex-1">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-          {navItems.map(({ href, label, icon: Icon }) => (
-            <Link
-              key={href}
-              href={href}
-              className={cn(
-                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                pathname === href ? 'bg-muted text-primary' : ''
-              )}
-            >
-              <Icon className="h-4 w-4" />
-              {label}
-            </Link>
-          ))}
+          {navItems.map(({ href, label, icon: Icon }) => {
+            const isActive = href === '/dashboard' ? pathname === href : pathname.startsWith(href);
+            return (
+                <Link
+                key={href}
+                href={href}
+                className={cn(
+                    'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                    isActive ? 'bg-muted text-primary' : ''
+                )}
+                >
+                <Icon className="h-4 w-4" />
+                {label}
+                </Link>
+            )
+          })}
         </nav>
       </div>
       <div className="mt-auto p-4 border-t">
