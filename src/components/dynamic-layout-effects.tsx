@@ -10,16 +10,15 @@ const DynamicLayoutEffects = () => {
   const { settings, loadingSettings } = useSettings();
 
   useEffect(() => {
+    if (loadingSettings) return;
+
     if (settings.siteName) {
       document.title = settings.siteName;
     }
-  }, [settings.siteName]);
 
-  useEffect(() => {
-    if (!loadingSettings && settings.iconName) {
+    if (settings.iconName) {
       const IconComponent = availableIcons[settings.iconName as keyof typeof availableIcons];
       if (IconComponent) {
-        // We need to get the actual HSL values for the primary color from the CSS variables
         const primaryColor = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
         const svgString = ReactDOMServer.renderToString(
           <IconComponent color={`hsl(${primaryColor})`} size={32} />
@@ -35,7 +34,7 @@ const DynamicLayoutEffects = () => {
         link.href = faviconUrl;
       }
     }
-  }, [settings.iconName, loadingSettings]);
+  }, [settings, loadingSettings]);
 
   return null;
 };
