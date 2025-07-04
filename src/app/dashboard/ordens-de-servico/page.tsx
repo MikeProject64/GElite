@@ -287,12 +287,12 @@ export default function OrdensDeServicoPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="status-filter">Filtrar por Status</Label>
-                 <Select value={filters.status} onValueChange={value => handleFilterChange('status', value)}>
-                    <SelectTrigger>
+                 <Select value={filters.status} onValueChange={value => handleFilterChange('status', value === 'all' ? '' : value)}>
+                    <SelectTrigger id="status-filter">
                         <SelectValue placeholder="Todos os Status" />
                     </SelectTrigger>
                     <SelectContent>
-                        <SelectItem value="">Todos os Status</SelectItem>
+                        <SelectItem value="all">Todos os Status</SelectItem>
                         <SelectItem value="Pendente">Pendente</SelectItem>
                         <SelectItem value="Em Andamento">Em Andamento</SelectItem>
                         <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
