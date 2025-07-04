@@ -189,7 +189,7 @@ export default function CriarOrdemDeServicoPage() {
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent onMouseDown={(e) => e.preventDefault()} className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
                         <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
@@ -197,7 +197,6 @@ export default function CriarOrdemDeServicoPage() {
                           <CommandGroup>
                             {customers.map((customer) => (
                               <CommandItem
-                                value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
                                 onSelect={() => {
                                   field.onChange(customer.id)
@@ -205,8 +204,10 @@ export default function CriarOrdemDeServicoPage() {
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
-                                <span>{customer.name}</span>
-                                <span className="ml-auto text-xs text-foreground/80">{customer.phone}</span>
+                                <div>
+                                  <div>{customer.name}</div>
+                                  <div className="text-sm text-foreground/80">{customer.phone}</div>
+                                </div>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -319,3 +320,5 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
+
+    
