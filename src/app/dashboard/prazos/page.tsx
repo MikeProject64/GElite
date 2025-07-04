@@ -1,12 +1,15 @@
+
 'use client'
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
+import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { dateFnsLocalizer, Event } from 'react-big-calendar';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -16,7 +19,18 @@ import { Loader2, CalendarClock, Calendar as CalendarIcon, List } from "lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
-import { Calendar, dateFnsLocalizer, Event } from 'react-big-calendar';
+// Dynamic import for the Calendar component
+const BigCalendar = dynamic(
+  () => import('react-big-calendar').then(mod => mod.Calendar),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex justify-center items-center h-[600px]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    ),
+  }
+);
 
 interface ServiceOrder {
     id: string;
@@ -212,7 +226,7 @@ export default function PrazosPage() {
                         </>
                     ) : (
                         <div className="h-[600px]">
-                            <Calendar
+                            <BigCalendar
                                 localizer={localizer}
                                 events={calendarEvents}
                                 startAccessor="start"

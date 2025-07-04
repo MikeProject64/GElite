@@ -17,6 +17,7 @@ import {
   Wrench,
   CalendarClock,
   Settings,
+  Package,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -32,7 +33,8 @@ function NavContent() {
     { href: '/dashboard', label: 'Painel', icon: Home },
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
-    { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
+    { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users },
+    { href: '/dashboard/inventario', label: 'Inventário', icon: Package },
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
@@ -55,7 +57,7 @@ function NavContent() {
       <div className="flex-1">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = (href === '/dashboard/servicos' && pathname.startsWith(href)) || pathname === href;
+            const isActive = (href.length > '/dashboard'.length && pathname.startsWith(href)) || pathname === href;
             return (
                 <Link
                 key={href}
