@@ -153,7 +153,7 @@ export function InventoryClient() {
       }
       setIsDialogOpen(false);
       setEditingItem(null);
-    } catch (error) => {
+    } catch (error) {
       console.error("Error adding/updating document: ", error);
       toast({
         variant: "destructive",
