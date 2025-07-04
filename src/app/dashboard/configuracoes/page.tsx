@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -145,6 +145,10 @@ export default function ConfiguracoesPage() {
       updateSettings({ serviceOrderCustomFields: fields });
   };
 
+  const handleUpdateQuoteFields = (fields: CustomField[]) => {
+    updateSettings({ quoteCustomFields: fields });
+  };
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold md:text-2xl">Configurações</h1>
@@ -252,7 +256,7 @@ export default function ConfiguracoesPage() {
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
                     ) : (
-                        <div>
+                        <div className="grid md:grid-cols-2 gap-4">
                             <CustomFieldManager
                                 title="Campos para Clientes"
                                 icon={<Users className="h-5 w-5 text-primary" />}
@@ -261,9 +265,15 @@ export default function ConfiguracoesPage() {
                             />
                              <CustomFieldManager
                                 title="Campos para Ordens de Serviço"
-                                icon={<FileText className="h-5 w-5 text-primary" />}
+                                icon={<ClipboardEdit className="h-5 w-5 text-primary" />}
                                 fields={settings.serviceOrderCustomFields || []}
                                 onUpdateFields={handleUpdateServiceOrderFields}
+                            />
+                             <CustomFieldManager
+                                title="Campos para Orçamentos"
+                                icon={<FileText className="h-5 w-5 text-primary" />}
+                                fields={settings.quoteCustomFields || []}
+                                onUpdateFields={handleUpdateQuoteFields}
                             />
                         </div>
                     )}

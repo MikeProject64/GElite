@@ -17,6 +17,7 @@ export interface UserSettings {
   iconName: string;
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
+  quoteCustomFields?: CustomField[];
 }
 
 interface SettingsContextType {
@@ -30,6 +31,7 @@ const defaultSettings: UserSettings = {
   iconName: 'Wrench',
   customerCustomFields: [],
   serviceOrderCustomFields: [],
+  quoteCustomFields: [],
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -93,11 +95,27 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
     if (!user) throw new Error("User not authenticated to update settings.");
+    
+    // Optimistically update local state for faster UI response
+    const updatedSettings = { ...settings, ...newSettings };
+    setSettings(updatedSettings);
+
+    const storageKey = `servicewise-settings-${user.uid}`;
+    try {
+        localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
+    } catch (e) {
+        console.error("Could not save optimistic update to localStorage", e);
+    }
+    
+    // Then, persist to Firestore
     const settingsRef = doc(db, 'userSettings', user.uid);
-    // Let the onSnapshot listener handle updating state and localStorage
-    // to maintain a single source of truth flow.
-    await setDoc(settingsRef, newSettings, { merge: true });
-  }, [user]);
+    try {
+        await setDoc(settingsRef, newSettings, { merge: true });
+    } catch(error) {
+        console.error("Failed to update settings in Firestore", error);
+        // Optionally revert optimistic update on failure
+    }
+  }, [user, settings]);
 
   const value = { settings, updateSettings, loadingSettings };
 

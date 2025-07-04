@@ -1,15 +1,16 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -18,34 +19,48 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CalendarIcon, ChevronsUpDown, Check, FileText } from 'lucide-react';
+import { Loader2, ArrowLeft, CalendarIcon, ChevronsUpDown, Check, FileText, UserPlus } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 const quoteSchema = z.object({
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   description: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres."),
   totalValue: z.coerce.number().min(0.01, "O valor total deve ser maior que zero."),
   validUntil: z.date({ required_error: "A data de validade é obrigatória." }),
+  customFields: z.record(z.any()).optional(),
+});
+
+const newCustomerSchema = z.object({
+  name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
+  phone: z.string().min(10, "O telefone deve ter pelo menos 10 caracteres."),
 });
 
 type QuoteFormValues = z.infer<typeof quoteSchema>;
+type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 
 interface Customer {
   id: string;
   name: string;
+  phone: string;
 }
 
 export default function CriarOrcamentoPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+  const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
@@ -53,8 +68,14 @@ export default function CriarOrcamentoPage() {
       clientId: '',
       description: '',
       totalValue: 0,
-      validUntil: addDays(new Date(), 7), // Default validity of 7 days
+      validUntil: addDays(new Date(), 7),
+      customFields: {},
     },
+  });
+
+  const newCustomerForm = useForm<NewCustomerValues>({
+    resolver: zodResolver(newCustomerSchema),
+    defaultValues: { name: '', phone: '' },
   });
 
   useEffect(() => {
@@ -68,17 +89,63 @@ export default function CriarOrcamentoPage() {
     });
     return () => unsubscribe();
   }, [user, toast]);
+
+  useEffect(() => {
+    if(!isNewClientDialogOpen) {
+      newCustomerForm.reset();
+    }
+  }, [isNewClientDialogOpen, newCustomerForm]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
   
+  const onNewClientSubmit = async (data: NewCustomerValues) => {
+    if (!user) return;
+    try {
+      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
+      const querySnapshot = await getDocs(q);
+      if (!querySnapshot.empty) {
+        toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este telefone." });
+        return;
+      }
+      const docRef = await addDoc(collection(db, 'customers'), {
+        ...data,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+      });
+      toast({ title: "Sucesso!", description: "Cliente cadastrado." });
+      form.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
+      setIsNewClientDialogOpen(false);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao cadastrar o cliente." });
+    }
+  };
+
   const onSubmit = async (data: QuoteFormValues) => {
     if (!user) return;
     try {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
       if (!selectedCustomer) throw new Error("Cliente não encontrado");
 
+      const customFieldsData = { ...data.customFields };
+      settings.quoteCustomFields?.forEach(field => {
+            if (field.type === 'date' && customFieldsData[field.id]) {
+                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+            }
+       });
+
       await addDoc(collection(db, 'quotes'), {
         ...data,
         clientName: selectedCustomer.name,
         validUntil: Timestamp.fromDate(data.validUntil),
+        customFields: customFieldsData,
         userId: user.uid,
         status: 'Pendente',
         createdAt: Timestamp.now(),
@@ -89,6 +156,11 @@ export default function CriarOrcamentoPage() {
       toast({ variant: "destructive", title: "Erro", description: `Falha ao criar o orçamento: ${error.message}` });
     }
   };
+
+  const filteredCustomers = customers.filter(customer => 
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <div className="flex flex-col gap-4">
@@ -109,49 +181,61 @@ export default function CriarOrcamentoPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-               <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Cliente *</FormLabel>
-                       <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                              {field.value ? customers.find((c) => c.id === field.value)?.name : "Selecione um cliente"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                          <Command>
-                            <CommandInput placeholder="Buscar cliente..." />
-                            <CommandList>
-                               <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                                <CommandGroup>
-                                {customers.map((customer) => (
-                                    <CommandItem
-                                        value={customer.name}
-                                        key={customer.id}
-                                        onSelect={() => {
-                                            form.setValue("clientId", customer.id)
-                                            setIsComboboxOpen(false)
-                                        }}
-                                        >
-                                        <Check className={cn("mr-2 h-4 w-4", customer.id === field.value ? "opacity-100" : "opacity-0")}/>
-                                        {customer.name}
-                                    </CommandItem>
-                                ))}
-                                </CommandGroup>
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+               <FormField control={form.control} name="clientId" render={({ field }) => (
+                <FormItem className="flex flex-col">
+                  <div className="flex items-center justify-between">
+                    <FormLabel>Cliente *</FormLabel>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)}>
+                      <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
+                    </Button>
+                  </div>
+                  <div className="relative" ref={dropdownRef}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)}>
+                      <span className='truncate'>
+                        {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                    {isDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
+                        <div className="p-2">
+                          <Input
+                            placeholder="Buscar cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <ScrollArea className="h-48">
+                          {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map((customer) => (
+                              <button
+                                type="button"
+                                key={customer.id}
+                                className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
+                                onClick={() => {
+                                  field.onChange(customer.id);
+                                  setIsDropdownOpen(false);
+                                  setSearchTerm('');
+                                }}
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                <div>
+                                  <p>{customer.name}</p>
+                                  <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                                </div>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}/>
 
               <FormField control={form.control} name="description" render={({ field }) => (
                 <FormItem><FormLabel>Descrição dos Serviços/Produtos *</FormLabel><FormControl><Textarea placeholder="Detalhe os itens do orçamento..." {...field} rows={5} /></FormControl><FormMessage /></FormItem>
@@ -193,6 +277,43 @@ export default function CriarOrcamentoPage() {
                 )}/>
               </div>
 
+               {settings.quoteCustomFields && settings.quoteCustomFields.length > 0 && (
+                    <>
+                        <Separator className="my-2" />
+                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
+                        {settings.quoteCustomFields.map((customField) => (
+                           <FormField
+                                key={customField.id}
+                                control={form.control}
+                                name={`customFields.${customField.id}`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{customField.name}</FormLabel>
+                                        <FormControl>
+                                            {customField.type === 'date' ? (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            ) : (
+                                                <Input type={customField.type} {...field} value={field.value || ''} />
+                                            )}
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                    </>
+                )}
+
               <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/orcamentos')}>Cancelar</Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -204,6 +325,25 @@ export default function CriarOrcamentoPage() {
           </Form>
         </CardContent>
       </Card>
+
+      <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para um cadastro rápido.</DialogDescription></DialogHeader>
+            <Form {...newCustomerForm}>
+              <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4">
+                <FormField control={newCustomerForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome Completo *</FormLabel><FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                <FormField control={newCustomerForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Telefone *</FormLabel><FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl><FormMessage /></FormItem> )}/>
+                <DialogFooter className="pt-4">
+                  <Button type="button" variant="ghost" onClick={() => setIsNewClientDialogOpen(false)}>Cancelar</Button>
+                  <Button type="submit" disabled={newCustomerForm.formState.isSubmitting}>
+                      {newCustomerForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salvar Cliente
+                  </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 }

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -9,6 +10,7 @@ import Link from 'next/link';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,6 +28,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -35,16 +38,12 @@ const serviceOrderSchema = z.object({
   technician: z.string().min(1, "O técnico é obrigatório."),
   status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
+  customFields: z.record(z.any()).optional(),
 });
 
 const newCustomerSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
   phone: z.string().min(10, "O telefone deve ter pelo menos 10 caracteres."),
-  email: z.string().email().optional().or(z.literal('')),
-  address: z.string().optional(),
-  cpfCnpj: z.string().optional(),
-  birthDate: z.date().optional().nullable(),
-  notes: z.string().optional(),
 });
 
 type ServiceOrderValues = z.infer<typeof serviceOrderSchema>;
@@ -60,6 +59,7 @@ export default function CriarOrdemDeServicoPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
@@ -77,6 +77,7 @@ export default function CriarOrdemDeServicoPage() {
       technician: '',
       status: 'Pendente',
       dueDate: new Date(),
+      customFields: {},
     },
   });
   const newCustomerForm = useForm<NewCustomerValues>({
@@ -84,11 +85,6 @@ export default function CriarOrdemDeServicoPage() {
     defaultValues: {
       name: '',
       phone: '',
-      email: '',
-      address: '',
-      cpfCnpj: '',
-      birthDate: null,
-      notes: '',
     },
   });
 
@@ -133,7 +129,6 @@ export default function CriarOrdemDeServicoPage() {
       }
       const docRef = await addDoc(collection(db, 'customers'), {
         ...data,
-        birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
@@ -151,10 +146,18 @@ export default function CriarOrdemDeServicoPage() {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
       if (!selectedCustomer) throw new Error("Cliente não encontrado");
 
+      const customFieldsData = { ...data.customFields };
+      settings.serviceOrderCustomFields?.forEach(field => {
+            if (field.type === 'date' && customFieldsData[field.id]) {
+                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+            }
+       });
+
       await addDoc(collection(db, 'serviceOrders'), {
         ...data,
         clientName: selectedCustomer.name,
         dueDate: Timestamp.fromDate(data.dueDate),
+        customFields: customFieldsData,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
@@ -288,6 +291,45 @@ export default function CriarOrdemDeServicoPage() {
                   <FormMessage />
                 </FormItem>
               )}/>
+
+                {settings.serviceOrderCustomFields && settings.serviceOrderCustomFields.length > 0 && (
+                    <>
+                        <Separator className="my-2" />
+                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
+                        {settings.serviceOrderCustomFields.map((customField) => (
+                           <FormField
+                                key={customField.id}
+                                control={serviceOrderForm.control}
+                                name={`customFields.${customField.id}`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{customField.name}</FormLabel>
+                                        <FormControl>
+                                            {customField.type === 'date' ? (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            ) : (
+                                                <Input type={customField.type} {...field} value={field.value || ''} />
+                                            )}
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                    </>
+                )}
+
+
               <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/servicos')}>Cancelar</Button>
                   <Button type="submit" disabled={serviceOrderForm.formState.isSubmitting}>
@@ -301,37 +343,12 @@ export default function CriarOrdemDeServicoPage() {
       </Card>
 
       <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
-        <DialogContent className="sm:max-w-lg">
-            <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para adicionar um novo cliente.</DialogDescription></DialogHeader>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para um cadastro rápido.</DialogDescription></DialogHeader>
             <Form {...newCustomerForm}>
-              <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+              <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4">
                 <FormField control={newCustomerForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome Completo *</FormLabel><FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 <FormField control={newCustomerForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Telefone *</FormLabel><FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <FormField control={newCustomerForm.control} name="email" render={({ field }) => ( <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <FormField control={newCustomerForm.control} name="address" render={({ field }) => ( <FormItem><FormLabel>Endereço</FormLabel><FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <FormField control={newCustomerForm.control} name="cpfCnpj" render={({ field }) => ( <FormItem><FormLabel>CPF/CNPJ</FormLabel><FormControl><Input placeholder="Opcional" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <FormField control={newCustomerForm.control} name="birthDate" render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Data de Nascimento</FormLabel>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
-                            <span className='flex w-full items-center justify-between'>
-                              {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
-                              <CalendarIcon className="h-4 w-4 opacity-50" />
-                            </span>
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField control={newCustomerForm.control} name="notes" render={({ field }) => ( <FormItem><FormLabel>Observações</FormLabel><FormControl><Textarea placeholder="Informações adicionais..." {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 <DialogFooter className="pt-4">
                   <Button type="button" variant="ghost" onClick={() => setIsNewClientDialogOpen(false)}>Cancelar</Button>
                   <Button type="submit" disabled={newCustomerForm.formState.isSubmitting}>

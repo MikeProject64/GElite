@@ -19,24 +19,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, User, Calendar, Wrench, Thermometer, UserCheck, Paperclip, Upload, File, Loader2 } from 'lucide-react';
+import { useSettings } from '@/components/settings-provider';
+import { ArrowLeft, User, Calendar, Wrench, Thermometer, UserCheck, Paperclip, Upload, File, Loader2, Info } from 'lucide-react';
+import { ServiceOrder } from '@/types';
 
-interface Attachment {
-  name: string;
-  url: string;
-}
-
-interface ServiceOrder {
-  id: string;
-  clientName: string;
-  serviceType: string;
-  problemDescription: string;
-  technician: string;
-  status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
-  createdAt: Timestamp;
-  dueDate: Timestamp;
-  attachments?: Attachment[];
-}
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -51,11 +37,11 @@ export default function ServicoDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const [order, setOrder] = useState<ServiceOrder | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
 
   const orderId = Array.isArray(id) ? id[0] : id;
 
@@ -135,6 +121,15 @@ export default function ServicoDetailPage() {
   if (!order) {
     return null;
   }
+  
+  const getCustomFieldLabel = (fieldId: string) => {
+    return settings.serviceOrderCustomFields?.find(f => f.id === fieldId)?.name || fieldId;
+  };
+
+  const getCustomFieldType = (fieldId: string) => {
+    return settings.serviceOrderCustomFields?.find(f => f.id === fieldId)?.type || 'text';
+  }
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -149,64 +144,91 @@ export default function ServicoDetailPage() {
         <Badge variant={getStatusVariant(order.status)} className="text-base px-3 py-1">{order.status}</Badge>
       </div>
       
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2">
-            <CardHeader>
-              <CardTitle>{order.serviceType}</CardTitle>
-              <CardDescription>
-                Criada em: {format(order.createdAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="flex items-center gap-3">
-                      <User className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                          <p className="text-sm text-muted-foreground">Cliente</p>
-                          <p className="font-medium">{order.clientName}</p>
-                      </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                      <UserCheck className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                          <p className="text-sm text-muted-foreground">Técnico</p>
-                          <p className="font-medium">{order.technician}</p>
-                      </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                      <Calendar className="h-5 w-5 text-muted-foreground" />
-                      <div>
-                          <p className="text-sm text-muted-foreground">Prazo de Entrega</p>
-                          <p className="font-medium">{format(order.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
-                      </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <Thermometer className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                          <p className="text-sm text-muted-foreground">Atualizar Status</p>
-                          <Select value={order.status} onValueChange={handleStatusChange}>
-                              <SelectTrigger className="w-[180px]">
-                                  <SelectValue placeholder="Status" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                  <SelectItem value="Pendente">Pendente</SelectItem>
-                                  <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                                  <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
-                                  <SelectItem value="Concluída">Concluída</SelectItem>
-                                  <SelectItem value="Cancelada">Cancelada</SelectItem>
-                              </SelectContent>
-                          </Select>
-                    </div>
-                  </div>
-              </div>
-              <div>
-                  <h3 className="font-medium mb-2">Descrição do Problema</h3>
-                  <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{order.problemDescription}</p>
-              </div>
-            </CardContent>
-          </Card>
-
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
           <Card>
+              <CardHeader>
+                <CardTitle>{order.serviceType}</CardTitle>
+                <CardDescription>
+                  Criada em: {format(order.createdAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Cliente</p>
+                            <p className="font-medium">{order.clientName}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <UserCheck className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Técnico</p>
+                            <p className="font-medium">{order.technician}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Prazo de Entrega</p>
+                            <p className="font-medium">{format(order.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <Thermometer className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                            <p className="text-sm text-muted-foreground">Atualizar Status</p>
+                            <Select value={order.status} onValueChange={handleStatusChange}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Pendente">Pendente</SelectItem>
+                                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                                    <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
+                                    <SelectItem value="Concluída">Concluída</SelectItem>
+                                    <SelectItem value="Cancelada">Cancelada</SelectItem>
+                                </SelectContent>
+                            </Select>
+                      </div>
+                    </div>
+                </div>
+                <div>
+                    <h3 className="font-medium mb-2">Descrição do Problema</h3>
+                    <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{order.problemDescription}</p>
+                </div>
+              </CardContent>
+            </Card>
+
+             {order.customFields && Object.keys(order.customFields).length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
+                        <CardDescription>Campos personalizados para esta ordem de serviço.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-2 gap-4">
+                       {Object.entries(order.customFields).map(([key, value]) => {
+                           const fieldType = getCustomFieldType(key);
+                           let displayValue = value;
+                           if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
+                                displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
+                           }
+                           return (
+                                <div key={key} className="flex flex-col">
+                                    <p className="text-sm font-medium">{getCustomFieldLabel(key)}</p>
+                                    <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
+                                </div>
+                           )
+                       })}
+                    </CardContent>
+                </Card>
+            )}
+
+        </div>
+
+          <Card className='lg:col-span-1'>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Paperclip/> Anexos</CardTitle>
               <CardDescription>Adicione fotos e documentos relevantes.</CardDescription>

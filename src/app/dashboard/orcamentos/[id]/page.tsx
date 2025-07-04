@@ -10,6 +10,7 @@ import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Quote } from '@/types';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info } from 'lucide-react';
 
 const getStatusVariant = (status: Quote['status']) => {
   switch (status) {
@@ -39,6 +40,7 @@ export default function OrcamentoDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +91,7 @@ export default function OrcamentoDetailPage() {
             attachments: [],
             userId: user.uid,
             createdAt: Timestamp.now(),
+            customFields: quote.customFields || {},
         };
         await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
         
@@ -117,6 +120,15 @@ export default function OrcamentoDetailPage() {
 
   if (!quote) return null;
 
+  const getCustomFieldLabel = (fieldId: string) => {
+    return settings.quoteCustomFields?.find(f => f.id === fieldId)?.name || fieldId;
+  };
+
+  const getCustomFieldType = (fieldId: string) => {
+    return settings.quoteCustomFields?.find(f => f.id === fieldId)?.type || 'text';
+  }
+
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center gap-4">
@@ -130,66 +142,95 @@ export default function OrcamentoDetailPage() {
         <Badge variant={getStatusVariant(quote.status)} className="text-base px-3 py-1">{quote.status}</Badge>
       </div>
       
-      <Card>
-          <CardHeader>
-            <CardTitle>Proposta para {quote.clientName}</CardTitle>
-            <CardDescription>
-              Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-             <div className="grid md:grid-cols-2 gap-4">
-                <div className="flex items-center gap-3">
-                    <User className="h-5 w-5 text-muted-foreground" />
+      <div className="grid lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 flex flex-col gap-6">
+            <Card>
+            <CardHeader>
+                <CardTitle>Proposta para {quote.clientName}</CardTitle>
+                <CardDescription>
+                Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                    <div className="flex items-center gap-3">
+                        <User className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Cliente</p>
+                            <p className="font-medium">{quote.clientName}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <Calendar className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Válido até</p>
+                            <p className="font-medium">{format(quote.validUntil.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                    <Thermometer className="h-5 w-5 text-muted-foreground" />
                     <div>
-                        <p className="text-sm text-muted-foreground">Cliente</p>
-                        <p className="font-medium">{quote.clientName}</p>
+                            <p className="text-sm text-muted-foreground">Atualizar Status</p>
+                            <Select value={quote.status} onValueChange={(val) => handleStatusChange(val as Quote['status'])} disabled={quote.status === 'Convertido'}>
+                                <SelectTrigger className="w-[180px]">
+                                    <SelectValue placeholder="Status" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Pendente">Pendente</SelectItem>
+                                    <SelectItem value="Aprovado">Aprovado</SelectItem>
+                                    <SelectItem value="Recusado">Recusado</SelectItem>
+                                </SelectContent>
+                            </Select>
+                    </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-muted-foreground" />
-                    <div>
-                        <p className="text-sm text-muted-foreground">Válido até</p>
-                        <p className="font-medium">{format(quote.validUntil.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
-                    </div>
-                </div>
-                 <div className="flex items-center gap-3">
-                  <Thermometer className="h-5 w-5 text-muted-foreground" />
-                   <div>
-                        <p className="text-sm text-muted-foreground">Atualizar Status</p>
-                        <Select value={quote.status} onValueChange={(val) => handleStatusChange(val as Quote['status'])} disabled={quote.status === 'Convertido'}>
-                            <SelectTrigger className="w-[180px]">
-                                <SelectValue placeholder="Status" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Pendente">Pendente</SelectItem>
-                                <SelectItem value="Aprovado">Aprovado</SelectItem>
-                                <SelectItem value="Recusado">Recusado</SelectItem>
-                            </SelectContent>
-                        </Select>
-                   </div>
-                </div>
-             </div>
 
-            <div>
-                <h3 className="font-medium mb-2">Descrição dos Itens</h3>
-                <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{quote.description}</p>
-            </div>
-            
-             <div className="text-right">
-                <p className="text-sm text-muted-foreground">Valor Total</p>
-                <p className="text-2xl font-bold">{formatCurrency(quote.totalValue)}</p>
-            </div>
-          </CardContent>
-          <CardFooter className="justify-end gap-2">
-                {quote.status === 'Aprovado' && (
-                     <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
-                        {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
-                        Converter em Ordem de Serviço
-                    </Button>
-                )}
-          </CardFooter>
-        </Card>
+                <div>
+                    <h3 className="font-medium mb-2">Descrição dos Itens</h3>
+                    <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{quote.description}</p>
+                </div>
+                
+                <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Valor Total</p>
+                    <p className="text-2xl font-bold">{formatCurrency(quote.totalValue)}</p>
+                </div>
+            </CardContent>
+            <CardFooter className="justify-end gap-2">
+                    {quote.status === 'Aprovado' && (
+                        <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
+                            {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
+                            Converter em Ordem de Serviço
+                        </Button>
+                    )}
+            </CardFooter>
+            </Card>
+        </div>
+
+        <div className="lg:col-span-1">
+            {quote.customFields && Object.keys(quote.customFields).length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-1 gap-4">
+                       {Object.entries(quote.customFields).map(([key, value]) => {
+                           const fieldType = getCustomFieldType(key);
+                           let displayValue = value;
+                           if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
+                                displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
+                           }
+                           return (
+                                <div key={key} className="flex flex-col">
+                                    <p className="text-sm font-medium">{getCustomFieldLabel(key)}</p>
+                                    <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
+                                </div>
+                           )
+                       })}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+      </div>
 
         <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
             <AlertDialogContent>

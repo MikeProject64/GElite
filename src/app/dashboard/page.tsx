@@ -2,24 +2,18 @@
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Wrench, Users, Loader2, ListTodo, History, FilePlus, UserPlus } from 'lucide-react';
 import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useEffect, useState } from 'react';
-import type { RecentActivity } from '@/types';
+import type { RecentActivity, ServiceOrder, Quote, Customer } from '@/types';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-interface ServiceOrder {
-    id: string;
-    clientName: string;
-    status: string;
-    dueDate: { seconds: number; };
-}
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -37,19 +31,23 @@ export default function DashboardPage() {
     // Listener for general stats and upcoming orders
     const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
     const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-      const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as any);
+      const allOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder);
       const activeCount = allOrders.filter(doc => activeStatuses.includes(doc.status)).length;
       const upcoming = allOrders
-        .filter((o: any) => activeStatuses.includes(o.status) && o.dueDate)
-        .sort((a: any, b: any) => a.dueDate.seconds - b.dueDate.seconds)
+        .filter(o => activeStatuses.includes(o.status) && o.dueDate)
+        .sort((a, b) => a.dueDate.seconds - b.dueDate.seconds)
         .slice(0, 5);
       
       setStats(prevStats => ({...prevStats, activeOrders: activeCount}));
       setUpcomingOrders(upcoming);
-      setLoading(false);
+      
+      // We set loading to false here, but other data might still be loading
+      // It's a trade-off for perceived performance.
+      if(loading) setLoading(false); 
+
     }, () => setLoading(false));
 
-    // Listener for customers stats and recent activity
+    // Listener for customers stats
     const customersQuery = query(collection(db, 'customers'), where('userId', '==', user.uid));
     const unsubscribeCustomers = onSnapshot(customersQuery, (snapshot) => {
         const customerCount = snapshot.size;
@@ -58,35 +56,61 @@ export default function DashboardPage() {
     
     // Fetch recent activities
     const fetchRecentActivities = async () => {
-        const recentOrdersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
-        const recentCustomersQuery = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
-        
-        const [ordersSnap, customersSnap] = await Promise.all([
-            getDocs(recentOrdersQuery),
-            getDocs(recentCustomersQuery)
-        ]);
-        
-        const ordersActivity = ordersSnap.docs.map(doc => ({
-            id: doc.id,
-            type: 'serviço' as const,
-            description: `Nova OS: ${doc.data().serviceType} para ${doc.data().clientName}`,
-            timestamp: doc.data().createdAt.toDate(),
-            href: `/dashboard/servicos/${doc.id}`
-        }));
-        
-        const customersActivity = customersSnap.docs.map(doc => ({
-            id: doc.id,
-            type: 'cliente' as const,
-            description: `Novo cliente: ${doc.data().name}`,
-            timestamp: doc.data().createdAt.toDate(),
-            href: `/dashboard/base-de-clientes/${doc.id}`
-        }));
-        
-        const combined = [...ordersActivity, ...customersActivity]
-            .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-            .slice(0, 5);
+        try {
+            const recentOrdersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
+            const recentCustomersQuery = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
+            const recentQuotesQuery = query(collection(db, 'quotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(3));
             
-        setRecentActivity(combined);
+            const [ordersSnap, customersSnap, quotesSnap] = await Promise.all([
+                getDocs(recentOrdersQuery),
+                getDocs(recentCustomersQuery),
+                getDocs(recentQuotesQuery),
+            ]);
+            
+            const ordersActivity: RecentActivity[] = ordersSnap.docs.map(doc => {
+                const data = doc.data() as ServiceOrder;
+                return {
+                    id: doc.id,
+                    type: 'serviço' as const,
+                    description: `Nova OS: ${data.serviceType} para ${data.clientName}`,
+                    timestamp: data.createdAt.toDate(),
+                    href: `/dashboard/servicos/${doc.id}`
+                }
+            });
+            
+            const customersActivity: RecentActivity[] = customersSnap.docs.map(doc => {
+                const data = doc.data() as Customer;
+                return {
+                    id: doc.id,
+                    type: 'cliente' as const,
+                    description: `Novo cliente: ${data.name}`,
+                    timestamp: data.createdAt.toDate(),
+                    href: `/dashboard/base-de-clientes/${doc.id}`
+                }
+            });
+
+            const quotesActivity: RecentActivity[] = quotesSnap.docs.map(doc => {
+                const data = doc.data() as Quote;
+                return {
+                    id: doc.id,
+                    type: 'orçamento' as const,
+                    description: `Orçamento para ${data.clientName}`,
+                    timestamp: data.createdAt.toDate(),
+                    href: `/dashboard/orcamentos/${doc.id}`
+                }
+            });
+            
+            const combined = [...ordersActivity, ...customersActivity, ...quotesActivity]
+                .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                .slice(0, 5);
+                
+            setRecentActivity(combined);
+
+        } catch (error) {
+            console.error("Error fetching recent activities: ", error);
+        } finally {
+            if(loading) setLoading(false);
+        }
     };
 
     fetchRecentActivities();
@@ -96,7 +120,16 @@ export default function DashboardPage() {
       unsubscribeCustomers();
     };
 
-  }, [user]);
+  }, [user, loading]);
+
+  const getRecentActivityIcon = (type: RecentActivity['type']) => {
+    switch (type) {
+      case 'cliente': return <Users className="h-4 w-4 text-muted-foreground"/>;
+      case 'serviço': return <Wrench className="h-4 w-4 text-muted-foreground"/>;
+      case 'orçamento': return <FileText className="h-4 w-4 text-muted-foreground"/>;
+      default: return null;
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -189,7 +222,7 @@ export default function DashboardPage() {
                         {recentActivity.map(activity => (
                              <li key={activity.id} className="flex items-start gap-3">
                                 <div className="mt-1">
-                                    {activity.type === 'cliente' ? <Users className="h-4 w-4 text-muted-foreground"/> : <Wrench className="h-4 w-4 text-muted-foreground"/>}
+                                    {getRecentActivityIcon(activity.type)}
                                 </div>
                                 <div className="flex-1">
                                     <Link href={activity.href} className="hover:underline">

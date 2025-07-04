@@ -9,6 +9,7 @@ import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -26,6 +27,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen } from 'lucide-react';
+import { Customer } from '@/types';
+import { Separator } from '@/components/ui/separator';
 
 const customerFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
@@ -35,21 +38,16 @@ const customerFormSchema = z.object({
   cpfCnpj: z.string().optional(),
   birthDate: z.date().optional().nullable(),
   notes: z.string().optional(),
+  customFields: z.record(z.any()).optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
-
-interface Customer extends Omit<z.infer<typeof customerFormSchema>, 'birthDate'> {
-    id: string;
-    createdAt: Timestamp;
-    userId: string;
-    birthDate?: Timestamp | null;
-}
 
 export default function BaseDeClientesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const { settings } = useSettings();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -68,6 +66,7 @@ export default function BaseDeClientesPage() {
       cpfCnpj: '',
       birthDate: null,
       notes: '',
+      customFields: {},
     },
   });
 
@@ -102,12 +101,13 @@ export default function BaseDeClientesPage() {
         const defaultValues = {
             ...editingCustomer,
             birthDate: editingCustomer.birthDate ? editingCustomer.birthDate.toDate() : null,
+            customFields: editingCustomer.customFields || {},
         };
         form.reset(defaultValues);
       } else {
         form.reset({
           name: '', phone: '', email: '', address: '',
-          cpfCnpj: '', birthDate: null, notes: ''
+          cpfCnpj: '', birthDate: null, notes: '', customFields: {}
         });
       }
     }
@@ -165,9 +165,17 @@ export default function BaseDeClientesPage() {
     }
     
     try {
+       const customFieldsData = { ...data.customFields };
+       settings.customerCustomFields?.forEach(field => {
+            if (field.type === 'date' && customFieldsData[field.id]) {
+                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+            }
+       });
+
       const payload = {
           ...data,
           birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
+          customFields: customFieldsData,
       };
 
       if (editingCustomer) {
@@ -285,6 +293,45 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )}/>
+
+                {settings.customerCustomFields && settings.customerCustomFields.length > 0 && (
+                    <>
+                        <Separator className="my-2" />
+                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
+                        {settings.customerCustomFields.map((customField) => (
+                           <FormField
+                                key={customField.id}
+                                control={form.control}
+                                name={`customFields.${customField.id}`}
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>{customField.name}</FormLabel>
+                                        <FormControl>
+                                            {customField.type === 'date' ? (
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                                            {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                        <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
+                                                    </PopoverContent>
+                                                </Popover>
+                                            ) : (
+                                                <Input type={customField.type} {...field} />
+                                            )}
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        ))}
+                    </>
+                )}
+
+
                 <DialogFooter className='pt-4'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                     <Button type="submit" disabled={form.formState.isSubmitting}>
