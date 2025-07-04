@@ -1,11 +1,16 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, FormEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -13,47 +18,53 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, Search } from 'lucide-react';
-import { Label } from '@/components/ui/label';
+import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon } from 'lucide-react';
 
-interface CustomerData {
-  name: string;
-  phone: string;
-  email: string;
-  address: string;
-  cpfCnpj: string;
-  birthDate: string;
-  notes: string;
-}
 
-interface Customer extends Omit<CustomerData, 'birthDate'> {
+const customerFormSchema = z.object({
+  name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
+  phone: z.string().min(10, { message: 'O telefone deve ter pelo menos 10 caracteres.' }),
+  email: z.string().email({ message: "Por favor, insira um e-mail válido." }).optional().or(z.literal('')),
+  address: z.string().optional(),
+  cpfCnpj: z.string().optional(),
+  birthDate: z.date().optional().nullable(),
+  notes: z.string().optional(),
+});
+
+type CustomerFormValues = z.infer<typeof customerFormSchema>;
+
+interface Customer extends Omit<z.infer<typeof customerFormSchema>, 'birthDate'> {
     id: string;
     createdAt: Timestamp;
     userId: string;
     birthDate?: Timestamp | null;
 }
 
-const initialFormState: CustomerData = {
-  name: '',
-  phone: '',
-  email: '',
-  address: '',
-  cpfCnpj: '',
-  birthDate: '',
-  notes: '',
-};
-
 export default function BaseDeClientesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [newCustomerData, setNewCustomerData] = useState<CustomerData>(initialFormState);
+
+  const form = useForm<CustomerFormValues>({
+    resolver: zodResolver(customerFormSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      email: '',
+      address: '',
+      cpfCnpj: '',
+      birthDate: null,
+      notes: '',
+    },
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -79,6 +90,13 @@ export default function BaseDeClientesPage() {
 
     return () => unsubscribe();
   }, [user, toast]);
+  
+  useEffect(() => {
+    if (!isDialogOpen) {
+      form.reset();
+    }
+  }, [isDialogOpen, form]);
+
 
   const filteredCustomers = useMemo(() => {
     if (!searchTerm) {
@@ -92,40 +110,29 @@ export default function BaseDeClientesPage() {
     );
   }, [customers, searchTerm]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setNewCustomerData(prev => ({ ...prev, [name]: value }));
-  };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const onSubmit = async (data: CustomerFormValues) => {
     if (!user) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para criar um cliente." });
         return;
     }
-    if (newCustomerData.name.length < 3 || newCustomerData.phone.length < 10) {
-      toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Nome e telefone são obrigatórios." });
-      return;
-    }
-    setIsFormSubmitting(true);
+    
     try {
-      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', newCustomerData.phone));
+      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
         toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este número de telefone." });
-        setIsFormSubmitting(false);
         return;
       }
 
       await addDoc(collection(db, 'customers'), {
-        ...newCustomerData,
-        birthDate: newCustomerData.birthDate ? Timestamp.fromDate(new Date(newCustomerData.birthDate)) : null,
+        ...data,
+        birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      setNewCustomerData(initialFormState);
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error adding document: ", error);
@@ -134,8 +141,6 @@ export default function BaseDeClientesPage() {
         title: "Erro ao cadastrar cliente",
         description: "Falha ao salvar o cliente."
       });
-    } finally {
-      setIsFormSubmitting(false);
     }
   };
 
@@ -145,7 +150,7 @@ export default function BaseDeClientesPage() {
         <h1 className="text-lg font-semibold md:text-2xl">Base de Clientes</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="h-8 gap-1" onClick={() => setNewCustomerData(initialFormState)}>
+            <Button size="sm" className="h-8 gap-1">
               <UserPlus className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Novo Cliente
@@ -159,43 +164,80 @@ export default function BaseDeClientesPage() {
                 Preencha os detalhes para adicionar um novo cliente à sua base.
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome Completo *</Label>
-                <Input id="name" name="name" value={newCustomerData.name} onChange={handleInputChange} placeholder="Ex: Maria Oliveira" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Telefone *</Label>
-                <Input id="phone" name="phone" value={newCustomerData.phone} onChange={handleInputChange} placeholder="Ex: (11) 99999-8888" required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mail</Label>
-                <Input id="email" name="email" type="email" value={newCustomerData.email} onChange={handleInputChange} placeholder="Ex: maria.oliveira@email.com" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address">Endereço</Label>
-                <Textarea id="address" name="address" value={newCustomerData.address} onChange={handleInputChange} placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
-                <Input id="cpfCnpj" name="cpfCnpj" value={newCustomerData.cpfCnpj} onChange={handleInputChange} placeholder="Opcional" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="birthDate">Data de Nascimento</Label>
-                <Input id="birthDate" name="birthDate" type="date" value={newCustomerData.birthDate} onChange={handleInputChange} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea id="notes" name="notes" value={newCustomerData.notes} onChange={handleInputChange} placeholder="Informações adicionais sobre o cliente..." />
-              </div>
-              <DialogFooter className='pt-4'>
-                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={isFormSubmitting}>
-                      {isFormSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Salvar Cliente
-                  </Button>
-              </DialogFooter>
-            </form>
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+                <FormField control={form.control} name="name" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nome Completo *</FormLabel>
+                    <FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="phone" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Telefone *</FormLabel>
+                    <FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl><Input type="email" placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="address" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Endereço</FormLabel>
+                    <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="cpfCnpj" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF/CNPJ</FormLabel>
+                    <FormControl><Input placeholder="Opcional" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="birthDate" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data de Nascimento</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}>
+                            <span className='flex w-full items-center justify-between'>
+                              {field.value ? ( format(field.value, "PPP", { locale: ptBR }) ) : ( <span>Selecione a data</span> )}
+                              <CalendarIcon className="h-4 w-4 opacity-50" />
+                            </span>
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                 <FormField control={form.control} name="notes" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <DialogFooter className='pt-4'>
+                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={form.formState.isSubmitting}>
+                        {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Cliente
+                    </Button>
+                </DialogFooter>
+              </form>
+            </Form>
           </DialogContent>
         </Dialog>
       </div>
@@ -207,9 +249,8 @@ export default function BaseDeClientesPage() {
         </CardHeader>
         <CardContent>
           <div className="mb-4">
-            <Label htmlFor="search-customer">Pesquisar Cliente</Label>
-            <div className="relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+             <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search-customer"
                 placeholder="Buscar por nome, telefone, e-mail ou CPF/CNPJ..."
