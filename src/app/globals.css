@@ -102,3 +102,13 @@ body {
 .rbc-event.rbc-selected {
     @apply bg-primary;
 }
+
+@media print {
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .no-print {
+    display: none !important;
+  }
+}

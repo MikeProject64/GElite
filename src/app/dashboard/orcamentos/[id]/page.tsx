@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer } from 'lucide-react';
 
 const getStatusVariant = (status: Quote['status']) => {
   switch (status) {
@@ -196,6 +196,12 @@ export default function OrcamentoDetailPage() {
                 </div>
             </CardContent>
             <CardFooter className="justify-end gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={`/print/orcamento/${quote.id}`} target="_blank">
+                            <Printer className="mr-2 h-4 w-4"/>
+                            Imprimir / PDF
+                        </Link>
+                    </Button>
                     {quote.status === 'Aprovado' && (
                         <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
                             {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}

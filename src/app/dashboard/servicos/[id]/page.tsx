@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Calendar, Wrench, Thermometer, UserCheck, Paperclip, Upload, File, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, User, Calendar, Wrench, Thermometer, UserCheck, Paperclip, Upload, File, Loader2, Info, Printer } from 'lucide-react';
 import { ServiceOrder } from '@/types';
 
 
@@ -200,6 +200,14 @@ export default function ServicoDetailPage() {
                     <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{order.problemDescription}</p>
                 </div>
               </CardContent>
+               <CardFooter className="justify-end gap-2">
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href={`/print/servico/${order.id}`} target="_blank">
+                            <Printer className="mr-2 h-4 w-4"/>
+                            Imprimir / PDF
+                        </Link>
+                    </Button>
+                </CardFooter>
             </Card>
 
              {order.customFields && Object.keys(order.customFields).length > 0 && (
