@@ -209,7 +209,7 @@ export default function CriarOrdemDeServicoPage() {
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
-                                <span className="ml-auto text-xs opacity-70">{customer.phone}</span>
+                                <span className="ml-auto text-xs">{customer.phone}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
