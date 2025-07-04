@@ -65,12 +65,16 @@ export default function BaseDeClientesPage() {
       } as Customer));
       setCustomers(customerList);
       setIsLoading(false);
-    }, (error) => {
+    }, (error: any) => {
         console.error("Error fetching customers: ", error);
+        let description = "Não foi possível carregar os clientes. Verifique suas regras de segurança do Firestore.";
+        if (error.code === 'failed-precondition' && error.message.includes('index')) {
+            description = "A consulta ao banco de dados requer um índice. Verifique o console de depuração do navegador para obter o link para criar o índice.";
+        }
         toast({
             variant: "destructive",
             title: "Erro ao buscar dados",
-            description: "Não foi possível carregar os clientes. Verifique suas regras de segurança do Firestore para a coleção 'customers'.",
+            description: description,
         });
         setIsLoading(false);
     });
