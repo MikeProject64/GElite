@@ -211,21 +211,19 @@ export default function BaseDeClientesPage() {
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
-                           <Button
+                            <Button
                               variant={"outline"}
                               className={cn(
                                 "w-full justify-start text-left font-normal",
                                 !field.value && "text-muted-foreground"
                               )}
                             >
-                              <div className="flex items-center justify-between w-full">
-                                <span>
-                                  {field.value
-                                    ? format(field.value, "PPP", { locale: ptBR })
-                                    : "Escolha uma data"}
-                                </span>
+                              <span className="flex items-center justify-between w-full">
+                                {field.value
+                                  ? format(field.value, "PPP", { locale: ptBR })
+                                  : "Escolha uma data"}
                                 <CalendarIcon className="h-4 w-4 opacity-50" />
-                              </div>
+                              </span>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>

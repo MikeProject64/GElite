@@ -193,12 +193,12 @@ export default function CriarOrdemDeServicoPage() {
                               role="combobox"
                               className={cn("w-full justify-between", !field.value && "text-muted-foreground")}
                             >
-                              <div className="flex items-center justify-between w-full">
+                              <span className="flex items-center justify-between w-full">
                                 <span className="truncate">
                                   {form.getValues('clientName') || "Selecione um cliente"}
                                 </span>
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                              </div>
+                              </span>
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
@@ -247,7 +247,48 @@ export default function CriarOrdemDeServicoPage() {
                 <FormField control={form.control} name="serviceType" render={({ field }) => ( <FormItem> <FormLabel>Tipo de Serviço</FormLabel> <FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="problemDescription" render={({ field }) => ( <FormItem> <FormLabel>Descrição do Problema</FormLabel> <FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 <FormField control={form.control} name="technician" render={({ field }) => ( <FormItem> <FormLabel>Técnico Responsável</FormLabel> <FormControl><Input placeholder="Ex: Carlos Pereira" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="dueDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Data de Vencimento</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")} > <div className="flex items-center justify-between w-full"><span>{field.value ? (format(field.value, "PPP", { locale: ptBR })) : ("Escolha uma data")}</span><CalendarIcon className="h-4 w-4 opacity-50" /></div></Button></FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <Calendar mode="single" selected={field.value} onSelect={field.onChange} disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))} initialFocus locale={ptBR} /> </PopoverContent> </Popover> <FormMessage /> </FormItem> )} />
+                <FormField
+                  control={form.control}
+                  name="dueDate"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Vencimento</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <span className="flex items-center justify-between w-full">
+                                {field.value ? (
+                                  format(field.value, "PPP", { locale: ptBR })
+                                ) : (
+                                  "Escolha uma data"
+                                )}
+                                <CalendarIcon className="h-4 w-4 opacity-50" />
+                              </span>
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            disabled={(date) => date < new Date(new Date().setDate(new Date().getDate() - 1))}
+                            initialFocus
+                            locale={ptBR}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField control={form.control} name="status" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Selecione o status inicial" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="Pendente">Pendente</SelectItem> <SelectItem value="Em Andamento">Em Andamento</SelectItem> <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem> <SelectItem value="Concluída">Concluída</SelectItem> <SelectItem value="Cancelada">Cancelada</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )} />
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/servicos')}>Cancelar</Button>
@@ -287,14 +328,19 @@ export default function CriarOrdemDeServicoPage() {
                               <FormControl>
                                 <Button
                                   variant={"outline"}
-                                  className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
                                 >
-                                  <div className="flex items-center justify-between w-full">
-                                    <span>
-                                      {field.value ? (format(field.value, "PPP", { locale: ptBR })) : ("Escolha uma data")}
-                                    </span>
+                                  <span className="flex items-center justify-between w-full">
+                                    {field.value ? (
+                                      format(field.value, "PPP", { locale: ptBR })
+                                    ) : (
+                                      "Escolha uma data"
+                                    )}
                                     <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                  </div>
+                                  </span>
                                 </Button>
                               </FormControl>
                             </PopoverTrigger>
