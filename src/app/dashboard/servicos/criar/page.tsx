@@ -199,14 +199,24 @@ export default function CriarOrdemDeServicoPage() {
                                 key={customer.id}
                                 value={customer.name + " " + customer.phone}
                                 onSelect={() => {
-                                  field.onChange(customer.id)
-                                  setIsComboboxOpen(false)
+                                  field.onChange(customer.id);
+                                  setIsComboboxOpen(false);
                                 }}
                               >
-                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
-                                <div>
-                                  <div>{customer.name}</div>
-                                  <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                                <div 
+                                  className="flex items-center w-full"
+                                  onMouseDown={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      field.onChange(customer.id);
+                                      setIsComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                  <div>
+                                    <div>{customer.name}</div>
+                                    <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                                  </div>
                                 </div>
                               </CommandItem>
                             ))}
