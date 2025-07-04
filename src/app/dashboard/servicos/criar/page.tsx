@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check } from 'lucide-react';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -54,6 +54,7 @@ type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 interface Customer {
   id: string;
   name: string;
+  phone: string;
 }
 
 export default function CriarOrdemDeServicoPage() {
@@ -73,7 +74,7 @@ export default function CriarOrdemDeServicoPage() {
       problemDescription: '',
       technician: '',
       status: 'Pendente',
-      dueDate: new Date(),
+      dueDate: undefined,
     },
   });
   const newCustomerForm = useForm<NewCustomerValues>({
@@ -187,19 +188,23 @@ export default function CriarOrdemDeServicoPage() {
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
-                        <CommandInput placeholder="Buscar cliente..." />
+                        <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
                           <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                           <CommandGroup>
                             {customers.map((customer) => (
                               <CommandItem
-                                value={customer.name}
+                                value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
                                 onSelect={() => {
-                                  field.onChange(customer.id);
+                                  serviceOrderForm.setValue("clientId", customer.id);
                                   setIsComboboxOpen(false);
                                 }}
-                              >{customer.name}</CommandItem>
+                              >
+                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                <span>{customer.name}</span>
+                                <span className="ml-auto text-xs text-muted-foreground">{customer.phone}</span>
+                              </CommandItem>
                             ))}
                           </CommandGroup>
                         </CommandList>
@@ -311,5 +316,3 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
-
-    
