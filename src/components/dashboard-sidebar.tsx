@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -14,7 +15,6 @@ import {
   Menu,
   Users,
   Wrench,
-  LineChart,
   CalendarClock
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
@@ -22,7 +22,6 @@ import { useAuth } from './auth-provider';
 const navItems = [
   { href: '/dashboard', label: 'Painel', icon: Home },
   { href: '/dashboard/ordens-de-servico', label: 'Ordens de Serviço', icon: ClipboardList },
-  { href: '/dashboard/acompanhamento', label: 'Acompanhamento', icon: LineChart },
   { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
   { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
 ];
@@ -53,7 +52,8 @@ function NavContent() {
               href={href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                pathname === href && 'bg-muted text-primary'
+                pathname.startsWith(href) && href !== '/dashboard' && 'bg-muted text-primary',
+                pathname === href && href === '/dashboard' && 'bg-muted text-primary'
               )}
             >
               <Icon className="h-4 w-4" />
