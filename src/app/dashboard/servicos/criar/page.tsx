@@ -170,7 +170,7 @@ export default function CriarOrdemDeServicoPage() {
         <CardContent>
           <Form {...serviceOrderForm}>
             <form onSubmit={serviceOrderForm.handleSubmit(onServiceOrderSubmit)} className="space-y-6">
-              <FormField control={serviceOrderForm.control} name="clientId" render={({ field }) => (
+               <FormField control={serviceOrderForm.control} name="clientId" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
@@ -216,7 +216,7 @@ export default function CriarOrdemDeServicoPage() {
                                   <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                   <div className="flex-1">
                                     <div>{customer.name}</div>
-                                    <div className="text-sm text-muted-foreground">{customer.phone}</div>
+                                    <div className="text-sm text-secondary-foreground">{customer.phone}</div>
                                   </div>
                                 </button>
                               </CommandItem>
