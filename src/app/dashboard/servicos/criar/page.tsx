@@ -189,7 +189,7 @@ export default function CriarOrdemDeServicoPage() {
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                    <PopoverContent onMouseDown={(e) => e.preventDefault()} className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
                         <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
@@ -199,7 +199,6 @@ export default function CriarOrdemDeServicoPage() {
                               <CommandItem
                                 value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
-                                onPointerDown={(e) => e.preventDefault()}
                                 onSelect={() => {
                                   field.onChange(customer.id)
                                   setIsComboboxOpen(false)
@@ -207,7 +206,7 @@ export default function CriarOrdemDeServicoPage() {
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
-                                <span className="ml-auto text-xs text-foreground">{customer.phone}</span>
+                                <span className="ml-auto text-xs text-foreground/80">{customer.phone}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
