@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -20,10 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, CalendarIcon } from 'lucide-react';
+import { Loader2, MoreHorizontal, UserPlus, Users, CalendarIcon, Search } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 const customerSchema = z.object({
   name: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
@@ -51,6 +52,7 @@ export default function BaseDeClientesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerSchema),
@@ -93,6 +95,18 @@ export default function BaseDeClientesPage() {
 
     return () => unsubscribe();
   }, [user, toast]);
+
+  const filteredCustomers = useMemo(() => {
+    if (!searchTerm) {
+      return customers;
+    }
+    return customers.filter(customer =>
+      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (customer.cpfCnpj && customer.cpfCnpj.toLowerCase().includes(searchTerm.toLowerCase()))
+    );
+  }, [customers, searchTerm]);
 
   const onSubmit = async (values: CustomerFormValues) => {
     if (!user) {
@@ -247,18 +261,33 @@ export default function BaseDeClientesPage() {
       <Card>
         <CardHeader>
           <CardTitle>Gerenciamento de Clientes (CRM)</CardTitle>
-          <CardDescription>Cadastre e gerencie as informações dos seus clientes.</CardDescription>
+          <CardDescription>Cadastre, pesquise e gerencie as informações dos seus clientes.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Label htmlFor="search-customer">Pesquisar Cliente</Label>
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="search-customer"
+                placeholder="Buscar por nome, telefone, e-mail ou CPF/CNPJ..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : customers.length === 0 ? (
+          ) : filteredCustomers.length === 0 ? (
             <div className="text-center py-10">
                 <Users className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">Nenhum cliente cadastrado.</h3>
-                <p className="text-sm text-muted-foreground">Comece adicionando seu primeiro cliente.</p>
+                <h3 className="mt-4 text-lg font-semibold">Nenhum cliente encontrado.</h3>
+                <p className="text-sm text-muted-foreground">
+                  {searchTerm ? "Tente um termo de busca diferente." : "Comece adicionando seu primeiro cliente."}
+                </p>
             </div>
           ) : (
           <Table>
@@ -266,12 +295,13 @@ export default function BaseDeClientesPage() {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead className="hidden md:table-cell">Contato</TableHead>
-                <TableHead className="hidden md:table-cell">Data de Cadastro</TableHead>
+                <TableHead className="hidden lg:table-cell">CPF/CNPJ</TableHead>
+                <TableHead className="hidden md:table-cell">Cadastro</TableHead>
                 <TableHead><span className="sr-only">Ações</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((customer) => (
+              {filteredCustomers.map((customer) => (
                 <TableRow key={customer.id}>
                   <TableCell>
                     <div className="font-medium">{customer.name}</div>
@@ -281,6 +311,7 @@ export default function BaseDeClientesPage() {
                     <div>{customer.phone}</div>
                     <div className="text-xs text-muted-foreground">{customer.email}</div>
                   </TableCell>
+                  <TableCell className="hidden lg:table-cell">{customer.cpfCnpj || 'N/A'}</TableCell>
                   <TableCell className="hidden md:table-cell">{new Date(customer.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -309,7 +340,7 @@ export default function BaseDeClientesPage() {
         </CardContent>
          <CardFooter>
           <div className="text-xs text-muted-foreground">
-            Mostrando <strong>{customers.length}</strong> de <strong>{customers.length}</strong> clientes.
+            Mostrando <strong>{filteredCustomers.length}</strong> de <strong>{customers.length}</strong> clientes.
           </div>
         </CardFooter>
       </Card>

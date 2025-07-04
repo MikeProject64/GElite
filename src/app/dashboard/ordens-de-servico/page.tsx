@@ -23,14 +23,15 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon, Wrench, Filter } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon, Wrench, Filter, Check, ChevronsUpDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
-
 const serviceOrderSchema = z.object({
-  clientName: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
+  clientId: z.string().min(1, { message: 'Por favor, selecione um cliente.' }),
+  clientName: z.string(),
   serviceType: z.string().min(3, { message: 'O tipo de serviço é obrigatório.' }),
   problemDescription: z.string().min(10, { message: 'Descreva o problema com mais detalhes.' }),
   technician: z.string().min(3, { message: 'O nome do técnico é obrigatório.' }),
@@ -47,6 +48,12 @@ interface ServiceOrder extends Omit<ServiceOrderFormValues, 'dueDate'> {
     dueDate: Timestamp;
 }
 
+interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+}
+
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Concluída': return 'default';
@@ -60,14 +67,17 @@ export default function OrdensDeServicoPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
   const [filters, setFilters] = useState({ status: '', technician: '', clientName: '' });
 
   const form = useForm<ServiceOrderFormValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: {
+      clientId: '',
       clientName: '',
       serviceType: '',
       problemDescription: '',
@@ -79,9 +89,10 @@ export default function OrdensDeServicoPage() {
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
-    const q = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    
+    // Listener for service orders
+    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const unsubscribeOrders = onSnapshot(qOrders, (querySnapshot) => {
       const orders = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -102,7 +113,20 @@ export default function OrdensDeServicoPage() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    // Listener for customers
+    const qCustomers = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const unsubscribeCustomers = onSnapshot(qCustomers, (querySnapshot) => {
+      const customerList = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Customer));
+      setCustomers(customerList);
+    });
+
+    return () => {
+        unsubscribeOrders();
+        unsubscribeCustomers();
+    };
   }, [user, toast]);
 
   const filteredOrders = useMemo(() => {
@@ -168,13 +192,69 @@ export default function OrdensDeServicoPage() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField control={form.control} name="clientName" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Cliente</FormLabel>
-                    <FormControl><Input placeholder="Ex: João da Silva" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
+                <FormField
+                  control={form.control}
+                  name="clientId"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Cliente</FormLabel>
+                      <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value
+                                ? customers.find(
+                                    (customer) => customer.id === field.value
+                                  )?.name
+                                : "Selecione um cliente"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar cliente..." />
+                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                            <CommandGroup>
+                              {customers.map((customer) => (
+                                <CommandItem
+                                  value={customer.name}
+                                  key={customer.id}
+                                  onSelect={() => {
+                                    form.setValue("clientId", customer.id);
+                                    form.setValue("clientName", customer.name);
+                                    setIsComboboxOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      customer.id === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  <div>
+                                    <div>{customer.name}</div>
+                                    <div className="text-xs text-muted-foreground">{customer.phone}</div>
+                                  </div>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField control={form.control} name="serviceType" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Tipo de Serviço</FormLabel>
@@ -256,7 +336,7 @@ export default function OrdensDeServicoPage() {
                     </FormItem>
                 )} />
                  <DialogFooter>
-                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                    <Button type="button" variant="ghost" onClick={() => { form.reset(); setIsDialogOpen(false); }}>Cancelar</Button>
                     <Button type="submit" disabled={isFormSubmitting}>
                         {isFormSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Salvar
