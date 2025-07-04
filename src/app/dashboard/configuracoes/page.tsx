@@ -2,10 +2,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useForm, useForm as useFormHook } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSettings, UserSettings, CustomField } from '@/components/settings-provider';
+import { useSettings, CustomField } from '@/components/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { availableIcons } from '@/components/icon-map';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, PlusCircle, Trash2, Users, FileText } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
 
@@ -167,7 +168,7 @@ export default function ConfiguracoesPage() {
                   <Skeleton className="h-10 w-1/2" />
                   <div className="space-y-4">
                     <Skeleton className="h-6 w-1/4" />
-                    <div className="grid grid-cols-6 gap-4">
+                    <div className="grid grid-cols-8 gap-4">
                       {[...Array(12)].map((_, i) => (
                         <Skeleton key={i} className="h-16 w-16 rounded-md" />
                       ))}
