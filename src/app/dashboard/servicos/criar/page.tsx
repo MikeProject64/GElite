@@ -276,7 +276,42 @@ export default function CriarOrdemDeServicoPage() {
                     <FormField control={newClientForm.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>E-mail (Opcional)</FormLabel> <FormControl><Input placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={newClientForm.control} name="address" render={({ field }) => ( <FormItem> <FormLabel>Endereço (Opcional)</FormLabel> <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                     <FormField control={newClientForm.control} name="cpfCnpj" render={({ field }) => ( <FormItem> <FormLabel>CPF/CNPJ (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={newClientForm.control} name="birthDate" render={({ field }) => ( <FormItem className="flex flex-col"> <FormLabel>Data de Nascimento (Opcional)</FormLabel> <Popover> <PopoverTrigger asChild> <FormControl><Button variant={"outline"} className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")} > <div className="flex items-center justify-between w-full"><span>{field.value ? (format(field.value, "PPP", { locale: ptBR })) : ("Escolha uma data")}</span><CalendarIcon className="ml-auto h-4 w-4 opacity-50" /></div></Button></FormControl> </PopoverTrigger> <PopoverContent className="w-auto p-0" align="start"> <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus locale={ptBR} /> </PopoverContent> </Popover> <FormMessage /> </FormItem> )} />
+                    <FormField
+                      control={newClientForm.control}
+                      name="birthDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Data de Nascimento (Opcional)</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant={"outline"}
+                                  className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                                >
+                                  <div className="flex items-center justify-between w-full">
+                                    <span>
+                                      {field.value ? (format(field.value, "PPP", { locale: ptBR })) : ("Escolha uma data")}
+                                    </span>
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </div>
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value ?? undefined}
+                                onSelect={field.onChange}
+                                initialFocus
+                                locale={ptBR}
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField control={newClientForm.control} name="notes" render={({ field }) => ( <FormItem> <FormLabel>Observações (Opcional)</FormLabel> <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
                 </form>
             </Form>
@@ -292,3 +327,5 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
+
+    
