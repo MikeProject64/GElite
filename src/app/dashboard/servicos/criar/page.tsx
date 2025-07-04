@@ -203,15 +203,14 @@ export default function CriarOrdemDeServicoPage() {
                                   setIsComboboxOpen(false);
                                 }}
                               >
-                                <div className="flex items-center w-full" onClick={() => {
-                                    field.onChange(customer.id);
-                                    setIsComboboxOpen(false);
-                                }}>
+                                <div className="flex w-full items-center justify-between">
+                                  <div className="flex items-center">
                                     <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                     <div className="flex-1">
                                       <div>{customer.name}</div>
                                       <div className="text-sm text-muted-foreground">{customer.phone}</div>
                                     </div>
+                                  </div>
                                 </div>
                               </CommandItem>
                             ))}
