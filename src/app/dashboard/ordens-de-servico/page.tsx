@@ -107,7 +107,11 @@ export default function OrdensDeServicoPage() {
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error adding document: ", error);
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar a ordem de serviço." });
+      toast({
+        variant: "destructive",
+        title: "Erro ao criar ordem",
+        description: "Falha ao criar a ordem de serviço. Verifique as regras de segurança do Firestore."
+      });
     } finally {
       setIsFormSubmitting(false);
     }
