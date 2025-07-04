@@ -14,7 +14,8 @@ import {
   Menu,
   Users,
   Wrench,
-  LineChart
+  LineChart,
+  CalendarClock
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 
@@ -22,6 +23,7 @@ const navItems = [
   { href: '/dashboard', label: 'Painel', icon: Home },
   { href: '/dashboard/ordens-de-servico', label: 'Ordens de Serviço', icon: ClipboardList },
   { href: '/dashboard/acompanhamento', label: 'Acompanhamento', icon: LineChart },
+  { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
   { href: '/dashboard/base-de-clientes', label: 'Base de Clientes', icon: Users },
 ];
 

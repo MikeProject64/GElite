@@ -7,6 +7,8 @@ import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,8 +20,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
 
 const serviceOrderSchema = z.object({
   clientName: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
@@ -27,14 +33,16 @@ const serviceOrderSchema = z.object({
   problemDescription: z.string().min(10, { message: 'Descreva o problema com mais detalhes.' }),
   technician: z.string().min(3, { message: 'O nome do técnico é obrigatório.' }),
   status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
+  dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
 });
 
 type ServiceOrderFormValues = z.infer<typeof serviceOrderSchema>;
 
-interface ServiceOrder extends ServiceOrderFormValues {
+interface ServiceOrder extends Omit<ServiceOrderFormValues, 'dueDate'> {
     id: string;
     createdAt: Timestamp;
     userId: string;
+    dueDate: Timestamp;
 }
 
 const getStatusVariant = (status: string) => {
@@ -103,6 +111,7 @@ export default function OrdensDeServicoPage() {
     try {
       await addDoc(collection(db, 'serviceOrders'), {
         ...values,
+        dueDate: Timestamp.fromDate(values.dueDate),
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
@@ -171,6 +180,45 @@ export default function OrdensDeServicoPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="dueDate" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data de Vencimento</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP", { locale: ptBR })
+                            ) : (
+                              <span>Escolha uma data</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          disabled={(date) =>
+                            date < new Date(new Date().setDate(new Date().getDate() - 1))
+                          }
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
                 <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem>
                         <FormLabel>Status</FormLabel>
@@ -225,8 +273,8 @@ export default function OrdensDeServicoPage() {
               <TableRow>
                 <TableHead>Cliente</TableHead>
                 <TableHead className="hidden md:table-cell">Técnico</TableHead>
+                <TableHead className="hidden md:table-cell">Vencimento</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden md:table-cell">Data de Criação</TableHead>
                 <TableHead><span className="sr-only">Ações</span></TableHead>
               </TableRow>
             </TableHeader>
@@ -238,10 +286,10 @@ export default function OrdensDeServicoPage() {
                     <div className="text-sm text-muted-foreground hidden md:inline">{order.serviceType}</div>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">{order.technician}</TableCell>
+                   <TableCell className="hidden md:table-cell">{format(order.dueDate.toDate(), 'dd/MM/yyyy')}</TableCell>
                   <TableCell>
                      <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">{new Date(order.createdAt.seconds * 1000).toLocaleDateString()}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
