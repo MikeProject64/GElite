@@ -5,9 +5,11 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,21 +20,28 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users } from 'lucide-react';
+import { Loader2, MoreHorizontal, UserPlus, Users, CalendarIcon } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { cn } from '@/lib/utils';
 
 const customerSchema = z.object({
   name: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
+  phone: z.string().min(10, { message: 'O telefone é obrigatório (mínimo 10 dígitos).' }),
   email: z.string().email({ message: 'Insira um e-mail válido.' }).optional().or(z.literal('')),
-  phone: z.string().min(10, { message: 'O telefone é obrigatório.' }),
   address: z.string().optional(),
+  cpfCnpj: z.string().optional(),
+  birthDate: z.date().optional().nullable(),
+  notes: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerSchema>;
 
-interface Customer extends CustomerFormValues {
+interface Customer extends Omit<CustomerFormValues, 'birthDate'> {
     id: string;
     createdAt: Timestamp;
     userId: string;
+    birthDate?: Timestamp | null;
 }
 
 export default function BaseDeClientesPage() {
@@ -47,9 +56,12 @@ export default function BaseDeClientesPage() {
     resolver: zodResolver(customerSchema),
     defaultValues: {
       name: '',
-      email: '',
       phone: '',
+      email: '',
       address: '',
+      cpfCnpj: '',
+      birthDate: null,
+      notes: '',
     },
   });
 
@@ -89,8 +101,18 @@ export default function BaseDeClientesPage() {
     }
     setIsFormSubmitting(true);
     try {
+      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', values.phone));
+      const querySnapshot = await getDocs(q);
+
+      if (!querySnapshot.empty) {
+        toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente cadastrado com este número de telefone." });
+        setIsFormSubmitting(false);
+        return;
+      }
+
       await addDoc(collection(db, 'customers'), {
         ...values,
+        birthDate: values.birthDate ? Timestamp.fromDate(values.birthDate) : null,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
@@ -138,13 +160,6 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl><Input placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
                  <FormField control={form.control} name="phone" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Telefone</FormLabel>
@@ -152,10 +167,67 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
+                <FormField control={form.control} name="email" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>E-mail</FormLabel>
+                    <FormControl><Input placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
                  <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
                     <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                 <FormField control={form.control} name="cpfCnpj" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>CPF/CNPJ</FormLabel>
+                    <FormControl><Input placeholder="Opcional" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                 <FormField control={form.control} name="birthDate" render={({ field }) => (
+                  <FormItem className="flex flex-col">
+                    <FormLabel>Data de Nascimento</FormLabel>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant={"outline"}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
+                          >
+                            {field.value ? (
+                              format(field.value, "PPP", { locale: ptBR })
+                            ) : (
+                              <span>Escolha uma data</span>
+                            )}
+                            <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={field.value ?? undefined}
+                          onSelect={field.onChange}
+                          initialFocus
+                          locale={ptBR}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+               <FormField control={form.control} name="notes" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Observações</FormLabel>
+                    <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
@@ -220,8 +292,12 @@ export default function BaseDeClientesPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                        <DropdownMenuItem>Ver Detalhes</DropdownMenuItem>
-                        <DropdownMenuItem>Editar Cliente</DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A visualização de detalhes do cliente será implementada." })}>
+                          Ver Detalhes
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => toast({ title: "Em breve", description: "A edição de clientes será implementada." })}>
+                          Editar Cliente
+                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
