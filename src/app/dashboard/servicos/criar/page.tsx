@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -22,10 +22,10 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -63,7 +63,10 @@ export default function CriarOrdemDeServicoPage() {
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
-  const [isComboboxOpen, setIsComboboxOpen] = useState(false);
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const serviceOrderForm = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -106,6 +109,18 @@ export default function CriarOrdemDeServicoPage() {
       newCustomerForm.reset();
     }
   }, [isNewClientDialogOpen, newCustomerForm]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
 
   const onNewClientSubmit = async (data: NewCustomerValues) => {
     if (!user) return;
@@ -150,6 +165,11 @@ export default function CriarOrdemDeServicoPage() {
     }
   };
 
+  const filteredCustomers = customers.filter(customer => 
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col gap-4">
        <div className="flex items-center gap-4">
@@ -177,49 +197,50 @@ export default function CriarOrdemDeServicoPage() {
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
-                  <Popover open={isComboboxOpen} onOpenChange={setIsComboboxOpen}>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                          <span className='truncate'>
-                            {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent onOpenAutoFocus={(e) => e.preventDefault()} className="w-[--radix-popover-trigger-width] p-0">
-                      <Command>
-                        <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
-                        <CommandList>
-                          <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                          <CommandGroup>
-                            {customers.map((customer) => (
-                              <CommandItem
+                  <div className="relative" ref={dropdownRef}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)}>
+                      <span className='truncate'>
+                        {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
+                      </span>
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                    {isDropdownOpen && (
+                      <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
+                        <div className="p-2">
+                          <Input
+                            placeholder="Buscar cliente..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            autoFocus
+                          />
+                        </div>
+                        <ScrollArea className="h-48">
+                          {filteredCustomers.length > 0 ? (
+                            filteredCustomers.map((customer) => (
+                              <button
+                                type="button"
                                 key={customer.id}
-                                value={customer.name + " " + customer.phone}
-                                onSelect={() => {
+                                className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
+                                onClick={() => {
                                   field.onChange(customer.id);
-                                  setIsComboboxOpen(false);
+                                  setIsDropdownOpen(false);
+                                  setSearchTerm('');
                                 }}
-                                className="p-0"
                               >
-                                <div
-                                  className="flex items-center w-full p-2 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
-                                  <div className="flex-1">
-                                    <div>{customer.name}</div>
-                                    <div className="text-sm text-secondary-foreground">{customer.phone}</div>
-                                  </div>
+                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                <div>
+                                  <p>{customer.name}</p>
+                                  <p className="text-xs text-muted-foreground">{customer.phone}</p>
                                 </div>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                              </button>
+                            ))
+                          ) : (
+                            <p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+                          )}
+                        </ScrollArea>
+                      </div>
+                    )}
+                  </div>
                   <FormMessage />
                 </FormItem>
               )}/>
