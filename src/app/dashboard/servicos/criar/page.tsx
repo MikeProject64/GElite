@@ -1,56 +1,62 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format } from 'date-fns';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
-const serviceOrderSchema = z.object({
-  clientId: z.string().min(1, { message: 'Por favor, selecione um cliente.' }),
-  clientName: z.string(),
-  serviceType: z.string().min(3, { message: 'O tipo de serviço é obrigatório.' }),
-  problemDescription: z.string().min(10, { message: 'Descreva o problema com mais detalhes.' }),
-  technician: z.string().min(3, { message: 'O nome do técnico é obrigatório.' }),
-  status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
-  dueDate: z.coerce.date({ required_error: "A data de vencimento é obrigatória." }),
-});
 
-const newCustomerSchema = z.object({
-  name: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
-  phone: z.string().min(10, { message: 'O telefone é obrigatório (mínimo 10 dígitos).' }),
-  email: z.string().email({ message: 'Insira um e-mail válido.' }).optional().or(z.literal('')),
-  address: z.string().optional(),
-  cpfCnpj: z.string().optional(),
-  birthDate: z.coerce.date().optional().nullable(),
-  notes: z.string().optional(),
-});
+interface ServiceOrderData {
+  clientId: string;
+  serviceType: string;
+  problemDescription: string;
+  technician: string;
+  status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
+  dueDate: string;
+}
 
-type ServiceOrderFormValues = z.infer<typeof serviceOrderSchema>;
-type NewCustomerFormValues = z.infer<typeof newCustomerSchema>;
+interface NewCustomerData {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  cpfCnpj: string;
+  birthDate: string;
+  notes: string;
+}
 
 interface Customer {
   id: string;
   name: string;
   phone: string;
 }
+
+const initialServiceOrderState: ServiceOrderData = {
+  clientId: '',
+  serviceType: '',
+  problemDescription: '',
+  technician: '',
+  status: 'Pendente',
+  dueDate: '',
+};
+
+const initialNewCustomerState: NewCustomerData = {
+    name: '', phone: '', email: '', address: '',
+    cpfCnpj: '', birthDate: '', notes: '',
+};
 
 export default function CriarOrdemDeServicoPage() {
   const { user } = useAuth();
@@ -62,25 +68,8 @@ export default function CriarOrdemDeServicoPage() {
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isNewClientSubmitting, setIsNewClientSubmitting] = useState(false);
 
-  const form = useForm<ServiceOrderFormValues>({
-    resolver: zodResolver(serviceOrderSchema),
-    defaultValues: {
-      clientId: '',
-      clientName: '',
-      serviceType: '',
-      problemDescription: '',
-      technician: '',
-      status: 'Pendente',
-    },
-  });
-
-  const newClientForm = useForm<NewCustomerFormValues>({
-    resolver: zodResolver(newCustomerSchema),
-    defaultValues: {
-      name: '', phone: '', email: '', address: '',
-      cpfCnpj: '', birthDate: null, notes: '',
-    },
-  });
+  const [serviceOrderData, setServiceOrderData] = useState<ServiceOrderData>(initialServiceOrderState);
+  const [newCustomerData, setNewCustomerData] = useState<NewCustomerData>(initialNewCustomerState);
 
   useEffect(() => {
     if (!user) return;
@@ -95,14 +84,33 @@ export default function CriarOrdemDeServicoPage() {
     return () => unsubscribeCustomers();
   }, [user, toast]);
 
-  const onNewClientSubmit = async (values: NewCustomerFormValues) => {
+  const handleServiceOrderChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setServiceOrderData(prev => ({...prev, [name]: value}));
+  }
+
+  const handleSelectChange = (name: keyof ServiceOrderData, value: string) => {
+     setServiceOrderData(prev => ({...prev, [name]: value}));
+  }
+
+  const handleNewCustomerChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewCustomerData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const onNewClientSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     if (!user) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
         return;
     }
+     if (newCustomerData.name.length < 3 || newCustomerData.phone.length < 10) {
+      toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Nome e telefone são obrigatórios." });
+      return;
+    }
     setIsNewClientSubmitting(true);
     try {
-      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', values.phone));
+      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', newCustomerData.phone));
       const querySnapshot = await getDocs(q);
       if (!querySnapshot.empty) {
         toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este telefone." });
@@ -110,15 +118,14 @@ export default function CriarOrdemDeServicoPage() {
         return;
       }
       const docRef = await addDoc(collection(db, 'customers'), {
-        ...values,
-        birthDate: values.birthDate ? Timestamp.fromDate(values.birthDate) : null,
+        ...newCustomerData,
+        birthDate: newCustomerData.birthDate ? Timestamp.fromDate(new Date(newCustomerData.birthDate)) : null,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      form.setValue('clientId', docRef.id);
-      form.setValue('clientName', values.name);
-      newClientForm.reset();
+      setServiceOrderData(prev => ({ ...prev, clientId: docRef.id }));
+      setNewCustomerData(initialNewCustomerState);
       setIsNewClientDialogOpen(false);
     } catch (error) {
       console.error("Error adding client: ", error);
@@ -128,16 +135,32 @@ export default function CriarOrdemDeServicoPage() {
     }
   };
   
-  const onSubmit = async (values: ServiceOrderFormValues) => {
+  const onSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     if (!user) {
-        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para criar uma ordem de serviço." });
+        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
         return;
     }
+
+    const { clientId, serviceType, problemDescription, technician, dueDate } = serviceOrderData;
+    if (!clientId || !serviceType || !problemDescription || !technician || !dueDate) {
+         toast({ variant: "destructive", title: "Campos obrigatórios", description: "Por favor, preencha todos os campos obrigatórios." });
+        return;
+    }
+
     setIsFormSubmitting(true);
     try {
+      const selectedCustomer = customers.find(c => c.id === clientId);
+      if (!selectedCustomer) {
+        toast({ variant: "destructive", title: "Erro", description: "Cliente selecionado não encontrado." });
+        setIsFormSubmitting(false);
+        return;
+      }
+
       await addDoc(collection(db, 'serviceOrders'), {
-        ...values,
-        dueDate: Timestamp.fromDate(values.dueDate),
+        ...serviceOrderData,
+        clientName: selectedCustomer.name,
+        dueDate: Timestamp.fromDate(new Date(dueDate)),
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
@@ -172,75 +195,70 @@ export default function CriarOrdemDeServicoPage() {
             </CardDescription>
         </CardHeader>
         <CardContent>
-             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                 <FormField
-                  control={form.control}
-                  name="clientId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <div className="flex items-center gap-4">
-                        <FormLabel>Cliente</FormLabel>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="h-7"
-                          onClick={() => setIsNewClientDialogOpen(true)}
-                        >
-                          <UserPlus className="mr-2 h-4 w-4" />
-                          <span>Novo Cliente</span>
-                        </Button>
-                      </div>
-                      <Select
-                        onValueChange={(value) => {
-                          const selectedCustomer = customers.find(c => c.id === value);
-                          if(selectedCustomer) {
-                            field.onChange(value);
-                            form.setValue("clientName", selectedCustomer.name);
-                          }
-                        }}
-                        defaultValue={field.value}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione um cliente existente" />
-                          </SelectTrigger>
-                        </FormControl>
+            <form onSubmit={onSubmit} className="space-y-6">
+                <div className='space-y-2'>
+                  <div className="flex items-center gap-4">
+                    <Label>Cliente *</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7"
+                      onClick={() => setIsNewClientDialogOpen(true)}
+                    >
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      <span>Novo Cliente</span>
+                    </Button>
+                  </div>
+                   <Select
+                    value={serviceOrderData.clientId}
+                    onValueChange={(value) => handleSelectChange('clientId', value)}
+                    required
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um cliente existente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.length === 0 && <div className='p-4 text-sm text-muted-foreground'>Nenhum cliente cadastrado.</div>}
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.name} ({customer.phone})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className='space-y-2'>
+                    <Label htmlFor='serviceType'>Tipo de Serviço *</Label>
+                    <Input id='serviceType' name='serviceType' value={serviceOrderData.serviceType} onChange={handleServiceOrderChange} placeholder="Ex: Manutenção de Ar Condicionado" required />
+                </div>
+                 <div className='space-y-2'>
+                    <Label htmlFor='problemDescription'>Descrição do Problema *</Label>
+                    <Textarea id='problemDescription' name='problemDescription' value={serviceOrderData.problemDescription} onChange={handleServiceOrderChange} placeholder="Detalhe o problema relatado pelo cliente..." required />
+                 </div>
+                 <div className='space-y-2'>
+                    <Label htmlFor='technician'>Técnico Responsável *</Label>
+                    <Input id='technician' name='technician' value={serviceOrderData.technician} onChange={handleServiceOrderChange} placeholder="Ex: Carlos Pereira" required />
+                 </div>
+                 <div className='space-y-2'>
+                    <Label htmlFor='dueDate'>Data de Vencimento *</Label>
+                    <Input id='dueDate' name='dueDate' type='date' value={serviceOrderData.dueDate} onChange={handleServiceOrderChange} required />
+                 </div>
+                 <div className='space-y-2'>
+                    <Label>Status *</Label>
+                    <Select value={serviceOrderData.status} onValueChange={(value) => handleSelectChange('status', value as ServiceOrderData['status'])} required>
+                        <SelectTrigger>
+                            <SelectValue placeholder="Selecione o status inicial" />
+                        </SelectTrigger>
                         <SelectContent>
-                          {customers.length === 0 && <p className='p-4 text-sm text-muted-foreground'>Nenhum cliente cadastrado.</p>}
-                          {customers.map((customer) => (
-                            <SelectItem key={customer.id} value={customer.id}>
-                              {customer.name} ({customer.phone})
-                            </SelectItem>
-                          ))}
+                            <SelectItem value="Pendente">Pendente</SelectItem>
+                            <SelectItem value="Em Andamento">Em Andamento</SelectItem>
+                            <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
+                            <SelectItem value="Concluída">Concluída</SelectItem>
+                            <SelectItem value="Cancelada">Cancelada</SelectItem>
                         </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField control={form.control} name="serviceType" render={({ field }) => ( <FormItem> <FormLabel>Tipo de Serviço</FormLabel> <FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="problemDescription" render={({ field }) => ( <FormItem> <FormLabel>Descrição do Problema</FormLabel> <FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField control={form.control} name="technician" render={({ field }) => ( <FormItem> <FormLabel>Técnico Responsável</FormLabel> <FormControl><Input placeholder="Ex: Carlos Pereira" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                <FormField
-                  control={form.control}
-                  name="dueDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Vencimento</FormLabel>
-                      <FormControl>
-                         <Input
-                          type="date"
-                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
-                          onChange={(e) => field.onChange(e.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField control={form.control} name="status" render={({ field }) => ( <FormItem> <FormLabel>Status</FormLabel> <Select onValueChange={field.onChange} defaultValue={field.value}> <FormControl> <SelectTrigger> <SelectValue placeholder="Selecione o status inicial" /> </SelectTrigger> </FormControl> <SelectContent> <SelectItem value="Pendente">Pendente</SelectItem> <SelectItem value="Em Andamento">Em Andamento</SelectItem> <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem> <SelectItem value="Concluída">Concluída</SelectItem> <SelectItem value="Cancelada">Cancelada</SelectItem> </SelectContent> </Select> <FormMessage /> </FormItem> )} />
+                    </Select>
+                 </div>
                 <div className="flex justify-end gap-2">
                     <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/servicos')}>Cancelar</Button>
                     <Button type="submit" disabled={isFormSubmitting}>
@@ -249,7 +267,6 @@ export default function CriarOrdemDeServicoPage() {
                     </Button>
                 </div>
               </form>
-            </Form>
         </CardContent>
       </Card>
 
@@ -261,33 +278,36 @@ export default function CriarOrdemDeServicoPage() {
                     Preencha os detalhes para adicionar um novo cliente. Nome e telefone são obrigatórios.
                 </DialogDescription>
             </DialogHeader>
-            <Form {...newClientForm}>
-                <form id="new-client-form" onSubmit={newClientForm.handleSubmit(onNewClientSubmit)} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
-                    <FormField control={newClientForm.control} name="name" render={({ field }) => ( <FormItem> <FormLabel>Nome Completo</FormLabel> <FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={newClientForm.control} name="phone" render={({ field }) => ( <FormItem> <FormLabel>Telefone</FormLabel> <FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={newClientForm.control} name="email" render={({ field }) => ( <FormItem> <FormLabel>E-mail (Opcional)</FormLabel> <FormControl><Input placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={newClientForm.control} name="address" render={({ field }) => ( <FormItem> <FormLabel>Endereço (Opcional)</FormLabel> <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField control={newClientForm.control} name="cpfCnpj" render={({ field }) => ( <FormItem> <FormLabel>CPF/CNPJ (Opcional)</FormLabel> <FormControl><Input {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                    <FormField
-                      control={newClientForm.control}
-                      name="birthDate"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Data de Nascimento (Opcional)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="date"
-                              value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
-                              onChange={(e) => field.onChange(e.target.value)}
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField control={newClientForm.control} name="notes" render={({ field }) => ( <FormItem> <FormLabel>Observações (Opcional)</FormLabel> <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl> <FormMessage /> </FormItem> )} />
-                </form>
-            </Form>
+            <form id="new-client-form" onSubmit={onNewClientSubmit} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+                 <div className="space-y-2">
+                    <Label htmlFor="new-name">Nome Completo *</Label>
+                    <Input id="new-name" name="name" value={newCustomerData.name} onChange={handleNewCustomerChange} placeholder="Ex: Maria Oliveira" required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="new-phone">Telefone *</Label>
+                    <Input id="new-phone" name="phone" value={newCustomerData.phone} onChange={handleNewCustomerChange} placeholder="Ex: (11) 99999-8888" required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="new-email">E-mail (Opcional)</Label>
+                    <Input id="new-email" name="email" type="email" value={newCustomerData.email} onChange={handleNewCustomerChange} placeholder="Ex: maria.oliveira@email.com" />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="new-address">Endereço (Opcional)</Label>
+                    <Textarea id="new-address" name="address" value={newCustomerData.address} onChange={handleNewCustomerChange} placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="new-cpfCnpj">CPF/CNPJ (Opcional)</Label>
+                    <Input id="new-cpfCnpj" name="cpfCnpj" value={newCustomerData.cpfCnpj} onChange={handleNewCustomerChange} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="new-birthDate">Data de Nascimento (Opcional)</Label>
+                    <Input id="new-birthDate" name="birthDate" type="date" value={newCustomerData.birthDate} onChange={handleNewCustomerChange} />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="new-notes">Observações (Opcional)</Label>
+                    <Textarea id="new-notes" name="notes" value={newCustomerData.notes} onChange={handleNewCustomerChange} placeholder="Informações adicionais sobre o cliente..." />
+                </div>
+            </form>
             <DialogFooter>
                 <Button type="button" variant="ghost" onClick={() => setIsNewClientDialogOpen(false)}>Cancelar</Button>
                 <Button type="submit" form="new-client-form" disabled={isNewClientSubmitting}>

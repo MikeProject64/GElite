@@ -1,10 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { useState, useEffect, useMemo, FormEvent } from 'react';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -14,33 +11,39 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, UserPlus, Users, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Label } from '@/components/ui/label';
 
-const customerSchema = z.object({
-  name: z.string().min(3, { message: 'O nome do cliente é obrigatório.' }),
-  phone: z.string().min(10, { message: 'O telefone é obrigatório (mínimo 10 dígitos).' }),
-  email: z.string().email({ message: 'Insira um e-mail válido.' }).optional().or(z.literal('')),
-  address: z.string().optional(),
-  cpfCnpj: z.string().optional(),
-  birthDate: z.coerce.date().optional().nullable(),
-  notes: z.string().optional(),
-});
+interface CustomerData {
+  name: string;
+  phone: string;
+  email: string;
+  address: string;
+  cpfCnpj: string;
+  birthDate: string;
+  notes: string;
+}
 
-type CustomerFormValues = z.infer<typeof customerSchema>;
-
-interface Customer extends Omit<CustomerFormValues, 'birthDate'> {
+interface Customer extends Omit<CustomerData, 'birthDate'> {
     id: string;
     createdAt: Timestamp;
     userId: string;
     birthDate?: Timestamp | null;
 }
+
+const initialFormState: CustomerData = {
+  name: '',
+  phone: '',
+  email: '',
+  address: '',
+  cpfCnpj: '',
+  birthDate: '',
+  notes: '',
+};
 
 export default function BaseDeClientesPage() {
   const { user } = useAuth();
@@ -50,19 +53,7 @@ export default function BaseDeClientesPage() {
   const [isFormSubmitting, setIsFormSubmitting] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
-      cpfCnpj: '',
-      birthDate: null,
-      notes: '',
-    },
-  });
+  const [newCustomerData, setNewCustomerData] = useState<CustomerData>(initialFormState);
 
   useEffect(() => {
     if (!user) return;
@@ -78,14 +69,10 @@ export default function BaseDeClientesPage() {
       setIsLoading(false);
     }, (error: any) => {
         console.error("Error fetching customers: ", error);
-        let description = "Não foi possível carregar os clientes. Verifique suas regras de segurança do Firestore.";
-        if (error.code === 'failed-precondition' && error.message.includes('index')) {
-            description = "A consulta ao banco de dados requer um índice. Verifique o console de depuração do navegador para obter o link para criar o índice.";
-        }
         toast({
             variant: "destructive",
             title: "Erro ao buscar dados",
-            description: description,
+            description: "Não foi possível carregar os clientes. Verifique as regras de segurança do Firestore.",
         });
         setIsLoading(false);
     });
@@ -105,37 +92,47 @@ export default function BaseDeClientesPage() {
     );
   }, [customers, searchTerm]);
 
-  const onSubmit = async (values: CustomerFormValues) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setNewCustomerData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = async (e: FormEvent) => {
+    e.preventDefault();
     if (!user) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para criar um cliente." });
         return;
     }
+    if (newCustomerData.name.length < 3 || newCustomerData.phone.length < 10) {
+      toast({ variant: "destructive", title: "Campos Obrigatórios", description: "Nome e telefone são obrigatórios." });
+      return;
+    }
     setIsFormSubmitting(true);
     try {
-      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', values.phone));
+      const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', newCustomerData.phone));
       const querySnapshot = await getDocs(q);
 
       if (!querySnapshot.empty) {
-        toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente cadastrado com este número de telefone." });
+        toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este número de telefone." });
         setIsFormSubmitting(false);
         return;
       }
 
       await addDoc(collection(db, 'customers'), {
-        ...values,
-        birthDate: values.birthDate ? Timestamp.fromDate(values.birthDate) : null,
+        ...newCustomerData,
+        birthDate: newCustomerData.birthDate ? Timestamp.fromDate(new Date(newCustomerData.birthDate)) : null,
         userId: user.uid,
         createdAt: Timestamp.now(),
       });
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      form.reset();
+      setNewCustomerData(initialFormState);
       setIsDialogOpen(false);
     } catch (error) {
       console.error("Error adding document: ", error);
       toast({
         variant: "destructive",
         title: "Erro ao cadastrar cliente",
-        description: "Falha ao salvar o cliente. Verifique as regras de segurança do Firestore."
+        description: "Falha ao salvar o cliente."
       });
     } finally {
       setIsFormSubmitting(false);
@@ -148,7 +145,7 @@ export default function BaseDeClientesPage() {
         <h1 className="text-lg font-semibold md:text-2xl">Base de Clientes</h1>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="h-8 gap-1">
+            <Button size="sm" className="h-8 gap-1" onClick={() => setNewCustomerData(initialFormState)}>
               <UserPlus className="h-3.5 w-3.5" />
               <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
                 Novo Cliente
@@ -162,76 +159,43 @@ export default function BaseDeClientesPage() {
                 Preencha os detalhes para adicionar um novo cliente à sua base.
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo</FormLabel>
-                    <FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                 <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone</FormLabel>
-                    <FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl><Input placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                 <FormField control={form.control} name="address" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                 <FormField control={form.control} name="cpfCnpj" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CPF/CNPJ</FormLabel>
-                    <FormControl><Input placeholder="Opcional" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                <FormField
-                  control={form.control}
-                  name="birthDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Data de Nascimento</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          value={field.value ? format(new Date(field.value), 'yyyy-MM-dd') : ''}
-                          onChange={(e) => field.onChange(e.target.value)}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-               <FormField control={form.control} name="notes" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )} />
-                 <DialogFooter className='pt-4'>
-                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={isFormSubmitting}>
-                        {isFormSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Salvar Cliente
-                    </Button>
-                </DialogFooter>
-              </form>
-            </Form>
+            <form onSubmit={handleSubmit} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome Completo *</Label>
+                <Input id="name" name="name" value={newCustomerData.name} onChange={handleInputChange} placeholder="Ex: Maria Oliveira" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="phone">Telefone *</Label>
+                <Input id="phone" name="phone" value={newCustomerData.phone} onChange={handleInputChange} placeholder="Ex: (11) 99999-8888" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="email">E-mail</Label>
+                <Input id="email" name="email" type="email" value={newCustomerData.email} onChange={handleInputChange} placeholder="Ex: maria.oliveira@email.com" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="address">Endereço</Label>
+                <Textarea id="address" name="address" value={newCustomerData.address} onChange={handleInputChange} placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cpfCnpj">CPF/CNPJ</Label>
+                <Input id="cpfCnpj" name="cpfCnpj" value={newCustomerData.cpfCnpj} onChange={handleInputChange} placeholder="Opcional" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="birthDate">Data de Nascimento</Label>
+                <Input id="birthDate" name="birthDate" type="date" value={newCustomerData.birthDate} onChange={handleInputChange} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Observações</Label>
+                <Textarea id="notes" name="notes" value={newCustomerData.notes} onChange={handleInputChange} placeholder="Informações adicionais sobre o cliente..." />
+              </div>
+              <DialogFooter className='pt-4'>
+                  <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                  <Button type="submit" disabled={isFormSubmitting}>
+                      {isFormSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Salvar Cliente
+                  </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
       </div>
