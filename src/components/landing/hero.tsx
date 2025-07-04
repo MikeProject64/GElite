@@ -8,19 +8,19 @@ export function Hero() {
           <div className="flex flex-col justify-center space-y-4 text-center">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
-                Modernize Your Service Management
+                Modernize Sua Gestão de Serviços
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl mx-auto font-body">
-                ServiceWise provides an all-in-one platform to streamline operations, enhance customer satisfaction, and drive business growth.
+                O ServiceWise oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
               </p>
             </div>
             <div className="w-full max-w-sm space-y-2 mx-auto">
               <div className="flex justify-center space-x-4">
                 <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                  Try for Free
+                  Teste Gratuitamente
                 </Button>
                 <Button size="lg" variant="outline">
-                  Select a Plan
+                  Escolha um Plano
                 </Button>
               </div>
             </div>

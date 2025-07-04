@@ -11,7 +11,7 @@ export async function generateFaqAction(input: GenerateFAQInput) {
   const validatedInput = actionSchema.safeParse(input);
 
   if (!validatedInput.success) {
-    throw new Error('Invalid input for generating FAQ.');
+    throw new Error('Entrada inválida para gerar FAQ.');
   }
 
   try {
@@ -19,6 +19,6 @@ export async function generateFaqAction(input: GenerateFAQInput) {
     return result;
   } catch (error) {
     console.error('Error in generateFaqAction:', error);
-    throw new Error('Failed to generate FAQ due to a server error.');
+    throw new Error('Falha ao gerar FAQ devido a um erro no servidor.');
   }
 }

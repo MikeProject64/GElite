@@ -14,7 +14,7 @@ import { Loader2, Wand2 } from 'lucide-react';
 import { Skeleton } from '../ui/skeleton';
 
 const FormSchema = z.object({
-  urls: z.string().min(1, 'Please enter at least one URL.').refine(
+  urls: z.string().min(1, 'Por favor, insira pelo menos uma URL.').refine(
     (value) => {
       const urls = value.split('\n').filter(Boolean);
       try {
@@ -25,7 +25,7 @@ const FormSchema = z.object({
       }
     },
     {
-      message: 'Please provide valid URLs, one per line.',
+      message: 'Por favor, forneça URLs válidas, uma por linha.',
     }
   ),
 });
@@ -55,14 +55,14 @@ export function FaqGenerator() {
       if (result.faq) {
         setFaq(result.faq);
       } else {
-        throw new Error('Failed to generate FAQ. The result was empty.');
+        throw new Error('Falha ao gerar FAQ. O resultado estava vazio.');
       }
     } catch (error) {
       console.error(error);
       toast({
         variant: 'destructive',
-        title: 'Error Generating FAQ',
-        description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        title: 'Erro ao Gerar FAQ',
+        description: error instanceof Error ? error.message : 'Ocorreu um erro desconhecido.',
       });
     } finally {
       setIsLoading(false);
@@ -75,10 +75,10 @@ export function FaqGenerator() {
         <div className="grid lg:grid-cols-2 gap-12">
           <div>
             <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
-              Generate FAQs with AI
+              Gere FAQs com IA
             </h2>
             <p className="mt-4 text-muted-foreground md:text-lg font-body">
-              Have your own documentation? Paste the URLs below (one per line) and our AI will generate a Frequently Asked Questions page for you.
+              Tem sua própria documentação? Cole as URLs abaixo (uma por linha) e nossa IA irá gerar uma página de Perguntas Frequentes para você.
             </p>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="mt-6 space-y-4">
@@ -87,7 +87,7 @@ export function FaqGenerator() {
                   name="urls"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Document URLs</FormLabel>
+                      <FormLabel>URLs dos Documentos</FormLabel>
                       <FormControl>
                         <Textarea
                           placeholder="https://example.com/doc1\nhttps://example.com/doc2"
@@ -104,12 +104,12 @@ export function FaqGenerator() {
                   {isLoading ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Generating...
+                      Gerando...
                     </>
                   ) : (
                     <>
                       <Wand2 className="mr-2 h-4 w-4" />
-                      Generate FAQ
+                      Gerar FAQ
                     </>
                   )}
                 </Button>
@@ -119,8 +119,8 @@ export function FaqGenerator() {
           <div>
             <Card className="min-h-[400px]">
               <CardHeader>
-                <CardTitle className="font-headline">Generated FAQ</CardTitle>
-                <CardDescription>Your AI-generated questions and answers will appear here.</CardDescription>
+                <CardTitle className="font-headline">FAQ Gerado</CardTitle>
+                <CardDescription>Suas perguntas e respostas geradas por IA aparecerão aqui.</CardDescription>
               </CardHeader>
               <CardContent>
                 {isLoading ? (
@@ -140,7 +140,7 @@ export function FaqGenerator() {
                   </pre>
                 ) : (
                   <div className="text-center text-muted-foreground pt-16">
-                    <p>Ready to create your FAQ?</p>
+                    <p>Pronto para criar seu FAQ?</p>
                   </div>
                 )}
               </CardContent>

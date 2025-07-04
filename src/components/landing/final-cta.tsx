@@ -6,13 +6,13 @@ export function FinalCta() {
       <div className="container px-4 md:px-6 mx-auto">
         <div className="flex flex-col items-center space-y-4 text-center">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl font-headline text-primary">
-            Ready to Transform Your Service Operations?
+            Pronto para Transformar Suas Operações de Serviço?
           </h2>
           <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
-            Join hundreds of businesses growing with ServiceWise. Get started today with a risk-free trial.
+            Junte-se a centenas de empresas que estão crescendo com o ServiceWise. Comece hoje mesmo com um teste sem riscos.
           </p>
           <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
-            Start Your Free Trial
+            Inicie Seu Teste Gratuito
           </Button>
         </div>
       </div>

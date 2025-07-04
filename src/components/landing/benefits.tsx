@@ -4,23 +4,23 @@ import { TrendingUp, Smile, ShieldCheck, DollarSign } from 'lucide-react';
 const benefits = [
   {
     icon: <TrendingUp className="w-8 h-8 text-primary" />,
-    title: 'Boost Productivity',
-    description: 'Automate repetitive tasks and optimize workflows to get more done with fewer resources.',
+    title: 'Aumente a Produtividade',
+    description: 'Automatize tarefas repetitivas e otimize fluxos de trabalho para fazer mais com menos recursos.',
   },
   {
     icon: <Smile className="w-8 h-8 text-primary" />,
-    title: 'Enhance Customer Satisfaction',
-    description: 'Deliver faster, more reliable service and keep clients informed every step of the way.',
+    title: 'Aumente a Satisfação do Cliente',
+    description: 'Ofereça um serviço mais rápido e confiável e mantenha os clientes informados a cada passo.',
   },
   {
     icon: <ShieldCheck className="w-8 h-8 text-primary" />,
-    title: 'Smarter Decision-Making',
-    description: 'Leverage real-time data and analytics to identify trends and make informed business decisions.',
+    title: 'Tomada de Decisão Mais Inteligente',
+    description: 'Aproveite dados e análises em tempo real para identificar tendências e tomar decisões de negócios informadas.',
   },
   {
     icon: <DollarSign className="w-8 h-8 text-primary" />,
-    title: 'Reduce Operational Costs',
-    description: 'Minimize waste, optimize resource allocation, and reduce overheads with efficient management.',
+    title: 'Reduza Custos Operacionais',
+    description: 'Minimize o desperdício, otimize a alocação de recursos e reduza as despesas gerais com um gerenciamento eficiente.',
   },
 ];
 
@@ -30,10 +30,10 @@ export function Benefits() {
       <div className="container px-4 md:px-6 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
-            Unlock Your Business Potential
+            Desbloqueie o Potencial do Seu Negócio
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
-            ServiceWise is more than a tool—it's a growth partner.
+            O ServiceWise é mais do que uma ferramenta—é um parceiro de crescimento.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">

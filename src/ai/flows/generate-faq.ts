@@ -31,9 +31,9 @@ const prompt = ai.definePrompt({
   name: 'generateFAQPrompt',
   input: {schema: GenerateFAQInputSchema},
   output: {schema: GenerateFAQOutputSchema},
-  prompt: `You are an expert FAQ generator. You will generate a FAQ based on the content of the following documents.
+  prompt: `Você é um especialista em gerar FAQs. Você irá gerar um FAQ com base no conteúdo dos seguintes documentos.
 
-Documents:
+Documentos:
 {{#each documentUrls}}
 - {{{this}}}
 {{/each}}

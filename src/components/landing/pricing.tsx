@@ -4,30 +4,30 @@ import { Check } from 'lucide-react';
 
 const plans = [
   {
-    name: 'Basic',
-    price: '$29',
-    period: '/month',
-    description: 'For small teams getting started.',
-    features: ['10 Users', 'Service Order Management', 'Basic Reporting', 'Email Support'],
-    cta: 'Start Trial',
+    name: 'Básico',
+    price: 'R$29',
+    period: '/mês',
+    description: 'Para pequenas equipes que estão começando.',
+    features: ['10 Usuários', 'Gerenciamento de Ordens de Serviço', 'Relatórios Básicos', 'Suporte por E-mail'],
+    cta: 'Iniciar Teste',
     isPopular: false,
   },
   {
     name: 'Pro',
-    price: '$79',
-    period: '/month',
-    description: 'For growing businesses that need more power.',
-    features: ['50 Users', 'Advanced CRM', 'Customizable Reports', 'Priority Support', 'API Access'],
-    cta: 'Select Plan',
+    price: 'R$79',
+    period: '/mês',
+    description: 'Para empresas em crescimento que precisam de mais poder.',
+    features: ['50 Usuários', 'CRM Avançado', 'Relatórios Personalizáveis', 'Suporte Prioritário', 'Acesso à API'],
+    cta: 'Selecionar Plano',
     isPopular: true,
   },
   {
     name: 'Enterprise',
     price: 'Custom',
     period: '',
-    description: 'For large organizations with specific needs.',
-    features: ['Unlimited Users', 'Dedicated Account Manager', 'On-Premise Option', 'SLA Guarantee'],
-    cta: 'Contact Us',
+    description: 'Para grandes organizações com necessidades específicas.',
+    features: ['Usuários Ilimitados', 'Gerente de Contas Dedicado', 'Opção On-Premise', 'Garantia de SLA'],
+    cta: 'Contate-nos',
     isPopular: false,
   },
 ];
@@ -38,10 +38,10 @@ export function Pricing() {
       <div className="container px-4 md:px-6 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
-            Simple, Transparent Pricing
+            Preços Simples e Transparentes
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
-            Choose the plan that's right for your business.
+            Escolha o plano certo para o seu negócio.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
@@ -49,7 +49,7 @@ export function Pricing() {
             <Card key={index} className={`flex flex-col h-full ${plan.isPopular ? 'border-accent shadow-accent/20 shadow-lg' : ''}`}>
               {plan.isPopular && (
                 <div className="bg-accent text-accent-foreground text-sm font-bold py-1 text-center rounded-t-lg">
-                  Most Popular
+                  Mais Popular
                 </div>
               )}
               <CardHeader className="text-center">
