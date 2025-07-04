@@ -30,7 +30,7 @@ import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown } from 'luci
 
 // Schemas
 const serviceOrderSchema = z.object({
-  clientId: z.string({ required_error: "Por favor, selecione um cliente." }),
+  clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   serviceType: z.string().min(1, "O tipo de serviço é obrigatório."),
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
   technician: z.string().min(1, "O técnico é obrigatório."),
@@ -67,10 +67,26 @@ export default function CriarOrdemDeServicoPage() {
 
   const serviceOrderForm = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
-    defaultValues: { status: 'Pendente' },
+    defaultValues: {
+      clientId: '',
+      serviceType: '',
+      problemDescription: '',
+      technician: '',
+      status: 'Pendente',
+      dueDate: new Date(),
+    },
   });
   const newCustomerForm = useForm<NewCustomerValues>({
     resolver: zodResolver(newCustomerSchema),
+    defaultValues: {
+      name: '',
+      phone: '',
+      email: '',
+      address: '',
+      cpfCnpj: '',
+      birthDate: null,
+      notes: '',
+    },
   });
 
   useEffect(() => {
@@ -295,3 +311,5 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
+
+    
