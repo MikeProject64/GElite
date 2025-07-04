@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Check } from 'lucide-react';
+import Link from 'next/link';
 
 const plans = [
   {
@@ -11,6 +12,7 @@ const plans = [
     features: ['10 Usuários', 'Gerenciamento de Ordens de Serviço', 'Relatórios Básicos', 'Suporte por E-mail'],
     cta: 'Iniciar Teste',
     isPopular: false,
+    href: '/signup'
   },
   {
     name: 'Pro',
@@ -20,6 +22,7 @@ const plans = [
     features: ['50 Usuários', 'CRM Avançado', 'Relatórios Personalizáveis', 'Suporte Prioritário', 'Acesso à API'],
     cta: 'Selecionar Plano',
     isPopular: true,
+    href: '/signup'
   },
   {
     name: 'Enterprise',
@@ -29,6 +32,7 @@ const plans = [
     features: ['Usuários Ilimitados', 'Gerente de Contas Dedicado', 'Opção On-Premise', 'Garantia de SLA'],
     cta: 'Contate-nos',
     isPopular: false,
+    href: 'mailto:vendas@servicewise.com'
   },
 ];
 
@@ -71,8 +75,8 @@ export function Pricing() {
                 </ul>
               </CardContent>
               <CardFooter>
-                <Button className={`w-full ${plan.isPopular ? 'bg-accent text-accent-foreground hover:bg-accent/90' : ''}`}>
-                  {plan.cta}
+                <Button asChild className={`w-full ${plan.isPopular ? 'bg-accent text-accent-foreground hover:bg-accent/90' : ''}`}>
+                  <Link href={plan.href}>{plan.cta}</Link>
                 </Button>
               </CardFooter>
             </Card>

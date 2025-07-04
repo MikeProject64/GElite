@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export function FinalCta() {
   return (
@@ -11,8 +12,8 @@ export function FinalCta() {
           <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
             Junte-se a centenas de empresas que estão crescendo com o ServiceWise. Comece hoje mesmo com um teste sem riscos.
           </p>
-          <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
-            Inicie Seu Teste Gratuito
+          <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90" asChild>
+            <Link href="/signup">Inicie Seu Teste Gratuito</Link>
           </Button>
         </div>
       </div>

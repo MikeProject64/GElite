@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export function Hero() {
   return (
@@ -16,11 +17,11 @@ export function Hero() {
             </div>
             <div className="w-full max-w-sm space-y-2 mx-auto">
               <div className="flex justify-center space-x-4">
-                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
-                  Teste Gratuitamente
+                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90" asChild>
+                  <Link href="/signup">Teste Gratuitamente</Link>
                 </Button>
-                <Button size="lg" variant="outline">
-                  Escolha um Plano
+                <Button size="lg" variant="outline" asChild>
+                  <Link href="#pricing">Escolha um Plano</Link>
                 </Button>
               </div>
             </div>

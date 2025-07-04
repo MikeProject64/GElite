@@ -6,10 +6,12 @@ import { Pricing } from '@/components/landing/pricing';
 import { FaqGenerator } from '@/components/landing/faq-generator';
 import { FinalCta } from '@/components/landing/final-cta';
 import { Footer } from '@/components/landing/footer';
+import { Header } from '@/components/header';
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
+      <Header />
       <main className="flex-grow">
         <Hero />
         <ProblemSolution />
