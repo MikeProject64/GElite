@@ -202,6 +202,10 @@ export default function CriarOrdemDeServicoPage() {
                                   field.onChange(customer.id);
                                   setIsComboboxOpen(false);
                                 }}
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                }}
                               >
                                 <div className="flex w-full items-center justify-between">
                                   <div className="flex items-center">
