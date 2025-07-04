@@ -26,7 +26,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -74,7 +74,7 @@ export default function CriarOrdemDeServicoPage() {
       problemDescription: '',
       technician: '',
       status: 'Pendente',
-      dueDate: undefined,
+      dueDate: new Date(),
     },
   });
   const newCustomerForm = useForm<NewCustomerValues>({
@@ -157,7 +157,10 @@ export default function CriarOrdemDeServicoPage() {
         <Button variant="outline" size="icon" className="h-7 w-7" asChild>
           <Link href="/dashboard/servicos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
         </Button>
-        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold">Criar Nova Ordem de Serviço</h1>
+        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
+            <FilePlus className='h-5 w-5' />
+            Criar Nova Ordem de Serviço
+        </h1>
       </div>
       <Card>
         <CardHeader>
@@ -200,6 +203,9 @@ export default function CriarOrdemDeServicoPage() {
                                   field.onChange(customer.id);
                                   setIsComboboxOpen(false);
                                 }}
+                                onPointerDown={(e) => {
+                                  e.preventDefault();
+                                }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
@@ -238,7 +244,7 @@ export default function CriarOrdemDeServicoPage() {
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
