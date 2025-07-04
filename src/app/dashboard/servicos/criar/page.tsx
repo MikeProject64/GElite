@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -205,20 +204,15 @@ export default function CriarOrdemDeServicoPage() {
                                 }}
                                 className="p-0"
                               >
-                                <button
-                                  type="button"
-                                  className="w-full text-left flex items-center p-2"
-                                  onClick={() => {
-                                    field.onChange(customer.id);
-                                    setIsComboboxOpen(false);
-                                  }}
+                                <div
+                                  className="flex items-center w-full p-2 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
                                 >
                                   <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                   <div className="flex-1">
                                     <div>{customer.name}</div>
                                     <div className="text-sm text-secondary-foreground">{customer.phone}</div>
                                   </div>
-                                </button>
+                                </div>
                               </CommandItem>
                             ))}
                           </CommandGroup>
