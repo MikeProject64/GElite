@@ -1,0 +1,34 @@
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    // Users can create their own document on signup, and can read their own document.
+    match /users/{userId} {
+      allow read, create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // UserSettings collection
+    // A user can read and write their own settings document.
+    match /userSettings/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Customers collection
+    // A user can read, update, delete their own customers.
+    // They can also create new customers for themselves.
+    match /customers/{customerId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+
+    // ServiceOrders collection
+    // A user can read, update, delete their own service orders.
+    // They can also create new service orders for themselves.
+    match /serviceOrders/{orderId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+  }
+}
