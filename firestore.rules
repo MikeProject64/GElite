@@ -1,26 +1,47 @@
 
 rules_version = '2';
+
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users can only read and write to their own user document.
+    // Users can only read/write their own document
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Users can only read and write their own settings.
+    // Users can only read/write their own settings document
     match /userSettings/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Generic rule for all other data collections
-    match /{collection}/{docId} {
-      // A user can create a document if the document's userId field
-      // matches their own uid.
-      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
+    // Customers: Only the owner can manage their customer documents.
+    match /customers/{customerId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Service Orders: Only the owner can manage their service order documents.
+    match /serviceOrders/{orderId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Inventory: Only the owner can manage their inventory documents.
+    match /inventory/{itemId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
+    
+    // Quotes: Only the owner can manage their quote documents.
+    match /quotes/{quoteId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+    }
 
-      // A user can read, update, or delete a document if they are the owner.
-      allow read, update, delete: if request.auth != null && resource.data.userId == request.auth.uid;
+    // Managers: Only the owner can manage their manager/sector documents.
+    match /managers/{managerId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
     }
   }
 }
