@@ -18,10 +18,12 @@ import {
   CalendarClock,
   Settings,
   Package,
+  FileText,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
+import { GlobalSearch } from './global-search';
 
 function NavContent() {
   const pathname = usePathname();
@@ -32,6 +34,7 @@ function NavContent() {
   const navItems = [
     { href: '/dashboard', label: 'Painel', icon: Home },
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
+    { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package },
@@ -40,7 +43,6 @@ function NavContent() {
 
   const handleLogout = async () => {
     if (user) {
-      // Clear user-specific settings from localStorage on logout
       const storageKey = `servicewise-settings-${user.uid}`;
       localStorage.removeItem(storageKey);
     }
@@ -59,6 +61,9 @@ function NavContent() {
           <span className="">{siteName}</span>
         </Link>
       </div>
+       <div className="p-2">
+        <GlobalSearch />
+       </div>
       <div className="flex-1">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
           {navItems.map(({ href, label, icon: Icon }) => {

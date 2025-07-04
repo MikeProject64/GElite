@@ -35,6 +35,8 @@ import {
   Server,
   HardDrive,
   Database,
+  FileText,
+  Search,
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -74,6 +76,8 @@ export const availableIcons = {
   Server,
   HardDrive,
   Database,
+  FileText,
+  Search,
 };
 
 export const iconNames = Object.keys(availableIcons);
