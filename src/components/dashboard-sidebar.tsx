@@ -23,7 +23,6 @@ import {
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
-import { GlobalSearch } from './global-search';
 
 function NavContent() {
   const pathname = usePathname();
@@ -61,11 +60,8 @@ function NavContent() {
           <span className="">{siteName}</span>
         </Link>
       </div>
-       <div className="p-2">
-        <GlobalSearch />
-       </div>
-      <div className="flex-1">
-        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+      <div className="flex-1 overflow-y-auto">
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-2">
           {navItems.map(({ href, label, icon: Icon }) => {
             const isActive = (href.length > '/dashboard'.length && pathname.startsWith(href)) || pathname === href;
             return (
