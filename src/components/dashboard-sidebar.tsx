@@ -39,6 +39,11 @@ function NavContent() {
   ];
 
   const handleLogout = async () => {
+    if (user) {
+      // Clear user-specific settings from localStorage on logout
+      const storageKey = `servicewise-settings-${user.uid}`;
+      localStorage.removeItem(storageKey);
+    }
     await signOut(auth);
     router.push('/');
   };

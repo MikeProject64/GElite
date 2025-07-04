@@ -33,24 +33,49 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
+  // This effect handles loading settings from localStorage on initial mount
+  // and then fetching from Firestore, updating both state and localStorage.
   useEffect(() => {
     if (user) {
       setLoadingSettings(true);
+      const storageKey = `servicewise-settings-${user.uid}`;
+
+      // 1. Try to load from localStorage first for a faster UI update.
+      try {
+        const storedSettings = localStorage.getItem(storageKey);
+        if (storedSettings) {
+          setSettings(JSON.parse(storedSettings));
+        }
+      } catch (e) {
+        console.error("Could not read settings from localStorage", e);
+      }
+
+      // 2. Set up Firestore listener to get live updates.
       const settingsRef = doc(db, 'userSettings', user.uid);
       const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-        if (docSnap.exists()) {
-          setSettings({ ...defaultSettings, ...docSnap.data() } as UserSettings);
-        } else {
-          setSettings(defaultSettings);
+        const newSettings = docSnap.exists()
+          ? { ...defaultSettings, ...docSnap.data() } as UserSettings
+          : defaultSettings;
+        
+        setSettings(newSettings); // Update React state
+        
+        // 3. Persist the latest settings to localStorage.
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(newSettings));
+        } catch (e) {
+          console.error("Could not save settings to localStorage", e);
         }
+        
         setLoadingSettings(false);
       }, (error) => {
         console.error("Error fetching settings:", error);
         setSettings(defaultSettings);
         setLoadingSettings(false);
       });
+
       return () => unsubscribe();
     } else {
+      // If there's no user, reset to default and finish loading.
       setSettings(defaultSettings);
       setLoadingSettings(false);
     }
@@ -59,7 +84,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
     if (!user) throw new Error("User not authenticated to update settings.");
     const settingsRef = doc(db, 'userSettings', user.uid);
-    // We only need to write to the DB. The onSnapshot listener will update the local state.
+    // Let the onSnapshot listener handle updating state and localStorage
+    // to maintain a single source of truth flow.
     await setDoc(settingsRef, newSettings, { merge: true });
   }, [user]);
 
