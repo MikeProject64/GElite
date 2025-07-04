@@ -202,18 +202,22 @@ export default function CriarOrdemDeServicoPage() {
                                   field.onChange(customer.id);
                                   setIsComboboxOpen(false);
                                 }}
+                                className="p-0"
                               >
-                                <div className="flex items-center w-full" onClick={(e) => {
-                                    e.stopPropagation();
-                                    field.onChange(customer.id);
-                                    setIsComboboxOpen(false);
-                                }}>
+                                <button
+                                    type="button"
+                                    className="w-full text-left flex items-center px-2 py-1.5"
+                                    onClick={() => {
+                                      field.onChange(customer.id);
+                                      setIsComboboxOpen(false);
+                                    }}
+                                  >
                                     <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                     <div className="flex-1">
                                       <div>{customer.name}</div>
                                       <div className="text-sm text-muted-foreground">{customer.phone}</div>
                                     </div>
-                                </div>
+                                  </button>
                               </CommandItem>
                             ))}
                           </CommandGroup>
@@ -284,7 +288,7 @@ export default function CriarOrdemDeServicoPage() {
         <DialogContent className="sm:max-w-lg">
             <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para adicionar um novo cliente.</DialogDescription></DialogHeader>
             <Form {...newCustomerForm}>
-              <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
+              <form onSubmit={newCustomerForm.handleSubmit(onNewCustomerSubmit)} className="space-y-4 max-h-[60vh] overflow-y-auto p-1">
                 <FormField control={newCustomerForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome Completo *</FormLabel><FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 <FormField control={newCustomerForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Telefone *</FormLabel><FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl><FormMessage /></FormItem> )}/>
                 <FormField control={newCustomerForm.control} name="email" render={({ field }) => ( <FormItem><FormLabel>E-mail</FormLabel><FormControl><Input type="email" placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl><FormMessage /></FormItem> )}/>
