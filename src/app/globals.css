@@ -1,3 +1,5 @@
+@import 'react-big-calendar/lib/css/react-big-calendar.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -69,4 +71,20 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.rbc-calendar {
+    @apply font-body;
+}
+
+.rbc-toolbar button {
+    @apply text-foreground bg-secondary hover:bg-muted focus:bg-muted disabled:opacity-50;
+}
+
+.rbc-event {
+    @apply bg-primary/80;
+}
+
+.rbc-event.rbc-selected {
+    @apply bg-primary;
 }

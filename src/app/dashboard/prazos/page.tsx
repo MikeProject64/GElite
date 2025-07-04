@@ -1,17 +1,22 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format, isPast, isToday, differenceInDays } from 'date-fns';
+import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addDays } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CalendarClock } from "lucide-react";
+import { Button } from '@/components/ui/button';
+import { Loader2, CalendarClock, Calendar as CalendarIcon, List } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
+import { Calendar, dateFnsLocalizer, Event } from 'react-big-calendar';
 
 interface ServiceOrder {
     id: string;
@@ -23,9 +28,19 @@ interface ServiceOrder {
     createdAt: Timestamp;
 }
 
+const localizer = dateFnsLocalizer({
+  format,
+  parse: (str, format, locale) => new Date(str),
+  startOfWeek: () => new Date(),
+  getDay: (date) => date.getDay(),
+  locales: {
+    'pt-BR': ptBR,
+  },
+});
+
 const getDueDateStatus = (dueDate: Date) => {
     if (isPast(dueDate) && !isToday(dueDate)) {
-      return { text: 'Vencido', variant: 'destructive' as const };
+      return { text: `Vencido há ${differenceInDays(new Date(), dueDate)} dia(s)`, variant: 'destructive' as const };
     }
     if (isToday(dueDate)) {
       return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600' };
@@ -34,8 +49,23 @@ const getDueDateStatus = (dueDate: Date) => {
     if (daysUntilDue <= 3) {
       return { text: `Vence em ${daysUntilDue + 1} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600' };
     }
-    return { text: format(dueDate, 'dd/MM/yyyy'), variant: 'outline' as const };
+    return { text: `Vence em ${daysUntilDue + 1} dias`, variant: 'outline' as const };
 };
+
+const getEventStyle = (event: Event) => {
+    const order = event.resource as ServiceOrder;
+    const dueDate = order.dueDate.toDate();
+    let backgroundColor = 'hsl(var(--primary))';
+
+    if (order.status === 'Concluída') backgroundColor = 'hsl(var(--accent))';
+    if (order.status === 'Em Andamento') backgroundColor = 'hsl(210, 70%, 60%)';
+    if (order.status === 'Aguardando Peça') backgroundColor = 'hsl(var(--secondary))';
+    if (isPast(dueDate) && !isToday(dueDate)) backgroundColor = 'hsl(var(--destructive))';
+    if (isToday(dueDate)) backgroundColor = 'hsl(48, 96%, 58%)';
+
+    return { style: { backgroundColor, color: 'white', border: 'none', borderRadius: '4px' } };
+};
+
 
 export default function PrazosPage() {
     const { user } = useAuth();
@@ -43,6 +73,8 @@ export default function PrazosPage() {
     const router = useRouter();
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
+    const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
 
     useEffect(() => {
         if (!user) return;
@@ -67,84 +99,146 @@ export default function PrazosPage() {
             if (error.code === 'failed-precondition' && error.message.includes('index')) {
                 description = "A consulta ao banco de dados requer um índice. Por favor, clique no link no console de depuração do navegador para criá-lo.";
             }
-            toast({
-                variant: "destructive",
-                title: "Erro ao buscar dados",
-                description: description,
-            });
+            toast({ variant: "destructive", title: "Erro ao buscar dados", description: description });
             setIsLoading(false);
         });
 
         return () => unsubscribe();
     }, [user, toast]);
 
+    const filteredOrders = useMemo(() => {
+        const now = new Date();
+        if (activeFilter === 'all') return orders;
+        if (activeFilter === 'today') return orders.filter(o => isToday(o.dueDate.toDate()));
+        if (activeFilter === 'thisWeek') {
+            const start = startOfWeek(now);
+            const end = endOfWeek(now);
+            return orders.filter(o => {
+                const dueDate = o.dueDate.toDate();
+                return dueDate >= start && dueDate <= end;
+            });
+        }
+        if (activeFilter === 'overdue') return orders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
+        return orders;
+    }, [orders, activeFilter]);
+
+    const calendarEvents = useMemo(() => orders.map(order => ({
+        title: `${order.clientName} - ${order.serviceType}`,
+        start: order.dueDate.toDate(),
+        end: order.dueDate.toDate(),
+        allDay: true,
+        resource: order,
+    })), [orders]);
+
     const handleRowClick = (orderId: string) => {
-        // Futuramente, isso levaria para a página de detalhes da OS.
-        // router.push(`/dashboard/ordens-de-servico/${orderId}`);
-        toast({ title: "Navegação", description: `Redirecionando para detalhes da OS: ${orderId}`});
+        toast({ title: "Funcionalidade Futura", description: `Redirecionaria para detalhes da OS: ${orderId}`});
     };
 
     return (
         <div className="flex flex-col gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Prazos de Entrega</h1>
             <Card>
-                <CardHeader>
+                <CardHeader className="flex-row items-center justify-between">
+                  <div>
                     <CardTitle>Controle de Prazos</CardTitle>
-                    <CardDescription>Visualize rapidamente todas as ordens de serviço com vencimentos próximos ou expirados.</CardDescription>
+                    <CardDescription>Visualize e gerencie os vencimentos das ordens de serviço.</CardDescription>
+                  </div>
+                   <div className="flex items-center gap-2">
+                        <TooltipProvider>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('list')}>
+                                        <List className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Visualizar em Lista</p></TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <Button variant={viewMode === 'calendar' ? 'default' : 'outline'} size="icon" onClick={() => setViewMode('calendar')}>
+                                        <CalendarIcon className="h-4 w-4" />
+                                    </Button>
+                                </TooltipTrigger>
+                                <TooltipContent><p>Visualizar em Calendário</p></TooltipContent>
+                            </Tooltip>
+                        </TooltipProvider>
+                   </div>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
-                        <div className="flex justify-center items-center h-40">
+                        <div className="flex justify-center items-center h-64">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                    ) : orders.length === 0 ? (
-                         <div className="text-center py-10">
-                            <CalendarClock className="mx-auto h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço ativa.</h3>
-                            <p className="text-sm text-muted-foreground">Todos os prazos estão em dia!</p>
-                        </div>
-                    ) : (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Cliente</TableHead>
-                                    <TableHead className="hidden sm:table-cell">Serviço</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Vencimento</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {orders.map((order) => {
-                                    const dueDate = order.dueDate.toDate();
-                                    const statusInfo = getDueDateStatus(dueDate);
-                                    return (
-                                        <TableRow 
-                                            key={order.id} 
-                                            // onClick={() => handleRowClick(order.id)}
-                                            // className="cursor-pointer"
-                                        >
-                                            <TableCell className="font-medium">{order.clientName}</TableCell>
-                                            <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
-                                            <TableCell>
-                                                <Badge variant={order.status === 'Em Andamento' ? 'secondary' : 'outline'}>
-                                                    {order.status}
-                                                </Badge>
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                <Badge variant={statusInfo.variant} className={statusInfo.className}>
-                                                    {statusInfo.text}
-                                                </Badge>
-                                            </TableCell>
+                    ) : viewMode === 'list' ? (
+                        <>
+                            <div className="flex gap-2 mb-4">
+                                <Button variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
+                                <Button variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
+                                <Button variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
+                                <Button variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
+                            </div>
+                            {filteredOrders.length === 0 ? (
+                                <div className="text-center py-10">
+                                    <CalendarClock className="mx-auto h-12 w-12 text-muted-foreground" />
+                                    <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada para este filtro.</h3>
+                                    <p className="text-sm text-muted-foreground">Todos os prazos estão em dia!</p>
+                                </div>
+                            ) : (
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Cliente</TableHead>
+                                            <TableHead className="hidden sm:table-cell">Serviço</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Vencimento</TableHead>
                                         </TableRow>
-                                    );
-                                })}
-                            </TableBody>
-                        </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {filteredOrders.map((order) => {
+                                            const dueDate = order.dueDate.toDate();
+                                            const statusInfo = getDueDateStatus(dueDate);
+                                            return (
+                                                <TableRow key={order.id} onClick={() => handleRowClick(order.id)} className="cursor-pointer">
+                                                    <TableCell className="font-medium">{order.clientName}</TableCell>
+                                                    <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
+                                                    <TableCell><Badge variant={order.status === 'Em Andamento' ? 'secondary' : 'outline'}>{order.status}</Badge></TableCell>
+                                                    <TableCell className="text-right"><Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.text}</Badge></TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            )}
+                        </>
+                    ) : (
+                        <div className="h-[600px]">
+                            <Calendar
+                                localizer={localizer}
+                                events={calendarEvents}
+                                startAccessor="start"
+                                endAccessor="end"
+                                culture="pt-BR"
+                                messages={{
+                                    next: "Próximo",
+                                    previous: "Anterior",
+                                    today: "Hoje",
+                                    month: "Mês",
+                                    week: "Semana",
+                                    day: "Dia",
+                                    agenda: "Agenda",
+                                    date: "Data",
+                                    time: "Hora",
+                                    event: "Evento"
+                                }}
+                                eventPropGetter={getEventStyle}
+                                onSelectEvent={(event) => handleRowClick((event.resource as ServiceOrder).id)}
+                            />
+                        </div>
                     )}
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Mostrando <strong>{orders.length}</strong> ordens de serviço ativas.
+                        Mostrando <strong>{filteredOrders.length}</strong> de <strong>{orders.length}</strong> ordens de serviço ativas.
                     </div>
                 </CardFooter>
             </Card>
