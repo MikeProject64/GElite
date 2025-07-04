@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -198,6 +197,7 @@ export default function CriarOrdemDeServicoPage() {
                             {customers.map((customer) => (
                               <CommandItem
                                 key={customer.id}
+                                value={customer.name + " " + customer.phone}
                                 onSelect={() => {
                                   field.onChange(customer.id)
                                   setIsComboboxOpen(false)
@@ -206,7 +206,7 @@ export default function CriarOrdemDeServicoPage() {
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <div>
                                   <div>{customer.name}</div>
-                                  <div className="text-sm text-foreground/80">{customer.phone}</div>
+                                  <div className="text-sm text-muted-foreground">{customer.phone}</div>
                                 </div>
                               </CommandItem>
                             ))}
@@ -320,5 +320,3 @@ export default function CriarOrdemDeServicoPage() {
     </div>
   );
 }
-
-    
