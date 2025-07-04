@@ -188,13 +188,13 @@ export default function CriarOrdemDeServicoPage() {
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                      <Command
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                        }}
-                      >
+                    <PopoverContent
+                      className="w-[--radix-popover-trigger-width] p-0"
+                      onMouseDown={(e) => {
+                        e.preventDefault()
+                      }}
+                    >
+                      <Command>
                         <CommandInput placeholder="Buscar cliente por nome ou telefone..." />
                         <CommandList>
                           <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
@@ -204,13 +204,13 @@ export default function CriarOrdemDeServicoPage() {
                                 value={`${customer.name} ${customer.phone || ''}`}
                                 key={customer.id}
                                 onSelect={() => {
-                                  field.onChange(customer.id);
-                                  setIsComboboxOpen(false);
+                                  field.onChange(customer.id)
+                                  setIsComboboxOpen(false)
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
                                 <span>{customer.name}</span>
-                                <span className="ml-auto text-xs">{customer.phone}</span>
+                                <span className="ml-auto text-xs opacity-70">{customer.phone}</span>
                               </CommandItem>
                             ))}
                           </CommandGroup>
