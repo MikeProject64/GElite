@@ -8,7 +8,7 @@ import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import type { RecentActivity, ServiceOrder, Quote, Customer, Manager } from '@/types';
+import type { RecentActivity, ServiceOrder, Quote, Customer, Collaborator } from '@/types';
 import Link from 'next/link';
 import { formatDistanceToNow, format, subMonths, startOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 
 interface SearchResult {
   id: string;
-  type: 'Cliente' | 'Serviço' | 'Orçamento' | 'Responsável';
+  type: 'Cliente' | 'Serviço' | 'Orçamento' | 'Colaborador';
   title: string;
   description: string;
   href: string;
@@ -168,10 +168,10 @@ export default function DashboardPage() {
       const customerQuery = query(collection(db, 'customers'), where('userId', '==', user.uid));
       const orderQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
       const quoteQuery = query(collection(db, 'quotes'), where('userId', '==', user.uid));
-      const managerQuery = query(collection(db, 'managers'), where('userId', '==', user.uid));
+      const collaboratorQuery = query(collection(db, 'collaborators'), where('userId', '==', user.uid));
 
-      const [customersSnap, ordersSnap, quotesSnap, managersSnap] = await Promise.all([
-        getDocs(customerQuery), getDocs(orderQuery), getDocs(quoteQuery), getDocs(managerQuery)
+      const [customersSnap, ordersSnap, quotesSnap, collaboratorsSnap] = await Promise.all([
+        getDocs(customerQuery), getDocs(orderQuery), getDocs(quoteQuery), getDocs(collaboratorQuery)
       ]);
       
       const customerResults: SearchResult[] = customersSnap.docs
@@ -192,13 +192,13 @@ export default function DashboardPage() {
         .map(doc => ({ id: doc.id, type: 'Orçamento', title: `Orçamento para ${doc.clientName}`, description: `ID: ...${doc.id.slice(-4)}`, href: `/dashboard/orcamentos/${doc.id}` }))
         .slice(0, 5);
       
-      const managerResults: SearchResult[] = managersSnap.docs
-        .map(doc => ({ ...doc.data(), id: doc.id } as Manager))
+      const collaboratorResults: SearchResult[] = collaboratorsSnap.docs
+        .map(doc => ({ ...doc.data(), id: doc.id } as Collaborator))
         .filter(m => m.name.toLowerCase().includes(lowerTerm))
-        .map(doc => ({ id: doc.id, type: 'Responsável', title: doc.name, description: 'Responsável / Setor', href: `/dashboard/responsaveis` }))
+        .map(doc => ({ id: doc.id, type: 'Colaborador', title: doc.name, description: 'Colaborador / Setor', href: `/dashboard/colaboradores/${doc.id}` }))
         .slice(0, 5);
       
-      setSearchResults([...customerResults, ...orderResults, ...quoteResults, ...managerResults]);
+      setSearchResults([...customerResults, ...orderResults, ...quoteResults, ...collaboratorResults]);
     } catch (error) {
       console.error("Error performing global search:", error);
     } finally {
@@ -229,7 +229,7 @@ export default function DashboardPage() {
       case 'Cliente': return <Users className="h-4 w-4 text-muted-foreground" />;
       case 'Serviço': return <Wrench className="h-4 w-4 text-muted-foreground" />;
       case 'Orçamento': return <FileText className="h-4 w-4 text-muted-foreground" />;
-      case 'Responsável': return <Briefcase className="h-4 w-4 text-muted-foreground" />;
+      case 'Colaborador': return <Briefcase className="h-4 w-4 text-muted-foreground" />;
       default: return null;
     }
   };
@@ -252,7 +252,7 @@ export default function DashboardPage() {
              <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl"><Search /> Busca Rápida</CardTitle>
-                    <CardDescription>Encontre clientes, serviços, orçamentos e responsáveis instantaneamente.</CardDescription>
+                    <CardDescription>Encontre clientes, serviços, orçamentos e colaboradores instantaneamente.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>

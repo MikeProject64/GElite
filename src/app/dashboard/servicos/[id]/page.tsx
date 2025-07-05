@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, ChangeEvent } from 'react';
@@ -21,7 +22,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
 import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye } from 'lucide-react';
-import { ServiceOrder, Manager } from '@/types';
+import { ServiceOrder, Collaborator } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
@@ -51,7 +52,7 @@ export default function ServicoDetailPage() {
   const { settings } = useSettings();
 
   const [order, setOrder] = useState<ServiceOrder | null>(null);
-  const [managers, setManagers] = useState<Manager[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; } | null>(null);
@@ -77,12 +78,12 @@ export default function ServicoDetailPage() {
     return () => unsubscribe();
   }, [orderId, router, toast]);
 
-  // Fetch Managers
+  // Fetch Collaborators
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'managers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      setManagers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Manager)));
+      setCollaborators(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
     return () => unsubscribe();
   }, [user]);
@@ -117,61 +118,58 @@ export default function ServicoDetailPage() {
     }
   };
 
-  const handleManagerChange = async (newManagerId: string) => {
-    if (!order || !newManagerId) return;
-    const selectedManager = managers.find(m => m.id === newManagerId);
-    if (!selectedManager) return;
+  const handleCollaboratorChange = async (newCollaboratorId: string) => {
+    if (!order || !newCollaboratorId) return;
+    const selectedCollaborator = collaborators.find(m => m.id === newCollaboratorId);
+    if (!selectedCollaborator) return;
 
     try {
         const orderRef = doc(db, 'serviceOrders', order.id);
         await updateDoc(orderRef, {
-            managerId: selectedManager.id,
-            managerName: selectedManager.name
+            collaboratorId: selectedCollaborator.id,
+            collaboratorName: selectedCollaborator.name
         });
-        toast({ title: 'Sucesso!', description: 'Responsável atualizado.' });
+        toast({ title: 'Sucesso!', description: 'Colaborador atualizado.' });
     } catch (error) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o responsável.' });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o colaborador.' });
     }
   };
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0 || !order || !user) return;
-    
+
     const file = e.target.files[0];
     setIsUploading(true);
     
     try {
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `${uuidv4()}.${fileExtension}`;
-      const storageRef = ref(storage, `serviceOrders/${order.id}/${fileName}`);
-      
-      const metadata = {
-        customMetadata: {
-          'userId': user.uid
-        }
-      };
-      
-      const snapshot = await uploadBytes(storageRef, file, metadata);
-      const downloadURL = await getDownloadURL(snapshot.ref);
+        const fileExtension = file.name.split('.').pop();
+        const fileName = `${uuidv4()}.${fileExtension}`;
+        const storageRef = ref(storage, `serviceOrders/${order.id}/${fileName}`);
+        
+        // Add user ID to file metadata for security rule verification
+        const metadata = {
+            customMetadata: {
+                'userId': user.uid,
+            },
+        };
+        
+        const snapshot = await uploadBytes(storageRef, file, metadata);
+        const downloadURL = await getDownloadURL(snapshot.ref);
 
-      const orderRef = doc(db, 'serviceOrders', order.id);
-      await updateDoc(orderRef, {
-        attachments: arrayUnion({ name: file.name, url: downloadURL })
-      });
+        const orderRef = doc(db, 'serviceOrders', order.id);
+        await updateDoc(orderRef, {
+            attachments: arrayUnion({ name: file.name, url: downloadURL })
+        });
 
-      toast({ title: 'Sucesso!', description: 'Arquivo anexado.' });
-    } catch (error: any) {
-      console.error("File upload error:", error);
-      let description = 'Falha ao anexar o arquivo.';
-      if (error.code === 'storage/unauthorized') {
-          description = 'Você não tem permissão para enviar arquivos. Verifique as regras de segurança do Storage.';
-      }
-      toast({ variant: 'destructive', title: 'Erro de Upload', description });
+        toast({ title: 'Sucesso!', description: 'Arquivo anexado.' });
+    } catch (error) {
+        console.error("File upload error:", error);
+        toast({ variant: 'destructive', title: 'Erro de Upload', description: "Falha ao enviar o anexo. Verifique suas permissões e tente novamente." });
     } finally {
-      setIsUploading(false);
-      if (e.target) e.target.value = ''; // Reset input
+        setIsUploading(false);
+        if (e.target) e.target.value = ''; // Reset input
     }
-  };
+};
 
   const renderPreview = (file: { name: string; url: string; } | null) => {
     if (!file) return null;
@@ -273,14 +271,14 @@ export default function ServicoDetailPage() {
                     <div className="flex items-center gap-3">
                         <Briefcase className="h-5 w-5 text-muted-foreground" />
                         <div>
-                            <p className="text-sm text-muted-foreground">Responsável / Setor</p>
-                            <Select value={order.managerId} onValueChange={handleManagerChange}>
+                            <p className="text-sm text-muted-foreground">Colaborador / Setor</p>
+                            <Select value={order.collaboratorId} onValueChange={handleCollaboratorChange}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Definir responsável" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {managers.map(manager => (
-                                        <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                                    {collaborators.map(collaborator => (
+                                        <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>

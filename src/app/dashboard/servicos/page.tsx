@@ -43,7 +43,7 @@ export default function ServicosPage() {
   
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', managerName: '', clientName: '' });
+  const [filters, setFilters] = useState({ status: '', collaboratorName: '', clientName: '' });
 
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
@@ -119,9 +119,9 @@ export default function ServicosPage() {
   const filteredOrders = useMemo(() => {
     return serviceOrders.filter(order => {
         const statusMatch = filters.status ? order.status === filters.status : true;
-        const managerMatch = filters.managerName ? (order.managerName || '').toLowerCase().includes(filters.managerName.toLowerCase()) : true;
+        const collaboratorMatch = filters.collaboratorName ? (order.collaboratorName || '').toLowerCase().includes(filters.collaboratorName.toLowerCase()) : true;
         const clientMatch = filters.clientName ? order.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        return statusMatch && managerMatch && clientMatch;
+        return statusMatch && collaboratorMatch && clientMatch;
     });
   }, [serviceOrders, filters]);
 
@@ -181,8 +181,8 @@ export default function ServicosPage() {
                 <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
               </div>
               <div className="grid gap-2">
-                <Label htmlFor="manager-filter">Filtrar por Responsável</Label>
-                <Input id="manager-filter" placeholder="Nome do responsável..." value={filters.managerName} onChange={e => handleFilterChange('managerName', e.target.value)} />
+                <Label htmlFor="collaborator-filter">Filtrar por Colaborador</Label>
+                <Input id="collaborator-filter" placeholder="Nome do colaborador..." value={filters.collaboratorName} onChange={e => handleFilterChange('collaboratorName', e.target.value)} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="status-filter">Filtrar por Status</Label>
@@ -224,7 +224,7 @@ export default function ServicosPage() {
                 <TableRow>
                     <TableHead className='w-[100px]'>OS</TableHead>
                     <TableHead>Serviço / Cliente</TableHead>
-                    <TableHead className="hidden md:table-cell">Responsável</TableHead>
+                    <TableHead className="hidden md:table-cell">Colaborador</TableHead>
                     <TableHead className="hidden md:table-cell">Vencimento</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
@@ -245,8 +245,8 @@ export default function ServicosPage() {
                         </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
-                        {order.managerId ? (
-                            <Link href={`/dashboard/responsaveis/${order.managerId}`} className="hover:underline">{order.managerName}</Link>
+                        {order.collaboratorId ? (
+                            <Link href={`/dashboard/colaboradores/${order.collaboratorId}`} className="hover:underline">{order.collaboratorName}</Link>
                         ) : (
                             'Não definido'
                         )}
@@ -317,5 +317,3 @@ export default function ServicosPage() {
     </div>
   );
 }
-
-    

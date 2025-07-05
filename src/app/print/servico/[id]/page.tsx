@@ -100,8 +100,8 @@ export default function PrintServicoPage() {
                         <p className="font-bold">{order.clientName}</p>
                     </div>
                      <div>
-                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Responsável / Setor</h3>
-                        <p className="font-bold">{order.managerName || 'Não definido'}</p>
+                        <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Colaborador / Setor</h3>
+                        <p className="font-bold">{order.collaboratorName || 'Não definido'}</p>
                     </div>
                      <div>
                         <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Prazo de Entrega</h3>

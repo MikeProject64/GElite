@@ -16,11 +16,14 @@ export interface UserSettings {
   serviceStatuses?: string[];
 }
 
-export interface Manager {
+export interface Collaborator {
   id: string;
   userId: string;
   name: string;
   createdAt: Timestamp;
+  type: 'collaborator' | 'sector';
+  description?: string;
+  photoURL?: string;
 }
 
 export interface Customer {
@@ -37,6 +40,8 @@ export interface Customer {
   customFields?: CustomFields;
 }
 
+type CustomFields = Record<string, any>;
+
 export interface ServiceOrder {
     id: string;
     userId: string;
@@ -44,10 +49,10 @@ export interface ServiceOrder {
     clientName: string;
     serviceType: string;
     problemDescription: string;
-    managerId?: string;
-    managerName?: string;
+    collaboratorId?: string;
+    collaboratorName?: string;
     totalValue: number;
-    status: string; // Changed from enum to string for custom statuses
+    status: string;
     dueDate: Timestamp;
     attachments?: { name: string; url: string; }[];
     createdAt: Timestamp;
@@ -75,5 +80,3 @@ export interface RecentActivity {
     timestamp: Date;
     href: string;
 }
-
-    

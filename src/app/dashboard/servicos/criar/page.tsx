@@ -29,14 +29,14 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Customer, Manager } from '@/types';
+import { Customer, Collaborator } from '@/types';
 
 // Schemas
 const serviceOrderSchema = z.object({
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   serviceType: z.string().min(1, "O tipo de serviço é obrigatório."),
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
-  managerId: z.string({ required_error: "Por favor, selecione um responsável." }).min(1, "Por favor, selecione um responsável."),
+  collaboratorId: z.string({ required_error: "Por favor, selecione um colaborador." }).min(1, "Por favor, selecione um colaborador."),
   totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
   status: z.string({ required_error: "O status é obrigatório." }),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
@@ -58,7 +58,7 @@ export default function CriarOrdemDeServicoPage() {
   const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [managers, setManagers] = useState<Manager[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
@@ -71,7 +71,7 @@ export default function CriarOrdemDeServicoPage() {
       clientId: '',
       serviceType: '',
       problemDescription: '',
-      managerId: '',
+      collaboratorId: '',
       totalValue: 0,
       status: settings.serviceStatuses?.[0] || 'Pendente',
       dueDate: new Date(),
@@ -96,12 +96,12 @@ export default function CriarOrdemDeServicoPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch Managers
+  // Fetch Collaborators
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'managers'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      setManagers(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Manager)));
+      setCollaborators(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
     return () => unsubscribe();
   }, [user]);
@@ -152,8 +152,8 @@ export default function CriarOrdemDeServicoPage() {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
       if (!selectedCustomer) throw new Error("Cliente não encontrado");
 
-      const selectedManager = managers.find(m => m.id === data.managerId);
-      if (!selectedManager) throw new Error("Responsável não encontrado");
+      const selectedCollaborator = collaborators.find(m => m.id === data.collaboratorId);
+      if (!selectedCollaborator) throw new Error("Colaborador não encontrado");
 
       const customFieldsData = { ...data.customFields };
       settings.serviceOrderCustomFields?.forEach(field => {
@@ -165,7 +165,7 @@ export default function CriarOrdemDeServicoPage() {
       await addDoc(collection(db, 'serviceOrders'), {
         ...data,
         clientName: selectedCustomer.name,
-        managerName: selectedManager.name,
+        collaboratorName: selectedCollaborator.name,
         dueDate: Timestamp.fromDate(data.dueDate),
         customFields: customFieldsData,
         userId: user.uid,
@@ -264,14 +264,14 @@ export default function CriarOrdemDeServicoPage() {
               <FormField control={serviceOrderForm.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
-               <FormField control={serviceOrderForm.control} name="managerId" render={({ field }) => (
+               <FormField control={serviceOrderForm.control} name="collaboratorId" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Responsável / Setor *</FormLabel>
+                  <FormLabel>Colaborador / Setor *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um responsável" /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {managers.map(manager => (
-                        <SelectItem key={manager.id} value={manager.id}>{manager.name}</SelectItem>
+                      {collaborators.map(collaborator => (
+                        <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

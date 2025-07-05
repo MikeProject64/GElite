@@ -1,3 +1,4 @@
+
 import {
   Wrench,
   Rocket,
@@ -37,6 +38,7 @@ import {
   Database,
   FileText,
   Search,
+  Building2,
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -78,6 +80,7 @@ export const availableIcons = {
   Database,
   FileText,
   Search,
+  Building2,
 };
 
 export const iconNames = Object.keys(availableIcons);
