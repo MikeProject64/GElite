@@ -121,3 +121,24 @@ export interface TimelineItem {
   date: Date;
   data: Customer | ServiceOrder | Quote | TimelineNote;
 }
+
+export interface InventoryItem {
+    id: string;
+    userId: string;
+    name: string;
+    quantity: number;
+    cost: number;
+    createdAt: Timestamp;
+    updatedAt: Timestamp;
+}
+
+export interface InventoryMovement {
+    id: string;
+    userId: string;
+    itemId: string;
+    type: 'entrada' | 'saída';
+    quantity: number;
+    notes?: string;
+    attachments?: { name: string; url: string; }[];
+    createdAt: Timestamp;
+}

@@ -5,10 +5,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -17,22 +17,19 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2 } from 'lucide-react';
+import { InventoryItem } from '@/types';
+
 
 const itemFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
-  quantity: z.coerce.number().min(0, { message: 'A quantidade não pode ser negativa.' }),
+  quantity: z.coerce.number().min(0, { message: 'A quantidade inicial não pode ser negativa.' }),
   cost: z.coerce.number().min(0, { message: 'O custo não pode ser negativo.' }),
 });
 
 type ItemFormValues = z.infer<typeof itemFormSchema>;
-
-interface InventoryItem extends ItemFormValues {
-    id: string;
-    userId: string;
-}
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -44,21 +41,18 @@ const formatCurrency = (value: number) => {
 export function InventoryClient() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const router = useRouter();
+
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<InventoryItem | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
-    defaultValues: {
-      name: '',
-      quantity: 0,
-      cost: 0,
-    },
+    defaultValues: { name: '', quantity: 0, cost: 0, },
   });
 
   useEffect(() => {
@@ -88,13 +82,9 @@ export function InventoryClient() {
   
   useEffect(() => {
     if (isDialogOpen) {
-      if (editingItem) {
-        form.reset(editingItem);
-      } else {
-        form.reset({ name: '', quantity: 0, cost: 0 });
-      }
+      form.reset({ name: '', quantity: 0, cost: 0 });
     }
-  }, [isDialogOpen, editingItem, form]);
+  }, [isDialogOpen, form]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) {
@@ -104,16 +94,6 @@ export function InventoryClient() {
       item.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
   }, [items, searchTerm]);
-
-  const handleAddNew = () => {
-    setEditingItem(null);
-    setIsDialogOpen(true);
-  };
-  
-  const handleEdit = (item: InventoryItem) => {
-    setEditingItem(item);
-    setIsDialogOpen(true);
-  };
 
   const handleDelete = (itemId: string) => {
     setDeletingItemId(itemId);
@@ -140,21 +120,33 @@ export function InventoryClient() {
     }
     
     try {
-      if (editingItem) {
-        const itemRef = doc(db, 'inventory', editingItem.id);
-        await updateDoc(itemRef, data);
-        toast({ title: "Sucesso!", description: "Item atualizado." });
-      } else {
-        await addDoc(collection(db, 'inventory'), {
-          ...data,
-          userId: user.uid,
-        });
-        toast({ title: "Sucesso!", description: "Item adicionado ao inventário." });
+      const itemPayload = {
+        name: data.name,
+        quantity: data.quantity, // Initial quantity
+        cost: data.cost,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      };
+      const itemRef = await addDoc(collection(db, 'inventory'), itemPayload);
+
+      // Create the initial stock movement
+      if (data.quantity > 0) {
+          await addDoc(collection(db, 'inventoryMovements'), {
+              itemId: itemRef.id,
+              userId: user.uid,
+              type: 'entrada',
+              quantity: data.quantity,
+              notes: 'Estoque inicial',
+              createdAt: Timestamp.now(),
+              attachments: []
+          });
       }
+      
+      toast({ title: "Sucesso!", description: "Item adicionado ao inventário." });
       setIsDialogOpen(false);
-      setEditingItem(null);
     } catch (error) {
-      console.error("Error adding/updating document: ", error);
+      console.error("Error adding document: ", error);
       toast({
         variant: "destructive",
         title: "Erro ao salvar",
@@ -166,7 +158,7 @@ export function InventoryClient() {
   return (
     <>
       <div className="flex items-center justify-end -mt-12">
-        <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
+        <Button size="sm" className="h-8 gap-1" onClick={() => setIsDialogOpen(true)}>
             <PlusCircle className="h-3.5 w-3.5" />
             <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
             Adicionar Item
@@ -177,9 +169,9 @@ export function InventoryClient() {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>{editingItem ? "Editar Item" : "Adicionar Novo Item"}</DialogTitle>
+              <DialogTitle>Adicionar Novo Item</DialogTitle>
               <DialogDescription>
-                {editingItem ? "Atualize os detalhes do item." : "Preencha os detalhes para adicionar um novo item ao seu inventário."}
+                Preencha os detalhes para adicionar um novo item ao seu inventário.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -193,7 +185,7 @@ export function InventoryClient() {
                 )}/>
                 <FormField control={form.control} name="quantity" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Quantidade em Estoque *</FormLabel>
+                    <FormLabel>Quantidade Inicial *</FormLabel>
                     <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -209,7 +201,7 @@ export function InventoryClient() {
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                     <Button type="submit" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {editingItem ? "Salvar Alterações" : "Salvar Item"}
+                        Salvar Item
                     </Button>
                 </DialogFooter>
               </form>
@@ -260,24 +252,20 @@ export function InventoryClient() {
                 </TableHeader>
                 <TableBody>
                 {filteredItems.map((item) => (
-                    <TableRow key={item.id}>
+                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
                     <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>{item.quantity}</TableCell>
                     <TableCell>{formatCurrency(item.cost)}</TableCell>
                     <TableCell>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
                             <MoreHorizontal className="h-4 w-4" />
                             <span className="sr-only">Toggle menu</span>
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleEdit(item)}>
-                                Editar Item
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
                                <Trash2 className="mr-2 h-4 w-4" />
                                 Excluir Item
@@ -304,7 +292,7 @@ export function InventoryClient() {
                 <AlertDialogHeader>
                 <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o item do seu inventário.
+                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o item e todo seu histórico de movimentações.
                 </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
