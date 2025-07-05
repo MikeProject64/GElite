@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -40,7 +40,7 @@ import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
-import { Slider } from '@/components/ui/slider';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -400,6 +400,63 @@ const CustomStatusManager = () => {
     );
 };
 
+const brandColors = [
+    { name: 'Azul Clássico', hsl: { h: 210, s: 70, l: 40 }, bg: 'bg-blue-600' },
+    { name: 'Violeta', hsl: { h: 262, s: 83, l: 58 }, bg: 'bg-violet-600' },
+    { name: 'Verde', hsl: { h: 142, s: 71, l: 45 }, bg: 'bg-green-600' },
+    { name: 'Laranja', hsl: { h: 25, s: 95, l: 53 }, bg: 'bg-orange-600' },
+    { name: 'Vermelho', hsl: { h: 0, s: 72, l: 51 }, bg: 'bg-red-600' },
+    { name: 'Rosa', hsl: { h: 340, s: 82, l: 56 }, bg: 'bg-pink-600' },
+    { name: 'Cinza Ardósia', hsl: { h: 221, s: 39, l: 49 }, bg: 'bg-slate-600' },
+    { name: 'Cinza Neutro', hsl: { h: 240, s: 5, l: 44 }, bg: 'bg-neutral-600' },
+];
+
+const iconTranslations: Record<string, string> = {
+    Wrench: 'Ferramenta',
+    Rocket: 'Foguete',
+    Briefcase: 'Maleta',
+    Heart: 'Coração',
+    Smile: 'Sorriso',
+    Cog: 'Engrenagem',
+    Shield: 'Escudo',
+    Star: 'Estrela',
+    Home: 'Casa',
+    Bolt: 'Raio',
+    Sun: 'Sol',
+    Cloud: 'Nuvem',
+    Anchor: 'Âncora',
+    Bike: 'Bicicleta',
+    Book: 'Livro',
+    Camera: 'Câmera',
+    Package: 'Pacote',
+    Truck: 'Caminhão',
+    User: 'Usuário',
+    Clock: 'Relógio',
+    Calendar: 'Calendário',
+    DollarSign: 'Cifrão',
+    CreditCard: 'Cartão de Crédito',
+    BarChart: 'Gráfico de Barras',
+    PieChart: 'Gráfico de Pizza',
+    Clipboard: 'Prancheta',
+    File: 'Arquivo',
+    Folder: 'Pasta',
+    Tag: 'Etiqueta',
+    MessageSquare: 'Balão de Fala',
+    Phone: 'Telefone',
+    Mail: 'E-mail',
+    Laptop: 'Laptop',
+    Server: 'Servidor',
+    HardDrive: 'HD',
+    Database: 'Banco de Dados',
+    FileText: 'Documento',
+    Search: 'Lupa',
+    Building2: 'Prédio',
+    Hammer: 'Martelo',
+    Screwdriver: 'Chave de Fenda',
+    PaintBrush: 'Pincel',
+};
+
+
 export default function ConfiguracoesPage() {
   const { settings, updateSettings, loadingSettings } = useSettings();
   const { toast } = useToast();
@@ -460,8 +517,6 @@ export default function ConfiguracoesPage() {
     updateSettings({ skillTags: tags });
   };
 
-  const watchedColor = form.watch("primaryColorHsl");
-
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold md:text-2xl">Configurações</h1>
@@ -516,14 +571,16 @@ export default function ConfiguracoesPage() {
                           <FormLabel>Ícone do Site</FormLabel>
                           <Select onValueChange={field.onChange} defaultValue={field.value}>
                             <FormControl>
-                              <SelectTrigger>
-                                <div className="flex items-center gap-2">
-                                  {field.value && availableIcons[field.value as keyof typeof availableIcons] && 
-                                    React.createElement(availableIcons[field.value as keyof typeof availableIcons], { className: "h-4 w-4 text-muted-foreground" })
-                                  }
-                                  <SelectValue placeholder="Selecione um ícone" />
-                                </div>
-                              </SelectTrigger>
+                               <SelectTrigger>
+                                  <div className="flex items-center gap-2">
+                                    {field.value && availableIcons[field.value as keyof typeof availableIcons] && 
+                                      React.createElement(availableIcons[field.value as keyof typeof availableIcons], { className: "h-4 w-4 text-muted-foreground" })
+                                    }
+                                    <span className='flex-1 text-left'>
+                                      {field.value ? (iconTranslations[field.value] || field.value) : "Selecione um ícone"}
+                                    </span>
+                                  </div>
+                                </SelectTrigger>
                             </FormControl>
                             <SelectContent>
                               {iconNames.map((iconName) => {
@@ -533,7 +590,7 @@ export default function ConfiguracoesPage() {
                                   <SelectItem key={iconName} value={iconName}>
                                     <div className="flex items-center gap-2">
                                         <IconComponent className="h-4 w-4 text-muted-foreground" />
-                                        <span>{iconName}</span>
+                                        <span>{iconTranslations[iconName] || iconName}</span>
                                     </div>
                                   </SelectItem>
                                 );
@@ -548,92 +605,49 @@ export default function ConfiguracoesPage() {
                       )}
                     />
                     
-                    <Separator />
-                    
-                    <div className="space-y-4">
-                      <FormLabel>Cor da Marca</FormLabel>
-                      <FormDescription>Ajuste a cor primária para combinar com a identidade visual da sua empresa.</FormDescription>
-                      {watchedColor && (
-                        <div className="flex items-center gap-4 pt-2">
-                          <div
-                            className="h-12 w-12 rounded-full border shadow-inner"
-                            style={{
-                              backgroundColor: `hsl(${watchedColor.h}, ${watchedColor.s}%, ${watchedColor.l}%)`,
-                            }}
-                          />
-                          <div className="flex-1 space-y-4">
-                            <FormField
-                              control={form.control}
-                              name="primaryColorHsl.h"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex justify-between items-center">
-                                    <FormLabel className="text-xs">Matiz (Hue)</FormLabel>
-                                    <span className="text-xs font-mono">{field.value}°</span>
-                                  </div>
-                                  <FormControl>
-                                    <Slider
-                                      min={0}
-                                      max={360}
-                                      step={1}
-                                      value={[field.value ?? 0]}
-                                      onValueChange={(value) => field.onChange(value[0])}
-                                      className="[&>span:first-child]:bg-gradient-to-r from-red-500 via-yellow-500 to-red-500"
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="primaryColorHsl.s"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex justify-between items-center">
-                                    <FormLabel className="text-xs">Saturação</FormLabel>
-                                    <span className="text-xs font-mono">{field.value}%</span>
-                                  </div>
-                                  <FormControl>
-                                    <Slider
-                                      min={0}
-                                      max={100}
-                                      step={1}
-                                      value={[field.value ?? 0]}
-                                      onValueChange={(value) => field.onChange(value[0])}
-                                      style={{'--slider-bg': `linear-gradient(to right, hsl(${watchedColor.h}, 0%, ${watchedColor.l}%), hsl(${watchedColor.h}, 100%, ${watchedColor.l}%))`}}
-                                      className="[&>span:first-child]:bg-[--slider-bg]"
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="primaryColorHsl.l"
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex justify-between items-center">
-                                    <FormLabel className="text-xs">Luminosidade</FormLabel>
-                                    <span className="text-xs font-mono">{field.value}%</span>
-                                  </div>
-                                  <FormControl>
-                                    <Slider
-                                      min={0}
-                                      max={100}
-                                      step={1}
-                                      value={[field.value ?? 0]}
-                                      onValueChange={(value) => field.onChange(value[0])}
-                                      style={{'--slider-bg': `linear-gradient(to right, hsl(${watchedColor.h}, ${watchedColor.s}%, 0%), hsl(${watchedColor.h}, ${watchedColor.s}%, 50%), hsl(${watchedColor.h}, ${watchedColor.s}%, 100%))`}}
-                                      className="[&>span:first-child]:bg-[--slider-bg]"
-                                    />
-                                  </FormControl>
-                                </FormItem>
-                              )}
-                            />
-                          </div>
-                        </div>
+                    <FormField
+                      control={form.control}
+                      name="primaryColorHsl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Cor da Marca</FormLabel>
+                          <FormDescription>
+                            Selecione uma cor para personalizar a aparência do sistema.
+                          </FormDescription>
+                          <FormControl>
+                            <div className="grid grid-cols-8 gap-2 pt-2">
+                                {brandColors.map((color) => (
+                                <TooltipProvider key={color.name}>
+                                    <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button
+                                        type="button"
+                                        onClick={() => field.onChange(color.hsl)}
+                                        className={cn(
+                                            'h-8 w-8 rounded-full',
+                                            color.bg,
+                                            'flex items-center justify-center ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                                        )}
+                                        >
+                                        {field.value &&
+                                        field.value.h === color.hsl.h &&
+                                        field.value.s === color.hsl.s &&
+                                        field.value.l === color.hsl.l ? (
+                                            <Check className="h-5 w-5 text-white" />
+                                        ) : null}
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                        <p>{color.name}</p>
+                                    </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                                ))}
+                            </div>
+                          </FormControl>
+                        </FormItem>
                       )}
-                    </div>
+                    />
 
                     <Button type="submit" disabled={form.formState.isSubmitting}>
                       {form.formState.isSubmitting ? (
