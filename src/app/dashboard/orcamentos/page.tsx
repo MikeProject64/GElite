@@ -106,6 +106,10 @@ export default function OrcamentosPage() {
         return statusMatch && clientMatch;
     });
   }, [latestQuotes, filters]);
+  
+  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+    setFilters(prev => ({ ...prev, [filterName]: value }));
+  };
 
   const totalQuotesCount = useMemo(() => {
     return latestQuotes.length;
