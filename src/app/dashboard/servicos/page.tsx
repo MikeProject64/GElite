@@ -19,8 +19,9 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
 
 const getStatusVariant = (status: string) => {
@@ -231,52 +232,71 @@ export default function ServicosPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredOrders.map((order) => (
-                    <TableRow key={order.id}>
-                     <TableCell>
-                        <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
-                            #{order.id.substring(0, 6).toUpperCase()}
-                        </Link>
-                      </TableCell>
-                    <TableCell>
-                        <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
-                        <div className="text-sm text-muted-foreground">
-                            <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
-                        </div>
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">
-                        {order.collaboratorId ? (
-                            <Link href={`/dashboard/colaboradores/${order.collaboratorId}`} className="hover:underline">{order.collaboratorName}</Link>
-                        ) : (
-                            'Não definido'
-                        )}
-                    </TableCell>
-                    <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
-                                <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onSelect={() => openCancelDialog(order.id)}>
-                               <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                ))}
+                {filteredOrders.map((order) => {
+                    const hasPendencies = !order.collaboratorId && order.status === 'Pendente';
+                    return (
+                        <TableRow key={order.id}>
+                         <TableCell>
+                            <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
+                                #{order.id.substring(0, 6).toUpperCase()}
+                            </Link>
+                          </TableCell>
+                        <TableCell>
+                           <div className="flex items-center gap-2">
+                                {hasPendencies && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Pendências: definir prazo e responsável.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                                <div>
+                                    <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
+                                    <div className="text-sm text-muted-foreground">
+                                        <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
+                                    </div>
+                                </div>
+                            </div>
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">
+                            {order.collaboratorId ? (
+                                <Link href={`/dashboard/colaboradores/${order.collaboratorId}`} className="hover:underline">{order.collaboratorName}</Link>
+                            ) : (
+                                'Não definido'
+                            )}
+                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                        <TableCell>
+                            <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                        </TableCell>
+                        <TableCell>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
+                                    <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem className="text-destructive" onSelect={() => openCancelDialog(order.id)}>
+                                   <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    );
+                })}
                 </TableBody>
             </Table>
           </div>
@@ -317,5 +337,3 @@ export default function ServicosPage() {
     </div>
   );
 }
-
-    
