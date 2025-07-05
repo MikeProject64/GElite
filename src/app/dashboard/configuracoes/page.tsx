@@ -41,6 +41,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -401,15 +402,32 @@ const CustomStatusManager = () => {
 };
 
 const brandColors = [
-    { name: 'Azul Clássico', hsl: { h: 210, s: 70, l: 40 }, bg: 'bg-blue-600' },
-    { name: 'Violeta', hsl: { h: 262, s: 83, l: 58 }, bg: 'bg-violet-600' },
-    { name: 'Verde', hsl: { h: 142, s: 71, l: 45 }, bg: 'bg-green-600' },
-    { name: 'Laranja', hsl: { h: 25, s: 95, l: 53 }, bg: 'bg-orange-600' },
-    { name: 'Vermelho', hsl: { h: 0, s: 72, l: 51 }, bg: 'bg-red-600' },
-    { name: 'Rosa', hsl: { h: 340, s: 82, l: 56 }, bg: 'bg-pink-600' },
-    { name: 'Cinza Ardósia', hsl: { h: 221, s: 39, l: 49 }, bg: 'bg-slate-600' },
-    { name: 'Cinza Neutro', hsl: { h: 240, s: 5, l: 44 }, bg: 'bg-neutral-600' },
+    { name: 'Céu', hsl: { h: 204, s: 90, l: 58 }, bg: 'bg-sky-400' },
+    { name: 'Menta', hsl: { h: 153, s: 68, l: 60 }, bg: 'bg-emerald-400' },
+    { name: 'Limão', hsl: { h: 54, s: 100, l: 62 }, bg: 'bg-yellow-300' },
+    { name: 'Pêssego', hsl: { h: 28, s: 100, l: 61 }, bg: 'bg-orange-400' },
+    { name: 'Salmão', hsl: { h: 5, s: 93, l: 60 }, bg: 'bg-red-400' },
+    { name: 'Rosa', hsl: { h: 339, s: 85, l: 66 }, bg: 'bg-pink-400' },
+    { name: 'Lavanda', hsl: { h: 250, s: 80, l: 70 }, bg: 'bg-violet-400' },
+    { name: 'Cinza Claro', hsl: { h: 210, s: 14, l: 80 }, bg: 'bg-gray-300' },
+    { name: 'Azul', hsl: { h: 211, s: 100, l: 50 }, bg: 'bg-blue-500' },
+    { name: 'Verde Mar', hsl: { h: 145, s: 63, l: 49 }, bg: 'bg-green-500' },
+    { name: 'Amarelo', hsl: { h: 45, s: 100, l: 51 }, bg: 'bg-yellow-500' },
+    { name: 'Laranja', hsl: { h: 24, s: 100, l: 55 }, bg: 'bg-orange-500' },
+    { name: 'Vermelho', hsl: { h: 350, s: 91, l: 55 }, bg: 'bg-red-500' },
+    { name: 'Vinho', hsl: { h: 326, s: 80, l: 55 }, bg: 'bg-pink-600' },
+    { name: 'Índigo', hsl: { h: 245, s: 85, l: 55 }, bg: 'bg-indigo-500' },
+    { name: 'Cinza Médio', hsl: { h: 210, s: 10, l: 50 }, bg: 'bg-gray-500' },
+    { name: 'Azul Escuro', hsl: { h: 217, s: 89, l: 48 }, bg: 'bg-blue-600' },
+    { name: 'Verde Escuro', hsl: { h: 158, s: 80, l: 40 }, bg: 'bg-green-700' },
+    { name: 'Mostarda', hsl: { h: 38, s: 100, l: 45 }, bg: 'bg-amber-600' },
+    { name: 'Abóbora', hsl: { h: 18, s: 93, l: 47 }, bg: 'bg-orange-600' },
+    { name: 'Rubi', hsl: { h: 351, s: 84, l: 45 }, bg: 'bg-red-700' },
+    { name: 'Framboesa', hsl: { h: 333, s: 71, l: 45 }, bg: 'bg-rose-700' },
+    { name: 'Roxo', hsl: { h: 262, s: 83, l: 58 }, bg: 'bg-violet-600' },
+    { name: 'Ardósia', hsl: { h: 210, s: 11, l: 30 }, bg: 'bg-slate-700' },
 ];
+
 
 const iconTranslations: Record<string, string> = {
     Wrench: 'Ferramenta',
@@ -569,37 +587,35 @@ export default function ConfiguracoesPage() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Ícone do Site</FormLabel>
-                          <Select onValueChange={field.onChange} defaultValue={field.value}>
-                            <FormControl>
-                               <SelectTrigger>
-                                  <div className="flex items-center gap-2">
-                                    {field.value && availableIcons[field.value as keyof typeof availableIcons] && 
-                                      React.createElement(availableIcons[field.value as keyof typeof availableIcons], { className: "h-4 w-4 text-muted-foreground" })
-                                    }
-                                    <span className='flex-1 text-left'>
-                                      {field.value ? (iconTranslations[field.value] || field.value) : "Selecione um ícone"}
-                                    </span>
-                                  </div>
-                                </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {iconNames.map((iconName) => {
-                                const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
-                                if (!IconComponent) return null;
-                                return (
-                                  <SelectItem key={iconName} value={iconName}>
-                                    <div className="flex items-center gap-2">
-                                        <IconComponent className="h-4 w-4 text-muted-foreground" />
-                                        <span>{iconTranslations[iconName] || iconName}</span>
-                                    </div>
-                                  </SelectItem>
-                                );
-                              })}
-                            </SelectContent>
-                          </Select>
                           <FormDescription>
                             Este ícone aparecerá no menu lateral.
                           </FormDescription>
+                           <RadioGroup
+                            onValueChange={field.onChange}
+                            defaultValue={field.value}
+                            className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 pt-2"
+                          >
+                            {iconNames.map((iconName) => {
+                              const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
+                              if (!IconComponent) return null;
+                              return (
+                                <FormItem key={iconName}>
+                                  <FormControl>
+                                    <RadioGroupItem value={iconName} className="sr-only" id={iconName} />
+                                  </FormControl>
+                                  <Label htmlFor={iconName}
+                                    className={cn(
+                                      "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer aspect-square",
+                                      field.value === iconName && "border-primary"
+                                    )}
+                                  >
+                                    <IconComponent className="h-6 w-6 mb-2" />
+                                    <span className="text-center text-xs">{iconTranslations[iconName] || iconName}</span>
+                                  </Label>
+                                </FormItem>
+                              );
+                            })}
+                          </RadioGroup>
                           <FormMessage />
                         </FormItem>
                       )}
@@ -624,7 +640,7 @@ export default function ConfiguracoesPage() {
                                         type="button"
                                         onClick={() => field.onChange(color.hsl)}
                                         className={cn(
-                                            'h-8 w-8 rounded-full',
+                                            'h-8 w-8 rounded-md',
                                             color.bg,
                                             'flex items-center justify-center ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
                                         )}
@@ -633,7 +649,7 @@ export default function ConfiguracoesPage() {
                                         field.value.h === color.hsl.h &&
                                         field.value.s === color.hsl.s &&
                                         field.value.l === color.hsl.l ? (
-                                            <Check className="h-5 w-5 text-white" />
+                                            <Check className="h-5 w-5 text-white mix-blend-difference" />
                                         ) : null}
                                         </button>
                                     </TooltipTrigger>
