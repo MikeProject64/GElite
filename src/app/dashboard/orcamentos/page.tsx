@@ -164,7 +164,7 @@ export default function OrcamentosPage() {
                 {filteredQuotes.map((quote) => (
                     <TableRow key={quote.id}>
                     <TableCell>
-                        <div className="font-medium">{quote.clientName}</div>
+                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline">{quote.clientName}</Link>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>

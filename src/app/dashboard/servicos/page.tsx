@@ -232,7 +232,7 @@ export default function ServicosPage() {
                 {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                     <TableCell>
-                        <div className="font-medium">{order.clientName}</div>
+                        <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.clientName}</Link>
                         <div className="text-sm text-muted-foreground lg:hidden">{order.serviceType}</div>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">{order.serviceType}</TableCell>

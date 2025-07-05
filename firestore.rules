@@ -16,32 +16,34 @@ service cloud.firestore {
 
     // Customers: Only the owner can manage their customer documents.
     match /customers/{customerId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
-    // Service Orders: Only the owner can manage their service order documents.
+    // Service Orders: Allow owner to manage. Allow public read for printing.
     match /serviceOrders/{orderId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if true;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
     // Inventory: Only the owner can manage their inventory documents.
     match /inventory/{itemId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
     
-    // Quotes: Only the owner can manage their quote documents.
+    // Quotes: Allow owner to manage. Allow public read for printing.
     match /quotes/{quoteId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+      allow read: if true;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
 
-    // Managers: Only the owner can manage their manager/sector documents.
+    // Managers: Only the owner can manage their manager documents.
     match /managers/{managerId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
       allow create: if request.auth != null && request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if request.auth != null && request.auth.uid == resource.data.userId;
     }
   }
 }

@@ -13,6 +13,7 @@ import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -391,7 +392,7 @@ export default function BaseDeClientesPage() {
                 {filteredCustomers.map((customer) => (
                     <TableRow key={customer.id}>
                     <TableCell>
-                        <div className="font-medium">{customer.name}</div>
+                        <Link href={`/dashboard/base-de-clientes/${customer.id}`} className="font-medium hover:underline">{customer.name}</Link>
                         <div className="text-sm text-muted-foreground md:hidden">{customer.phone}</div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">

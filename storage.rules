@@ -1,0 +1,14 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Files for service orders can only be uploaded by the owner of the service order.
+    // The service order ID in the path must match a document in Firestore,
+    // and that document's userId must match the authenticated user.
+    match /serviceOrders/{orderId}/{fileName} {
+      allow read, write: if request.auth != null &&
+                            exists(/databases/$(database)/documents/serviceOrders/$(orderId)) &&
+                            get(/databases/$(database)/documents/serviceOrders/$(orderId)).data.userId == request.auth.uid;
+    }
+  }
+}
