@@ -87,9 +87,6 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
-        
-        // --- Fetch for Stats and Charts ---
         const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
         const customersQuery = query(collection(db, 'customers'), where('userId', '==', user.uid));
         const quotesQuery = query(collection(db, 'quotes'), where('userId', '==', user.uid));
@@ -99,38 +96,51 @@ export default function DashboardPage() {
             getDocs(customersQuery),
             getDocs(quotesQuery),
         ]);
+
+        // Sanitize and validate data upfront to prevent crashes from malformed records
+        const allOrders = ordersSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder)
+            .filter(o => o.createdAt && typeof o.createdAt.toDate === 'function');
         
-        const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder);
-        const allQuotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote);
+        const allCustomers = customersSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() }) as Customer)
+            .filter(c => c.createdAt && typeof c.createdAt.toDate === 'function');
+
+        const allQuotes = quotesSnap.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Quote)
+            .filter(q => q.createdAt && typeof q.createdAt.toDate === 'function'));
+
+        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
         const now = new Date();
         now.setHours(0, 0, 0, 0);
 
-        // Process stats
+        // Process stats with validated data
         const activeCount = allOrders.filter(o => activeStatuses.includes(o.status)).length;
-        const customerCount = customersSnap.size;
+        const customerCount = allCustomers.length;
         
-        const overdueCount = allOrders.filter(o => {
-          if (!o.dueDate || typeof o.dueDate.toDate !== 'function') return false;
-          return !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate());
-        }).length;
+        const overdueCount = allOrders.filter(o => 
+            o.dueDate && typeof o.dueDate.toDate === 'function' &&
+            !['Concluída', 'Cancelada'].includes(o.status) && 
+            isPast(o.dueDate.toDate()) && 
+            !isToday(o.dueDate.toDate())
+        ).length;
         
         const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
 
         setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
 
         // Process chart data
-        // 1. Order Status Pie Chart
         const statusCounts = allOrders.reduce((acc, order) => {
             acc[order.status] = (acc[order.status] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
+        
         const orderStatus = Object.entries(statusCounts).map(([status, count]) => ({
             status,
             count,
             fill: getStatusColor(status),
         }));
 
-        // 2. Monthly Revenue Bar Chart
         const sixMonthsAgo = subMonths(new Date(), 5);
         const monthlyRevenueMap = allOrders.reduce((acc, order) => {
             if (order.status === 'Concluída' && order.completedAt && typeof order.completedAt.toDate === 'function') {
@@ -152,10 +162,10 @@ export default function DashboardPage() {
 
         setChartData({ orderStatus, monthlyRevenue });
 
-        // --- Fetch for Recent Activity ---
-        const recentOrders = allOrders.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
-        const recentCustomers = customersSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Customer).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
-        const recentQuotesActivity = allQuotes.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        // Fetch for Recent Activity (using already sanitized data)
+        const recentOrders = [...allOrders].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        const recentCustomers = [...allCustomers].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        const recentQuotesActivity = [...allQuotes].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         
         const ordersActivity: RecentActivity[] = recentOrders.map(data => ({ id: data.id, type: 'serviço', description: `Nova OS: ${data.serviceType} para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/servicos/${data.id}`}));
         const customersActivity: RecentActivity[] = recentCustomers.map(data => ({ id: data.id, type: 'cliente', description: `Novo cliente: ${data.name}`, timestamp: data.createdAt.toDate(), href: `/dashboard/base-de-clientes/${data.id}`}));
@@ -412,3 +422,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
