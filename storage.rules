@@ -1,17 +1,20 @@
-
 rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
+    
+    // Regra para anexos de Ordens de Serviço
+    // Permite a escrita se o usuário for o dono da Ordem de Serviço correspondente no Firestore.
     match /serviceOrders/{orderId}/{fileName} {
-      // Allow read access to any authenticated user. This allows clients
-      // or other team members to view attachments if they have the URL.
       allow read: if request.auth != null;
-
-      // Allow write access (uploads) only if the user is authenticated AND
-      // they are providing metadata that correctly identifies them as the uploader.
-      // This metadata is added by the client-side code during the upload process.
       allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
+    }
+
+    // Regra para fotos de Colaboradores
+    // Permite a escrita se o usuário for o dono do Colaborador correspondente no Firestore.
+    match /collaborators/{collaboratorId}/{fileName} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && exists(/databases/$(database)/documents/collaborators/$(collaboratorId)) && get(/databases/$(database)/documents/collaborators/$(collaboratorId)).data.userId == request.auth.uid;
     }
   }
 }

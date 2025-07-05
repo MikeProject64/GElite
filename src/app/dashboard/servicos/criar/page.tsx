@@ -171,6 +171,7 @@ export default function CriarOrdemDeServicoPage() {
         userId: user.uid,
         createdAt: Timestamp.now(),
         completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
+        attachments: [],
       });
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       router.push('/dashboard/servicos');
@@ -333,7 +334,7 @@ export default function CriarOrdemDeServicoPage() {
                         {settings.serviceOrderCustomFields.map((customField) => (
                            <FormField
                                 key={customField.id}
-                                control={form.control}
+                                control={serviceOrderForm.control}
                                 name={`customFields.${customField.id}`}
                                 render={({ field }) => (
                                     <FormItem>
