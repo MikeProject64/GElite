@@ -215,25 +215,25 @@ export default function DashboardPage() {
       
       const customerResults: SearchResult[] = customersSnap.docs
         .map(doc => ({ ...doc.data(), id: doc.id } as Customer))
-        .filter(c => c.name.toLowerCase().includes(lowerTerm) || c.phone.includes(lowerTerm))
+        .filter(c => (c.name && c.name.toLowerCase().includes(lowerTerm)) || (c.phone && c.phone.includes(lowerTerm)))
         .map(doc => ({ id: doc.id, type: 'Cliente', title: doc.name, description: doc.phone, href: `/dashboard/base-de-clientes/${doc.id}` }))
         .slice(0, 5);
 
       const orderResults: SearchResult[] = ordersSnap.docs
         .map(doc => ({ ...doc.data(), id: doc.id } as ServiceOrder))
-        .filter(o => o.serviceType.toLowerCase().includes(lowerTerm) || o.clientName.toLowerCase().includes(lowerTerm))
+        .filter(o => (o.serviceType && o.serviceType.toLowerCase().includes(lowerTerm)) || (o.clientName && o.clientName.toLowerCase().includes(lowerTerm)))
         .map(doc => ({ id: doc.id, type: 'Serviço', title: doc.serviceType, description: `Cliente: ${doc.clientName}`, href: `/dashboard/servicos/${doc.id}` }))
         .slice(0, 5);
       
       const quoteResults: SearchResult[] = quotesSnap.docs
         .map(doc => ({ ...doc.data(), id: doc.id } as Quote))
-        .filter(q => q.clientName.toLowerCase().includes(lowerTerm) || q.id.includes(lowerTerm))
+        .filter(q => (q.clientName && q.clientName.toLowerCase().includes(lowerTerm)) || (q.id && q.id.toLowerCase().includes(lowerTerm)))
         .map(doc => ({ id: doc.id, type: 'Orçamento', title: `Orçamento para ${doc.clientName}`, description: `ID: ...${doc.id.slice(-4)}`, href: `/dashboard/orcamentos/${doc.id}` }))
         .slice(0, 5);
       
       const collaboratorResults: SearchResult[] = collaboratorsSnap.docs
         .map(doc => ({ ...doc.data(), id: doc.id } as Collaborator))
-        .filter(m => m.name.toLowerCase().includes(lowerTerm))
+        .filter(m => (m.name && m.name.toLowerCase().includes(lowerTerm)))
         .map(doc => ({ id: doc.id, type: 'Colaborador', title: doc.name, description: 'Colaborador / Setor', href: `/dashboard/colaboradores/${doc.id}` }))
         .slice(0, 5);
       
@@ -440,4 +440,3 @@ export default function DashboardPage() {
     
 
     
-
