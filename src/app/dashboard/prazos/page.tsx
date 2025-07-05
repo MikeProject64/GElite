@@ -16,12 +16,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
-import { Loader2, CalendarClock, Calendar as CalendarIcon, List } from "lucide-react";
+import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import type { ServiceOrder, Collaborator } from '@/types';
 
 
@@ -156,6 +157,11 @@ export default function PrazosPage() {
         return () => unsubscribe();
     }, [user]);
 
+    const overdueCount = useMemo(() => {
+        if (isLoading) return 0;
+        return orders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+    }, [orders, isLoading]);
+
     const filteredOrders = useMemo(() => {
         const now = new Date();
         now.setHours(0,0,0,0);
@@ -172,11 +178,7 @@ export default function PrazosPage() {
                 return dueDate >= start && dueDate <= end;
             });
         } else if (activeFilter === 'overdue') {
-            tempOrders = tempOrders.filter(o => {
-                const dueDate = o.dueDate.toDate();
-                dueDate.setHours(0,0,0,0);
-                return dueDate < now && !isToday(dueDate);
-            });
+            tempOrders = tempOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
         }
 
         if (selectedCollaborator !== 'all') {
@@ -202,6 +204,23 @@ export default function PrazosPage() {
     return (
         <div className="flex flex-col gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Prazos de Entrega</h1>
+
+            {!isLoading && overdueCount > 0 && (
+                <Alert variant="destructive">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Atenção: Ordens de Serviço Vencidas!</AlertTitle>
+                    <AlertDescription>
+                        Você possui {overdueCount} ordem(ns) de serviço que ultrapassaram o prazo.{' '}
+                        <button
+                            onClick={() => setActiveFilter('overdue')}
+                            className="font-bold underline hover:no-underline"
+                        >
+                            Clique aqui para visualizá-las.
+                        </button>
+                    </AlertDescription>
+                </Alert>
+            )}
+            
             <Card>
                 <CardHeader className="flex-row items-center justify-between">
                   <div>
@@ -241,7 +260,7 @@ export default function PrazosPage() {
                                     <Label className="text-sm font-medium">Filtrar por data</Label>
                                     <div className="flex gap-2 flex-wrap mt-2">
                                         <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
-                                        <Button size="sm" variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
+                                        <Button size="sm" variant={activeFilter === 'overdue' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
                                         <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
                                         <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
                                     </div>
