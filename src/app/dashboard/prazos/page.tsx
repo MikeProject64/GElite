@@ -233,17 +233,19 @@ export default function PrazosPage() {
                         </div>
                     ) : (
                         <>
-                            <div className="flex flex-wrap items-end gap-4 mb-4">
-                                <div>
-                                    <Label className="text-sm font-medium">Filtrar por data</Label>
-                                    <div className="flex gap-2 flex-wrap mt-2">
-                                        <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('all')}>Todos</Button>
-                                        <Button size="sm" variant={activeFilter === 'overdue' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
-                                        <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
-                                        <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
+                            {viewMode === 'list' && (
+                                <div className="flex flex-wrap items-end gap-4 mb-4">
+                                    <div>
+                                        <Label className="text-sm font-medium">Filtrar por data</Label>
+                                        <div className="flex gap-2 flex-wrap mt-2">
+                                            <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('all')}>Todos</Button>
+                                            <Button size="sm" variant={activeFilter === 'overdue' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
+                                            <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
+                                            <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
 
                             {viewMode === 'list' ? (
                                 <>

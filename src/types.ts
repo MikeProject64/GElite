@@ -77,6 +77,8 @@ export interface ServiceOrder {
     activityLog?: ActivityLogEntry[];
     isTemplate?: boolean;
     templateName?: string;
+    originalServiceOrderId?: string;
+    version?: number;
 }
 
 export interface Quote {
@@ -144,4 +146,3 @@ export interface InventoryMovement {
     serviceOrderId?: string;
     serviceOrderCode?: string;
 }
-

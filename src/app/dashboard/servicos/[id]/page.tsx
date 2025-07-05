@@ -69,6 +69,7 @@ export default function ServicoDetailPage() {
   const { settings } = useSettings();
 
   const [order, setOrder] = useState<ServiceOrder | null>(null);
+  const [serviceOrderVersions, setServiceOrderVersions] = useState<ServiceOrder[]>([]);
   const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,6 +100,18 @@ export default function ServicoDetailPage() {
             return;
         }
         setOrder(orderData);
+
+        const originalId = orderData.originalServiceOrderId || orderData.id;
+        const versionsQuery = query(
+            collection(db, 'serviceOrders'),
+            where('originalServiceOrderId', '==', originalId),
+            orderBy('version', 'desc')
+        );
+        onSnapshot(versionsQuery, (versionSnap) => {
+            const versions = versionSnap.docs.map(d => ({id: d.id, ...d.data()}) as ServiceOrder);
+            setServiceOrderVersions(versions);
+        });
+
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Ordem de serviço não encontrada.' });
         router.push('/dashboard/servicos');
@@ -329,6 +342,7 @@ export default function ServicoDetailPage() {
   }
   
   const canManage = order.status !== 'Cancelada';
+  const canCreateNewVersion = order.status !== 'Concluída' && order.status !== 'Cancelada';
 
   return (
     <div className="flex flex-col gap-6">
@@ -338,7 +352,7 @@ export default function ServicoDetailPage() {
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
             <Wrench className='h-5 w-5' />
-            Detalhes da Ordem de Serviço
+            Detalhes da OS (v{order.version || 1})
         </h1>
         <Badge variant={getStatusVariant(order.status)} className="text-base px-3 py-1">{order.status}</Badge>
       </div>
@@ -358,7 +372,7 @@ export default function ServicoDetailPage() {
                         <User className="h-5 w-5 text-muted-foreground" />
                         <div>
                             <p className="text-sm text-muted-foreground">Cliente</p>
-                            <p className="font-medium">{order.clientName}</p>
+                            <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="font-medium hover:underline">{order.clientName}</Link>
                         </div>
                     </div>
                      <div className="flex items-center gap-3">
@@ -444,9 +458,9 @@ export default function ServicoDetailPage() {
                         <WhatsAppIcon />
                         Enviar por WhatsApp
                     </Button>
-                     <Button variant="outline" size="sm" asChild>
-                        <Link href={`/dashboard/servicos/criar?editId=${order.id}`}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                     <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
+                        <Link href={`/dashboard/servicos/criar?versionOf=${order.id}`}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar / Criar Nova Versão
                         </Link>
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
@@ -524,40 +538,71 @@ export default function ServicoDetailPage() {
 
         </div>
 
-          <Card className='lg:col-span-1'>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><Paperclip/> Anexos</CardTitle>
-              <CardDescription>Adicione e visualize fotos e documentos.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid w-full max-w-sm items-center gap-1.5">
-                  <Label htmlFor="picture">Adicionar anexo</Label>
-                  <Input id="picture" type="file" onChange={handleFileUpload} disabled={isUploading || !canManage}/>
-              </div>
-              {isUploading && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin"/>
-                    <span>Enviando...</span>
+          <div className='lg:col-span-1 flex flex-col gap-6'>
+            <Card>
+                <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Paperclip/> Anexos</CardTitle>
+                <CardDescription>Adicione e visualize fotos e documentos.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                <div className="grid w-full max-w-sm items-center gap-1.5">
+                    <Label htmlFor="picture">Adicionar anexo</Label>
+                    <Input id="picture" type="file" onChange={handleFileUpload} disabled={isUploading || !canManage}/>
                 </div>
-              )}
-              <div className="space-y-2">
-                {order.attachments && order.attachments.length > 0 ? (
-                  order.attachments.map((file, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setPreviewFile(file)}
-                      className="flex w-full items-center gap-2 p-2 rounded-md bg-secondary hover:bg-secondary/80 text-left"
-                    >
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm font-medium truncate flex-1">{file.name}</span>
-                    </button>
-                  ))
-                ) : (
-                  <p className="text-sm text-center text-muted-foreground pt-4">Nenhum anexo encontrado.</p>
+                {isUploading && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin"/>
+                        <span>Enviando...</span>
+                    </div>
                 )}
-              </div>
-            </CardContent>
-          </Card>
+                <div className="space-y-2">
+                    {order.attachments && order.attachments.length > 0 ? (
+                    order.attachments.map((file, index) => (
+                        <button
+                        key={index}
+                        onClick={() => setPreviewFile(file)}
+                        className="flex w-full items-center gap-2 p-2 rounded-md bg-secondary hover:bg-secondary/80 text-left"
+                        >
+                        <Eye className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                        </button>
+                    ))
+                    ) : (
+                    <p className="text-sm text-center text-muted-foreground pt-4">Nenhum anexo encontrado.</p>
+                    )}
+                </div>
+                </CardContent>
+            </Card>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Histórico de Versões</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {serviceOrderVersions.length > 0 ? (
+                        serviceOrderVersions.map(v => (
+                            <Link key={v.id} href={`/dashboard/servicos/${v.id}`}>
+                                <div className={cn(
+                                    "p-3 rounded-md border cursor-pointer",
+                                    v.id === order.id ? "bg-muted border-primary" : "hover:bg-muted/50"
+                                )}>
+                                    <div className="flex justify-between items-center font-medium">
+                                        <span>Versão {v.version}</span>
+                                        <Badge variant={getStatusVariant(v.status)}>{v.status}</Badge>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                        <span>{format(v.createdAt.toDate(), 'dd/MM/yy')}</span>
+                                        <span>{v.collaboratorName}</span>
+                                    </div>
+                                </div>
+                            </Link>
+                        ))
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">Nenhuma outra versão encontrada.</p>
+                    )}
+                </CardContent>
+            </Card>
+          </div>
       </div>
 
        <Dialog open={!!previewFile} onOpenChange={(isOpen) => !isOpen && setPreviewFile(null)}>

@@ -270,7 +270,7 @@ export default function OrcamentoDetailPage() {
             <CardHeader>
                 <CardTitle>{quote.title}</CardTitle>
                 <CardDescription>
-                  Proposta para {quote.clientName} | Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
+                  Proposta para <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="font-medium text-primary hover:underline">{quote.clientName}</Link> | Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">

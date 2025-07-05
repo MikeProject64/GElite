@@ -68,7 +68,8 @@ function CreateServiceOrderForm() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isVersioning, setIsVersioning] = useState(false);
+  const [baseOrder, setBaseOrder] = useState<ServiceOrder | null>(null);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -88,19 +89,25 @@ function CreateServiceOrderForm() {
     },
   });
 
+  const newCustomerForm = useForm<NewCustomerValues>({
+    resolver: zodResolver(newCustomerSchema),
+    defaultValues: { name: '', phone: '' },
+  });
+
   useEffect(() => {
     if (!user) return;
     
     const templateId = searchParams.get('templateId');
-    const editId = searchParams.get('editId');
-    setIsEditMode(!!editId);
+    const versionOfId = searchParams.get('versionOf');
+    setIsVersioning(!!versionOfId);
 
     const initializeForm = async () => {
-        if (editId) {
-            const orderRef = doc(db, 'serviceOrders', editId);
+        if (versionOfId) {
+            const orderRef = doc(db, 'serviceOrders', versionOfId);
             const orderSnap = await getDoc(orderRef);
             if (orderSnap.exists()) {
-                const data = orderSnap.data() as ServiceOrder;
+                const data = { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
+                setBaseOrder(data);
                 const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
                     const fieldType = settings.serviceOrderCustomFields?.find(f => f.id === key)?.type;
                     if (fieldType === 'date' && value && value.toDate) {
@@ -116,8 +123,9 @@ function CreateServiceOrderForm() {
                     dueDate: data.dueDate.toDate(),
                     customFields: customFieldsWithDate,
                 });
+                toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version || 1} da OS.` });
             } else {
-                toast({ variant: 'destructive', title: 'Erro', description: 'Ordem de serviço para edição não encontrada.' });
+                toast({ variant: 'destructive', title: 'Erro', description: 'Ordem de serviço base não encontrada.' });
                 router.push('/dashboard/servicos');
             }
         } else if (templateId) {
@@ -209,8 +217,6 @@ function CreateServiceOrderForm() {
   
   const onServiceOrderSubmit = async (data: ServiceOrderValues) => {
     if (!user) return;
-    
-    const editId = searchParams.get('editId');
 
     try {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
@@ -226,44 +232,48 @@ function CreateServiceOrderForm() {
             }
        });
        
-       const payload = {
+       const payload: Omit<ServiceOrder, 'id'> = {
         ...data,
         clientName: selectedCustomer.name,
         collaboratorName: selectedCollaborator.name,
         dueDate: Timestamp.fromDate(data.dueDate),
         customFields: customFieldsData,
         completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+        attachments: [],
+        isTemplate: false,
+        activityLog: [],
+        version: 1,
       };
 
-      if (isEditMode && editId) {
-        const orderRef = doc(db, 'serviceOrders', editId);
-        const logEntry = {
-            timestamp: Timestamp.now(),
-            userEmail: user?.email || 'Sistema',
-            description: 'Ordem de Serviço atualizada.'
-        };
-        await updateDoc(orderRef, {
-            ...payload,
-            activityLog: arrayUnion(logEntry)
-        });
-        toast({ title: "Sucesso!", description: "Ordem de serviço atualizada." });
-        router.push(`/dashboard/servicos/${editId}`);
-      } else {
-         await addDoc(collection(db, 'serviceOrders'), {
-            ...payload,
-            userId: user.uid,
-            createdAt: Timestamp.now(),
-            attachments: [],
-            isTemplate: false,
-            activityLog: [{
+      if (isVersioning && baseOrder) {
+        payload.originalServiceOrderId = baseOrder.originalServiceOrderId || baseOrder.id;
+        payload.version = (baseOrder.version || 1) + 1;
+        payload.attachments = baseOrder.attachments; // Carry over attachments
+        payload.activityLog = [
+            {
                 timestamp: Timestamp.now(),
                 userEmail: user?.email || 'Sistema',
-                description: 'Ordem de Serviço criada.'
-            }],
-         });
-         toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
-         router.push('/dashboard/servicos');
+                description: `Nova versão (v${payload.version}) criada a partir da v${baseOrder.version}.`
+            }
+        ]
+      } else {
+        payload.activityLog = [{
+            timestamp: Timestamp.now(),
+            userEmail: user?.email || 'Sistema',
+            description: 'Ordem de Serviço criada.'
+        }];
       }
+      
+      const docRef = await addDoc(collection(db, 'serviceOrders'), payload);
+
+      if (!isVersioning) {
+        await updateDoc(docRef, { originalServiceOrderId: docRef.id });
+      }
+
+      toast({ title: "Sucesso!", description: isVersioning ? "Nova versão da OS criada." : "Ordem de serviço criada." });
+      router.push('/dashboard/servicos');
 
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erro", description: `Falha ao salvar a ordem de serviço: ${error.message}` });
@@ -288,8 +298,8 @@ function CreateServiceOrderForm() {
     <>
       <Card>
         <CardHeader>
-            <CardTitle>{isEditMode ? 'Editar Ordem de Serviço' : 'Detalhes da Ordem de Serviço'}</CardTitle>
-            <CardDescription>{isEditMode ? 'Atualize os detalhes da ordem de serviço abaixo.' : 'Preencha os detalhes abaixo para criar uma nova ordem de serviço.'}</CardDescription>
+            <CardTitle>{isVersioning ? 'Criar Nova Versão da OS' : 'Detalhes da Ordem de Serviço'}</CardTitle>
+            <CardDescription>{isVersioning ? `Criando uma nova versão para a OS de ${baseOrder?.clientName}. A versão anterior será mantida no histórico.` : 'Preencha os detalhes abaixo para criar uma nova ordem de serviço.'}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -298,12 +308,12 @@ function CreateServiceOrderForm() {
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isEditMode}>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning}>
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
                   <div className="relative" ref={customerDropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isEditMode}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isVersioning}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>
@@ -491,10 +501,6 @@ function CreateServiceOrderForm() {
 
 
 export default function CriarServicoPage() {
-    const searchParams = useSearchParams();
-    const isEditMode = !!searchParams.get('editId');
-    const pageTitle = isEditMode ? "Editar Ordem de Serviço" : "Criar Nova Ordem de Serviço";
-
     return (
         <Suspense fallback={
             <div className="flex justify-center items-center h-64">
@@ -508,11 +514,17 @@ export default function CriarServicoPage() {
                     </Button>
                     <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
                         <FilePlus className='h-5 w-5' />
-                        {pageTitle}
+                        <CreateServiceOrderTitle />
                     </h1>
                 </div>
                 <CreateServiceOrderForm />
             </div>
         </Suspense>
     )
+}
+
+function CreateServiceOrderTitle() {
+    const searchParams = useSearchParams();
+    const isVersioning = !!searchParams.get('versionOf');
+    return <>{isVersioning ? 'Criar Nova Versão da OS' : 'Criar Nova Ordem de Serviço'}</>;
 }

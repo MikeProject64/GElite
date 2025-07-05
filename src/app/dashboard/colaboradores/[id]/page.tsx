@@ -205,15 +205,17 @@ export default function ColaboradorDetailPage() {
                 </TableHeader>
                 <TableBody>
                     {serviceOrders.map(order => (
-                    <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/servicos/${order.id}`)}>
+                    <TableRow key={order.id}>
                         <TableCell>
-                            <span className="font-mono text-sm font-medium hover:underline">
+                            <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
                                 #{order.id.substring(0, 6).toUpperCase()}
-                            </span>
+                            </Link>
                         </TableCell>
                         <TableCell>
-                            <span className="font-medium hover:underline">{order.serviceType}</span>
-                            <div className="text-sm text-muted-foreground">{order.clientName}</div>
+                            <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
+                            <div className="text-sm text-muted-foreground">
+                                <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
+                            </div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                         <TableCell><Badge variant={getStatusVariant(order.status)}>{order.status}</Badge></TableCell>

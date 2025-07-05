@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, doc, updateDoc, getDocs, limit, startAfter, endBefore, limitToLast, QueryDocumentSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, updateDoc, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -16,7 +16,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate } from 'lucide-react';
 import { Label } from '@/components/ui/label';
@@ -33,7 +33,7 @@ const getStatusVariant = (status: string) => {
   }
 };
 
-const ITEMS_PER_PAGE = 10;
+const ITEMS_PER_PAGE = 15;
 
 export default function ServicosPage() {
   const { user } = useAuth();
@@ -41,95 +41,85 @@ export default function ServicosPage() {
   const router = useRouter();
   const { settings } = useSettings();
   
-  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
+  const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', collaboratorName: '', clientName: '' });
+  const [currentPage, setCurrentPage] = useState(1);
 
-  // Pagination state
-  const [page, setPage] = useState(1);
-  const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
-  const [firstDoc, setFirstDoc] = useState<QueryDocumentSnapshot | null>(null);
-  const [isLastPage, setIsLastPage] = useState(false);
-  
-  const fetchServiceOrders = useCallback(async (direction: 'next' | 'prev' | 'first' = 'first') => {
-      if (!user) return;
-      setIsLoading(true);
-
-      let q;
-      const baseQuery = query(
-          collection(db, 'serviceOrders'),
-          where('userId', '==', user.uid),
-          orderBy('createdAt', 'desc')
-      );
-
-      if (direction === 'next' && lastDoc) {
-          q = query(baseQuery, startAfter(lastDoc), limit(ITEMS_PER_PAGE));
-      } else if (direction === 'prev' && firstDoc) {
-          q = query(baseQuery, endBefore(firstDoc), limitToLast(ITEMS_PER_PAGE));
-      } else {
-          q = query(baseQuery, limit(ITEMS_PER_PAGE));
-      }
-
-      try {
-          const snapshot = await getDocs(q);
-          const newOrders = snapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
-            .filter(order => !order.isTemplate); // Filter client-side
-          
-          if (!snapshot.empty) {
-              setServiceOrders(newOrders);
-              setFirstDoc(snapshot.docs[0]);
-              setLastDoc(snapshot.docs[snapshot.docs.length - 1]);
-              
-              if(direction === 'next') setPage(p => p + 1);
-              if(direction === 'prev') setPage(p => p - 1);
-              if(direction === 'first') setPage(1);
-
-              const nextCheckQuery = query(baseQuery, startAfter(snapshot.docs[snapshot.docs.length - 1]), limit(1));
-              const nextSnap = await getDocs(nextCheckQuery);
-              setIsLastPage(nextSnap.empty);
-          } else if(direction === 'next') {
-              setIsLastPage(true);
-          } else if (direction === 'prev' && snapshot.empty) {
-             setPage(1);
-          }
-
-      } catch (error: any) {
-          console.error("Error fetching service orders: ", error);
-          let description = "Não foi possível carregar as ordens de serviço.";
-          if (error.code === 'failed-precondition' && error.message.includes('index')) {
-              description = "A consulta ao banco de dados requer um índice. Por favor, clique no link no console de depuração do navegador para criá-lo.";
-          }
-          toast({
-              variant: "destructive",
-              title: "Erro ao buscar dados",
-              description,
-          });
-      } finally {
-          setIsLoading(false);
-      }
-  }, [user, toast, lastDoc, firstDoc]);
-  
   useEffect(() => {
-    if(user){
-      fetchServiceOrders('first');
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    if (!user) return;
+    setIsLoading(true);
 
+    const q = query(
+        collection(db, 'serviceOrders'),
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const orders = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
+            .filter(order => !order.isTemplate);
+        
+        setAllServiceOrders(orders);
+        setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching service orders: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao buscar dados",
+            description: "Não foi possível carregar as ordens de serviço.",
+        });
+        setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user, toast]);
+
+  const latestServiceOrders = useMemo(() => {
+    const ordersByOriginalId = new Map<string, ServiceOrder>();
+    allServiceOrders.forEach(order => {
+        const originalId = order.originalServiceOrderId || order.id;
+        const existing = ordersByOriginalId.get(originalId);
+        if (!existing || (order.version || 1) > (existing.version || 1)) {
+            ordersByOriginalId.set(originalId, order);
+        }
+    });
+    return Array.from(ordersByOriginalId.values());
+  }, [allServiceOrders]);
 
   const filteredOrders = useMemo(() => {
-    return serviceOrders.filter(order => {
+    return latestServiceOrders.filter(order => {
         const statusMatch = filters.status ? order.status === filters.status : true;
         const collaboratorMatch = filters.collaboratorName ? (order.collaboratorName || '').toLowerCase().includes(filters.collaboratorName.toLowerCase()) : true;
         const clientMatch = filters.clientName ? order.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
         return statusMatch && collaboratorMatch && clientMatch;
     });
-  }, [serviceOrders, filters]);
+  }, [latestServiceOrders, filters]);
+
+  // Pagination Logic
+  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
+  };
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -201,18 +191,18 @@ export default function ServicosPage() {
             <div className="flex justify-center items-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : serviceOrders.length === 0 ? (
+          ) : paginatedOrders.length === 0 ? (
             <div className="text-center py-10">
                 <Wrench className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3>
-                <p className="text-sm text-muted-foreground">Que tal criar a primeira?</p>
+                <p className="text-sm text-muted-foreground">{filters.status || filters.clientName || filters.collaboratorName ? "Tente um filtro diferente." : "Que tal criar a primeira?"}</p>
             </div>
           ) : (
           <div className="overflow-x-auto">
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead className='w-[100px]'>OS</TableHead>
+                    <TableHead className='w-[100px]'>OS (Versão)</TableHead>
                     <TableHead>Serviço / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Colaborador</TableHead>
                     <TableHead className="hidden md:table-cell">Vencimento</TableHead>
@@ -221,13 +211,13 @@ export default function ServicosPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredOrders.map((order) => {
+                {paginatedOrders.map((order) => {
                     const hasPendencies = !order.collaboratorId && order.status === 'Pendente';
                     return (
                         <TableRow key={order.id}>
                          <TableCell>
                             <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
-                                #{order.id.substring(0, 6).toUpperCase()}
+                                #{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})
                             </Link>
                           </TableCell>
                         <TableCell>
@@ -289,13 +279,13 @@ export default function ServicosPage() {
         </CardContent>
          <CardFooter>
             <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                <span>Página {page}</span>
+                <span>Página {currentPage} de {totalPages}</span>
                 <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => fetchServiceOrders('prev')} disabled={page <= 1 || isLoading}>
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}>
                         <ChevronLeft className="h-4 w-4" />
                         Anterior
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => fetchServiceOrders('next')} disabled={isLastPage || isLoading}>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages || isLoading}>
                         Próximo
                         <ChevronRight className="h-4 w-4" />
                     </Button>
