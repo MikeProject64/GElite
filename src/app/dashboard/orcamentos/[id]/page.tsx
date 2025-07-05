@@ -289,6 +289,7 @@ export default function OrcamentoDetailPage() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-1 gap-4">
                        {Object.entries(quote.customFields).map(([key, value]) => {
+                           if (!value) return null;
                            const fieldType = getCustomFieldType(key);
                            let displayValue = value;
                            if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
