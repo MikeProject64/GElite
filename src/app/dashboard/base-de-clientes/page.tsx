@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter } from 'lucide-react';
 import { Customer } from '@/types';
 import { Separator } from '@/components/ui/separator';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 
 const customerFormSchema = z.object({
@@ -458,9 +458,9 @@ export default function BaseDeClientesPage() {
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="end">
                          <Command>
                             <CommandInput placeholder="Buscar etiquetas..." />
-                            <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
-                            <CommandGroup>
-                                <CommandList>
+                            <CommandList>
+                                <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
+                                <CommandGroup>
                                     {settings.tags?.map(tag => (
                                         <CommandItem
                                             key={tag.id}
@@ -470,20 +470,26 @@ export default function BaseDeClientesPage() {
                                                     : [...tagFilter, tag.id];
                                                 setTagFilter(newTagFilter);
                                             }}
+                                            className='cursor-pointer'
                                         >
                                             <Check className={cn("mr-2 h-4 w-4", tagFilter.includes(tag.id) ? "opacity-100" : "opacity-0")} />
                                             <Badge variant="outline" className={cn(tag.color)}>{tag.name}</Badge>
                                         </CommandItem>
                                     ))}
-                                </CommandList>
-                            </CommandGroup>
-                            {tagFilter.length > 0 && (
-                                <CommandGroup>
-                                    <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center">
+                                </CommandGroup>
+                            </CommandList>
+                            <CommandSeparator />
+                            <CommandGroup>
+                                <CommandItem onSelect={() => router.push('/dashboard/configuracoes')} className="cursor-pointer">
+                                    <TagIcon className="mr-2 h-4 w-4" />
+                                    <span>Gerenciar Etiquetas</span>
+                                </CommandItem>
+                                {tagFilter.length > 0 && (
+                                    <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center cursor-pointer">
                                         Limpar filtros
                                     </CommandItem>
-                                </CommandGroup>
-                            )}
+                                )}
+                            </CommandGroup>
                         </Command>
                     </PopoverContent>
                 </Popover>
@@ -596,3 +602,4 @@ export default function BaseDeClientesPage() {
     
 
     
+

@@ -1,40 +1,49 @@
-rules_version = '2';
 
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Helper function to check ownership based on userId field
+    function isOwner(doc) {
+      return request.auth != null && doc.data.userId == request.auth.uid;
+    }
+    
+    // Users can manage their own user doc and settings
     match /users/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     match /userSettings/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
+    
+    // Rules for collections where documents have a userId field
     match /customers/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-    match /serviceOrders/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-    match /quotes/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
-    }
-    match /timelineNotes/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
     }
     match /collaborators/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
+    }
+    match /serviceOrders/{docId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
+    }
+    match /quotes/{docId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
     }
     match /inventory/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
     }
     match /inventoryMovements/{docId} {
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
+    }
+    match /timelineNotes/{docId} {
+      allow read, update, delete: if isOwner(resource);
+      allow create: if isOwner(request.resource);
     }
   }
 }
