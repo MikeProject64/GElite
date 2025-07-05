@@ -144,7 +144,13 @@ export default function ServicoDetailPage() {
       const fileName = `${uuidv4()}.${fileExtension}`;
       const storageRef = ref(storage, `serviceOrders/${order.id}/${fileName}`);
       
-      const snapshot = await uploadBytes(storageRef, file);
+      const metadata = {
+        customMetadata: {
+          'userId': user.uid
+        }
+      };
+      
+      const snapshot = await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
       const orderRef = doc(db, 'serviceOrders', order.id);
@@ -366,5 +372,3 @@ export default function ServicoDetailPage() {
     </div>
   );
 }
-
-    
