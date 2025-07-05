@@ -1,3 +1,4 @@
+
 'use client';
 
 import { TrendingUp } from 'lucide-react';
@@ -28,7 +29,7 @@ export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
     <Card>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'><TrendingUp /> Faturamento Mensal</CardTitle>
-        <CardDescription>Receita de orçamentos aprovados/convertidos nos últimos 6 meses.</CardDescription>
+        <CardDescription>Receita de ordens de serviço concluídas nos últimos 6 meses.</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[250px] w-full">

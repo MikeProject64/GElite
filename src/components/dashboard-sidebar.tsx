@@ -25,12 +25,13 @@ import {
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
-import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { RecentActivity } from '@/types';
 import { useEffect, useState } from 'react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import Image from 'next/image';
 
 function NotificationBell() {
     const { user } = useAuth();
@@ -48,18 +49,12 @@ function NotificationBell() {
             query(collection(db, 'quotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
         ];
 
-        const unsubscribes = queries.map(q => onSnapshot(q, () => {
-            // This is just to trigger a refetch when any collection changes.
-            // The actual data combination happens below.
-            fetchCombinedActivity();
-        }));
-        
         const fetchCombinedActivity = async () => {
             try {
                 const [ordersSnap, customersSnap, quotesSnap] = await Promise.all([
-                    await getDocs(queries[0]),
-                    await getDocs(queries[1]),
-                    await getDocs(queries[2])
+                    getDocs(queries[0]),
+                    getDocs(queries[1]),
+                    getDocs(queries[2])
                 ]);
                 
                 const ordersActivity: RecentActivity[] = ordersSnap.docs.map(doc => ({ id: doc.id, type: 'serviço', description: `Nova OS: ${doc.data().serviceType}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/servicos/${doc.id}`}));
@@ -78,6 +73,11 @@ function NotificationBell() {
             }
         };
 
+        const unsubscribes = queries.map(q => onSnapshot(q, () => {
+            // This is just to trigger a refetch when any collection changes.
+            fetchCombinedActivity();
+        }));
+        
         fetchCombinedActivity();
 
         return () => unsubscribes.forEach(unsub => unsub());
@@ -157,12 +157,17 @@ function NavContent() {
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'ServiceWise';
+  const logoURL = settings.logoURL;
 
   return (
     <div className="flex h-full max-h-screen flex-col gap-2">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         <Link href="/" className="flex items-center gap-2 font-semibold">
-          <Icon className="h-6 w-6 text-primary" />
+           {logoURL ? (
+            <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
+          ) : (
+            <Icon className="h-6 w-6 text-primary" />
+          )}
           <span className="">{siteName}</span>
         </Link>
       </div>
@@ -208,6 +213,7 @@ export function DashboardSidebar() {
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'ServiceWise';
+  const logoURL = settings.logoURL;
 
   return (
     <>
@@ -227,7 +233,11 @@ export function DashboardSidebar() {
             </SheetContent>
           </Sheet>
            <div className="flex items-center gap-2 font-semibold">
-             <Icon className="h-6 w-6 text-primary" />
+              {logoURL ? (
+                <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
+              ) : (
+                <Icon className="h-6 w-6 text-primary" />
+              )}
              <span className="">{siteName}</span>
            </div>
       </header>

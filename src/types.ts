@@ -10,6 +10,7 @@ export interface CustomField {
 export interface UserSettings {
   siteName: string;
   iconName: string;
+  logoURL?: string;
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
