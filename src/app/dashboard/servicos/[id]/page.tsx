@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, ChangeEvent } from 'react';
@@ -21,11 +20,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign, CalendarIcon } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye } from 'lucide-react';
 import { ServiceOrder, Manager } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 
 const getStatusVariant = (status: string) => {
@@ -54,6 +54,7 @@ export default function ServicoDetailPage() {
   const [managers, setManagers] = useState<Manager[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
+  const [previewFile, setPreviewFile] = useState<{ name: string; url: string; } | null>(null);
 
   const orderId = Array.isArray(id) ? id[0] : id;
 
@@ -170,6 +171,39 @@ export default function ServicoDetailPage() {
       setIsUploading(false);
       if (e.target) e.target.value = ''; // Reset input
     }
+  };
+
+  const renderPreview = (file: { name: string; url: string; } | null) => {
+    if (!file) return null;
+
+    const fileExtension = file.name.split('.').pop()?.toLowerCase();
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
+
+    if (fileExtension === 'pdf') {
+      return <iframe src={file.url} className="w-full h-full border-0" title={file.name} />;
+    }
+
+    if (imageExtensions.includes(fileExtension || '')) {
+      return <img src={file.url} alt={file.name} className="max-w-full max-h-full object-contain mx-auto" />;
+    }
+
+    if (videoExtensions.includes(fileExtension || '')) {
+      return <video src={file.url} controls className="w-full max-h-full" />;
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-center p-4">
+          <File className="h-16 w-16 text-muted-foreground mb-4" />
+          <p className='font-medium'>Pré-visualização não disponível</p>
+          <p className="text-sm text-muted-foreground">O arquivo '{file.name}' não pode ser exibido aqui.</p>
+          <Button asChild variant="link" className="mt-2">
+              <a href={file.url} target="_blank" rel="noopener noreferrer">
+                  Abrir em nova aba para download
+              </a>
+          </Button>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -341,7 +375,7 @@ export default function ServicoDetailPage() {
           <Card className='lg:col-span-1'>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Paperclip/> Anexos</CardTitle>
-              <CardDescription>Adicione fotos e documentos relevantes.</CardDescription>
+              <CardDescription>Adicione e visualize fotos e documentos.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid w-full max-w-sm items-center gap-1.5">
@@ -357,10 +391,14 @@ export default function ServicoDetailPage() {
               <div className="space-y-2">
                 {order.attachments && order.attachments.length > 0 ? (
                   order.attachments.map((file, index) => (
-                    <a key={index} href={file.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2 rounded-md bg-secondary hover:bg-secondary/80">
-                      <File className="h-4 w-4" />
-                      <span className="text-sm font-medium truncate">{file.name}</span>
-                    </a>
+                    <button
+                      key={index}
+                      onClick={() => setPreviewFile(file)}
+                      className="flex w-full items-center gap-2 p-2 rounded-md bg-secondary hover:bg-secondary/80 text-left"
+                    >
+                      <Eye className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium truncate flex-1">{file.name}</span>
+                    </button>
                   ))
                 ) : (
                   <p className="text-sm text-center text-muted-foreground pt-4">Nenhum anexo encontrado.</p>
@@ -369,6 +407,17 @@ export default function ServicoDetailPage() {
             </CardContent>
           </Card>
       </div>
+
+       <Dialog open={!!previewFile} onOpenChange={(isOpen) => !isOpen && setPreviewFile(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow h-full w-full overflow-auto bg-muted/50 rounded-md">
+            {renderPreview(previewFile)}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
