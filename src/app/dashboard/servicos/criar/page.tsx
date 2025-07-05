@@ -34,7 +34,7 @@ import { Customer, Collaborator } from '@/types';
 // Schemas
 const serviceOrderSchema = z.object({
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
-  serviceType: z.string().min(1, "O tipo de serviço é obrigatório."),
+  serviceType: z.string().min(1, "O serviço é obrigatório."),
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
   collaboratorId: z.string({ required_error: "Por favor, selecione um colaborador." }).min(1, "Por favor, selecione um colaborador."),
   totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
@@ -259,7 +259,7 @@ export default function CriarOrdemDeServicoPage() {
                 </FormItem>
               )}/>
               <FormField control={serviceOrderForm.control} name="serviceType" render={({ field }) => (
-                <FormItem><FormLabel>Tipo de Serviço *</FormLabel><FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem><FormLabel>Serviço *</FormLabel><FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
               <FormField control={serviceOrderForm.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
@@ -333,7 +333,7 @@ export default function CriarOrdemDeServicoPage() {
                         {settings.serviceOrderCustomFields.map((customField) => (
                            <FormField
                                 key={customField.id}
-                                control={serviceOrderForm.control}
+                                control={form.control}
                                 name={`customFields.${customField.id}`}
                                 render={({ field }) => (
                                     <FormItem>

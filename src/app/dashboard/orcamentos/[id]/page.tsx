@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign } from 'lucide-react';
 
 const getStatusVariant = (status: Quote['status']) => {
   switch (status) {
@@ -84,7 +84,7 @@ export default function OrcamentoDetailPage() {
             clientId: quote.clientId,
             clientName: quote.clientName,
             problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()}`,
-            serviceType: "Serviço a partir de orçamento",
+            serviceType: quote.title,
             status: 'Pendente',
             dueDate: Timestamp.fromDate(new Date()), // Define a default due date
             totalValue: quote.totalValue,
@@ -147,9 +147,9 @@ export default function OrcamentoDetailPage() {
         <div className="lg:col-span-2 flex flex-col gap-6">
             <Card>
             <CardHeader>
-                <CardTitle>Proposta para {quote.clientName}</CardTitle>
+                <CardTitle>{quote.title}</CardTitle>
                 <CardDescription>
-                Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
+                  Proposta para {quote.clientName} | Criado em: {format(quote.createdAt.toDate(), "dd/MM/yyyy", { locale: ptBR })}
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -166,6 +166,13 @@ export default function OrcamentoDetailPage() {
                         <div>
                             <p className="text-sm text-muted-foreground">Válido até</p>
                             <p className="font-medium">{format(quote.validUntil.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                        <DollarSign className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                            <p className="text-sm text-muted-foreground">Valor Total</p>
+                            <p className="font-medium">{formatCurrency(quote.totalValue)}</p>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -191,10 +198,6 @@ export default function OrcamentoDetailPage() {
                     <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{quote.description}</p>
                 </div>
                 
-                <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Valor Total</p>
-                    <p className="text-2xl font-bold">{formatCurrency(quote.totalValue)}</p>
-                </div>
             </CardContent>
             <CardFooter className="justify-end gap-2">
                     <Button variant="outline" size="sm" asChild>

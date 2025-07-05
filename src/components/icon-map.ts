@@ -39,6 +39,9 @@ import {
   FileText,
   Search,
   Building2,
+  Hammer,
+  Screwdriver,
+  PaintBrush,
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -81,6 +84,9 @@ export const availableIcons = {
   FileText,
   Search,
   Building2,
+  Hammer,
+  Screwdriver,
+  PaintBrush,
 };
 
 export const iconNames = Object.keys(availableIcons);

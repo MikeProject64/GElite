@@ -29,6 +29,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
 const quoteSchema = z.object({
+  title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   description: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres."),
   totalValue: z.coerce.number().min(0.01, "O valor total deve ser maior que zero."),
@@ -65,6 +66,7 @@ export default function CriarOrcamentoPage() {
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
     defaultValues: {
+      title: '',
       clientId: '',
       description: '',
       totalValue: 0,
@@ -181,7 +183,11 @@ export default function CriarOrcamentoPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-               <FormField control={form.control} name="clientId" render={({ field }) => (
+               <FormField control={form.control} name="title" render={({ field }) => (
+                <FormItem><FormLabel>Título do Orçamento *</FormLabel><FormControl><Input placeholder="Ex: Conserto da geladeira Brastemp" {...field} /></FormControl><FormMessage /></FormItem>
+              )}/>
+              
+              <FormField control={form.control} name="clientId" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>

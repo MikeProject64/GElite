@@ -169,8 +169,8 @@ export default function OrcamentosPage() {
                         </Link>
                       </TableCell>
                     <TableCell>
-                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title="Ver detalhes do orçamento">
-                            Orçamento para {quote.clientName}
+                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title={quote.title}>
+                            {quote.title}
                          </Link>
                          <div className="text-sm text-muted-foreground">
                             <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="hover:underline" title="Ver detalhes do cliente">

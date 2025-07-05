@@ -65,6 +65,7 @@ export interface Quote {
   userId: string;
   clientId: string;
   clientName: string;
+  title: string;
   description: string;
   totalValue: number;
   validUntil: Timestamp;
