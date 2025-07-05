@@ -67,7 +67,7 @@ export default function ClienteDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { settings } = useSettings();
+  const { settings, loadingSettings } = useSettings();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -122,9 +122,17 @@ export default function ClienteDetailPage() {
     }));
 
 
-    Promise.all([
-        new Promise(resolve => onSnapshot(customerRef, resolve)),
-    ]).finally(() => setIsLoading(false));
+    // Use a single promise to signal the end of initial loading
+    const customerDocPromise = new Promise<void>(resolve => {
+        const unsub = onSnapshot(customerRef, (doc) => {
+            if(doc.exists()) {
+                unsub(); // Unsubscribe after first read
+                resolve();
+            }
+        });
+    });
+
+    customerDocPromise.finally(() => setIsLoading(false));
 
 
     return () => {
@@ -140,7 +148,7 @@ export default function ClienteDetailPage() {
     // Add customer creation event if data is valid
     if (customer.createdAt && typeof customer.createdAt.toDate === 'function') {
       allItems.push({
-        id: customer.id,
+        id: `creation-${customer.id}`,
         type: 'creation',
         date: customer.createdAt.toDate(),
         data: customer,
@@ -196,7 +204,7 @@ export default function ClienteDetailPage() {
     }
   };
   
-  if (isLoading) {
+  if (isLoading || loadingSettings) {
     return (
       <div className="space-y-4">
         <div className="flex items-center gap-4"><Skeleton className="h-7 w-7" /><Skeleton className="h-7 w-48" /></div>
