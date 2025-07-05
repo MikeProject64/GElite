@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2 } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -67,7 +67,7 @@ export default function OrcamentosPage() {
       const quoteList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Quote));
+      } as Quote)).filter(q => !q.isTemplate); // Filter out templates on the client-side
       setQuotes(quoteList);
       setIsLoading(false);
     }, (error: any) => {
@@ -99,14 +99,24 @@ export default function OrcamentosPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold md:text-2xl">Orçamentos</h1>
-        <Button size="sm" className="h-8 gap-1" asChild>
-            <Link href="/dashboard/orcamentos/criar">
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Novo Orçamento
-                </span>
-            </Link>
-        </Button>
+        <div className='flex gap-2'>
+            <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/orcamentos/modelos">
+                    <LayoutTemplate className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Modelos
+                    </span>
+                </Link>
+            </Button>
+            <Button size="sm" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/orcamentos/criar">
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Novo Orçamento
+                    </span>
+                </Link>
+            </Button>
+        </div>
       </div>
 
        <Card>

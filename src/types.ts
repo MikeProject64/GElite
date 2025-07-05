@@ -80,6 +80,8 @@ export interface Quote {
   status: 'Pendente' | 'Aprovado' | 'Recusado' | 'Convertido';
   createdAt: Timestamp;
   customFields?: CustomFields;
+  isTemplate?: boolean;
+  templateName?: string;
 }
 
 export interface RecentActivity {

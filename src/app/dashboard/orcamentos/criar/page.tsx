@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, CalendarIcon, ChevronsUpDown, Check, FileText, UserPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import type { Customer, Quote } from '@/types';
 
 const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
@@ -45,16 +46,11 @@ const newCustomerSchema = z.object({
 type QuoteFormValues = z.infer<typeof quoteSchema>;
 type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 
-interface Customer {
-  id: string;
-  name: string;
-  phone: string;
-}
-
-export default function CriarOrcamentoPage() {
+function CreateQuoteForm() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -62,6 +58,7 @@ export default function CriarOrcamentoPage() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
@@ -79,6 +76,35 @@ export default function CriarOrcamentoPage() {
     resolver: zodResolver(newCustomerSchema),
     defaultValues: { name: '', phone: '' },
   });
+
+  useEffect(() => {
+    const templateId = searchParams.get('templateId');
+    if (templateId && user) {
+        const fetchTemplate = async () => {
+            const templateRef = doc(db, 'quotes', templateId);
+            const templateSnap = await getDoc(templateRef);
+            if(templateSnap.exists()) {
+                const templateData = templateSnap.data() as Quote;
+                 form.reset({
+                    title: templateData.title,
+                    description: templateData.description,
+                    totalValue: templateData.totalValue,
+                    customFields: templateData.customFields || {},
+                    validUntil: addDays(new Date(), 7), // Reset valid until
+                    clientId: '', // Reset client
+                });
+                toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
+            } else {
+                toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
+            }
+            setIsInitializing(false);
+        }
+        fetchTemplate();
+    } else {
+        setIsInitializing(false);
+    }
+  }, [searchParams, user, form, toast]);
+
 
   useEffect(() => {
     if (!user) return;
@@ -151,6 +177,7 @@ export default function CriarOrcamentoPage() {
         userId: user.uid,
         status: 'Pendente',
         createdAt: Timestamp.now(),
+        isTemplate: false,
       });
       toast({ title: "Sucesso!", description: "Orçamento criado." });
       router.push('/dashboard/orcamentos');
@@ -164,17 +191,16 @@ export default function CriarOrcamentoPage() {
     customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  if (isInitializing) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-4">
-       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/dashboard/orcamentos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
-        </Button>
-        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
-            <FileText className='h-5 w-5' />
-            Criar Novo Orçamento
-        </h1>
-      </div>
+    <>
       <Card>
         <CardHeader>
             <CardTitle>Detalhes do Orçamento</CardTitle>
@@ -359,6 +385,29 @@ export default function CriarOrcamentoPage() {
             </Form>
         </DialogContent>
     </Dialog>
-    </div>
+    </>
   );
+}
+
+export default function CriarOrcamentoPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                    <Link href="/dashboard/orcamentos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
+                    </Button>
+                    <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
+                        <FileText className='h-5 w-5' />
+                        Criar Novo Orçamento
+                    </h1>
+                </div>
+                <CreateQuoteForm />
+            </div>
+        </Suspense>
+    )
 }

@@ -11,6 +11,9 @@ import { ptBR } from 'date-fns/locale';
 import { Quote } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,7 +22,18 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save } from 'lucide-react';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+
+
+const templateFormSchema = z.object({
+  templateName: z.string().min(3, { message: 'O nome do modelo deve ter pelo menos 3 caracteres.' }),
+});
+type TemplateFormValues = z.infer<typeof templateFormSchema>;
+
 
 const getStatusVariant = (status: Quote['status']) => {
   switch (status) {
@@ -46,8 +60,14 @@ export default function OrcamentoDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   const quoteId = Array.isArray(id) ? id[0] : id;
+  
+  const templateForm = useForm<TemplateFormValues>({
+    resolver: zodResolver(templateFormSchema),
+    defaultValues: { templateName: '' },
+  });
 
   useEffect(() => {
     if (!quoteId) return;
@@ -55,7 +75,13 @@ export default function OrcamentoDetailPage() {
     const quoteRef = doc(db, 'quotes', quoteId);
     const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
       if (docSnap.exists()) {
-        setQuote({ id: docSnap.id, ...docSnap.data() } as Quote);
+        const quoteData = { id: docSnap.id, ...docSnap.data() } as Quote;
+        if (quoteData.isTemplate) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Este é um modelo, não um orçamento.' });
+            router.push('/dashboard/orcamentos/modelos');
+            return;
+        }
+        setQuote(quoteData);
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento não encontrado.' });
         router.push('/dashboard/orcamentos');
@@ -93,6 +119,11 @@ export default function OrcamentoDetailPage() {
             createdAt: Timestamp.now(),
             customFields: quote.customFields || {},
             completedAt: null,
+            activityLog: [{
+                timestamp: Timestamp.now(),
+                userEmail: user?.email || 'Sistema',
+                description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0, 6).toUpperCase()}`
+            }],
         };
         const docRef = await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
         
@@ -107,6 +138,31 @@ export default function OrcamentoDetailPage() {
     } finally {
         setIsConverting(false);
         setIsAlertOpen(false);
+    }
+  };
+
+  const handleSaveAsTemplate = async ({templateName}: TemplateFormValues) => {
+    if (!quote || !user) return;
+    try {
+        const templateData = {
+            ...quote,
+            isTemplate: true,
+            templateName: templateName,
+            status: 'Pendente', // Reset status for template
+        };
+        // Remove client-specific data
+        delete (templateData as any).id;
+        delete (templateData as any).clientId;
+        delete (templateData as any).clientName;
+        
+        await addDoc(collection(db, 'quotes'), templateData);
+
+        toast({ title: 'Sucesso!', description: 'Modelo de orçamento salvo.' });
+        setIsTemplateModalOpen(false);
+        router.push('/dashboard/orcamentos/modelos');
+    } catch (error) {
+        console.error("Error saving template:", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar o modelo.' });
     }
   };
 
@@ -200,12 +256,21 @@ export default function OrcamentoDetailPage() {
                 
             </CardContent>
             <CardFooter className="justify-end gap-2">
-                    <Button variant="outline" size="sm" asChild>
-                        <Link href={`/print/orcamento/${quote.id}`} target="_blank">
-                            <Printer className="mr-2 h-4 w-4"/>
-                            Imprimir / PDF
-                        </Link>
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="secondary" size="sm">Ações</Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={() => setIsTemplateModalOpen(true)}>
+                          <Save className="mr-2 h-4 w-4" />
+                          Salvar como Modelo
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => window.open(`/print/orcamento/${quote.id}`, '_blank')}>
+                          <Printer className="mr-2 h-4 w-4"/>
+                          Imprimir / PDF
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                     {quote.status === 'Aprovado' && (
                         <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
                             {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
@@ -256,6 +321,41 @@ export default function OrcamentoDetailPage() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Salvar como Modelo de Orçamento</DialogTitle>
+                    <DialogDescription>
+                        Dê um nome para este modelo para usá-lo facilmente no futuro.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...templateForm}>
+                    <form onSubmit={templateForm.handleSubmit(handleSaveAsTemplate)} className="space-y-4">
+                       <FormField
+                        control={templateForm.control}
+                        name="templateName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Modelo</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Instalação de Câmeras (Kit Básico)" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                       <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setIsTemplateModalOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={templateForm.formState.isSubmitting}>
+                                {templateForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salvar Modelo
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }
