@@ -81,15 +81,17 @@ export default function InventarioItemDetailPage() {
             }
         });
 
-        const movementsQuery = query(collection(db, 'inventoryMovements'), where('itemId', '==', itemId), orderBy('createdAt', 'desc'));
+        const movementsQuery = query(collection(db, 'inventoryMovements'), where('itemId', '==', itemId));
         const unsubMovements = onSnapshot(movementsQuery, (snapshot) => {
-            setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryMovement)));
+            const fetchedMovements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryMovement));
+            setMovements(fetchedMovements.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()));
             setIsLoading(false);
         }, () => setIsLoading(false));
 
-        const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('isTemplate', '==', false), orderBy('createdAt', 'desc'));
+        const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('isTemplate', '==', false));
         const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
-            setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
+            const fetchedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
+            setServiceOrders(fetchedOrders.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()));
         });
         
         return () => {

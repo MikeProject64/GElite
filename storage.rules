@@ -1,21 +1,29 @@
-
 rules_version = '2';
+
 service firebase.storage {
   match /b/{bucket}/o {
-    // Authenticated users can read any file. This is suitable for this app's model.
+
     match /{allPaths=**} {
-      allow read: if request.auth != null;
+      allow read, write: if false;
     }
 
-    // Secure specific upload paths by checking custom metadata.
-    // The client-side code MUST include { customMetadata: { userId: auth.currentUser.uid } } when calling uploadBytes.
+    match /logos/{userId}/{fileName} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+
     match /collaborators/{collaboratorId}/{fileName} {
+      allow read;
       allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
     }
+
     match /serviceOrders/{orderId}/{fileName} {
+      allow read;
       allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
     }
+    
     match /inventoryMovements/{itemId}/{fileName} {
+      allow read;
       allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
     }
   }
