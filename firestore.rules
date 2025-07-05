@@ -1,49 +1,40 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    function isUserAuthenticated() {
-      return request.auth != null;
-    }
-    
     match /users/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
-    
     match /userSettings/{userId} {
       allow read, write: if request.auth.uid == userId;
     }
-
-    match /customers/{customerId} {
-      allow get, update, delete: if resource.data.userId == request.auth.uid;
-      allow list: if isUserAuthenticated();
-      allow create: if request.resource.data.userId == request.auth.uid;
+    match /customers/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
-
-    match /collaborators/{collaboratorId} {
-      allow get, update, delete: if resource.data.userId == request.auth.uid;
-      allow list: if isUserAuthenticated();
-      allow create: if request.resource.data.userId == request.auth.uid;
+    match /serviceOrders/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
-    
-    match /serviceOrders/{orderId} {
-      allow get, update, delete: if resource.data.userId == request.auth.uid;
-      allow list: if isUserAuthenticated();
-      allow create: if request.resource.data.userId == request.auth.uid;
+    match /quotes/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
-
-    match /quotes/{quoteId} {
-      allow get, update, delete: if resource.data.userId == request.auth.uid;
-      allow list: if isUserAuthenticated();
-      allow create: if request.resource.data.userId == request.auth.uid;
+    match /timelineNotes/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
-    
-    match /inventory/{itemId} {
-      allow get, update, delete: if resource.data.userId == request.auth.uid;
-      allow list: if isUserAuthenticated();
-      allow create: if request.resource.data.userId == request.auth.uid;
+    match /collaborators/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+    match /inventory/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+    }
+    match /inventoryMovements/{docId} {
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
     }
   }
 }

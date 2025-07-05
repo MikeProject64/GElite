@@ -404,8 +404,6 @@ const iconTranslations: Record<string, string> = {
     Search: 'Lupa',
     Building2: 'Prédio',
     Hammer: 'Martelo',
-    Screwdriver: 'Chave de Fenda',
-    PaintBrush: 'Pincel',
 };
 
 

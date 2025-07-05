@@ -1,17 +1,26 @@
-
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
+    // User can only upload files if they are authenticated and the file's
+    // custom metadata 'userId' matches their own UID.
+    // Files can be read by anyone with the URL (public access).
     
-    // For service order attachments
+    // Collaborator photos
+    match /collaborators/{collaboratorId}/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == request.resource.metadata.userId;
+    }
+    
+    // Service order attachments
     match /serviceOrders/{orderId}/{allPaths=**} {
-       allow read, write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == request.resource.metadata.userId;
     }
 
-    // For collaborator photos
-    match /collaborators/{collaboratorId}/{fileName} {
-      allow read; // Anyone can read collaborator photos, e.g. for public profiles if needed
-      allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
+    // Inventory movement attachments
+    match /inventoryMovements/{itemId}/{allPaths=**} {
+      allow read;
+      allow write: if request.auth != null && request.auth.uid == request.resource.metadata.userId;
     }
   }
 }

@@ -40,8 +40,6 @@ import {
   Search,
   Building2,
   Hammer,
-  Screwdriver,
-  PaintBrush,
 } from 'lucide-react';
 
 export const availableIcons = {
@@ -85,8 +83,6 @@ export const availableIcons = {
   Search,
   Building2,
   Hammer,
-  Screwdriver,
-  PaintBrush,
 };
 
 export const iconNames = Object.keys(availableIcons);
