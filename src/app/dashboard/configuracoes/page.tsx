@@ -14,12 +14,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import React from 'react';
+
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
 
@@ -220,11 +221,7 @@ export default function ConfiguracoesPage() {
                   <Skeleton className="h-10 w-1/2" />
                   <div className="space-y-4">
                     <Skeleton className="h-6 w-1/4" />
-                    <div className="grid grid-cols-8 gap-4">
-                      {[...Array(12)].map((_, i) => (
-                        <Skeleton key={i} className="h-16 w-16 rounded-md" />
-                      ))}
-                    </div>
+                    <Skeleton className="h-10 w-full" />
                   </div>
                   <Skeleton className="h-10 w-32" />
                 </div>
@@ -251,29 +248,37 @@ export default function ConfiguracoesPage() {
                       control={form.control}
                       name="iconName"
                       render={({ field }) => (
-                        <FormItem className="space-y-3">
+                        <FormItem>
                           <FormLabel>Ícone do Site</FormLabel>
-                          <FormControl>
-                            <RadioGroup
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                              className="grid grid-cols-8 sm:grid-cols-10 md:grid-cols-12 gap-2 max-w-lg"
-                            >
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger>
+                                <div className="flex items-center gap-2">
+                                  {field.value && availableIcons[field.value as keyof typeof availableIcons] && 
+                                    React.createElement(availableIcons[field.value as keyof typeof availableIcons], { className: "h-4 w-4 text-muted-foreground" })
+                                  }
+                                  <SelectValue placeholder="Selecione um ícone" />
+                                </div>
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
                               {iconNames.map((iconName) => {
                                 const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
+                                if (!IconComponent) return null;
                                 return (
-                                  <FormItem key={iconName}>
-                                    <FormControl>
-                                      <RadioGroupItem value={iconName as string} className="sr-only" />
-                                    </FormControl>
-                                    <FormLabel className="flex items-center justify-center rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground [&:has([data-state=checked])]:border-primary [&:has([data-state=checked])]:bg-primary/10 cursor-pointer aspect-square">
-                                      <IconComponent className="h-5 w-5" />
-                                    </FormLabel>
-                                  </FormItem>
+                                  <SelectItem key={iconName} value={iconName}>
+                                    <div className="flex items-center gap-2">
+                                        <IconComponent className="h-4 w-4 text-muted-foreground" />
+                                        <span>{iconName}</span>
+                                    </div>
+                                  </SelectItem>
                                 );
                               })}
-                            </RadioGroup>
-                          </FormControl>
+                            </SelectContent>
+                          </Select>
+                          <FormDescription>
+                            Este ícone aparecerá no menu lateral.
+                          </FormDescription>
                           <FormMessage />
                         </FormItem>
                       )}
