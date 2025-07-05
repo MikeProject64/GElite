@@ -593,7 +593,7 @@ export default function ConfiguracoesPage() {
                            <RadioGroup
                             onValueChange={field.onChange}
                             defaultValue={field.value}
-                            className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-4 pt-2"
+                            className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 pt-2"
                           >
                             {iconNames.map((iconName) => {
                               const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
@@ -605,11 +605,11 @@ export default function ConfiguracoesPage() {
                                   </FormControl>
                                   <Label htmlFor={iconName}
                                     className={cn(
-                                      "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground cursor-pointer aspect-square",
+                                      "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground cursor-pointer aspect-square",
                                       field.value === iconName && "border-primary"
                                     )}
                                   >
-                                    <IconComponent className="h-6 w-6 mb-2" />
+                                    <IconComponent className="h-5 w-5 mb-1" />
                                     <span className="text-center text-xs">{iconTranslations[iconName] || iconName}</span>
                                   </Label>
                                 </FormItem>
@@ -730,3 +730,5 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
+
+    
