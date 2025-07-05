@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check, Wrench, Pencil } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -42,6 +42,8 @@ import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -410,6 +412,8 @@ const iconTranslations: Record<string, string> = {
 export default function ConfiguracoesPage() {
   const { settings, updateSettings, loadingSettings } = useSettings();
   const { toast } = useToast();
+  const [isIconModalOpen, setIsIconModalOpen] = useState(false);
+  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
 
   const form = useForm<SettingsFormValues>({
     resolver: zodResolver(settingsFormSchema),
@@ -509,88 +513,144 @@ export default function ConfiguracoesPage() {
                         </FormItem>
                       )}
                     />
+                    
                     <FormField
                       control={form.control}
                       name="iconName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Ícone do Site</FormLabel>
-                          <FormDescription>
-                            Este ícone aparecerá no menu lateral.
-                          </FormDescription>
-                           <RadioGroup
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                            className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 pt-2"
-                          >
-                            {iconNames.map((iconName) => {
-                              const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
-                              if (!IconComponent) return null;
-                              return (
-                                <FormItem key={iconName}>
-                                  <FormControl>
-                                    <RadioGroupItem value={iconName} className="sr-only" id={iconName} />
-                                  </FormControl>
-                                  <Label htmlFor={iconName}
-                                    className={cn(
-                                      "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground cursor-pointer aspect-square",
-                                      field.value === iconName && "border-primary"
-                                    )}
+                      render={({ field }) => {
+                        const SelectedIcon = availableIcons[field.value as keyof typeof availableIcons] || Wrench;
+                        return (
+                          <FormItem>
+                            <FormLabel>Ícone do Site</FormLabel>
+                            <div className="flex items-center gap-4 pt-2">
+                              <div className="w-16 h-16 rounded-lg border flex items-center justify-center bg-muted">
+                                <SelectedIcon className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                              <Button type="button" variant="outline" onClick={() => setIsIconModalOpen(true)}>
+                                <Pencil className="mr-2 h-4 w-4" /> Alterar Ícone
+                              </Button>
+                            </div>
+                            <FormDescription>Este ícone aparecerá no menu lateral.</FormDescription>
+                            <FormMessage />
+
+                            <Dialog open={isIconModalOpen} onOpenChange={setIsIconModalOpen}>
+                              <DialogContent className="sm:max-w-2xl">
+                                <DialogHeader>
+                                  <DialogTitle>Selecione um Ícone</DialogTitle>
+                                  <DialogDescription>
+                                    Escolha um ícone para representar seu site no menu lateral.
+                                  </DialogDescription>
+                                </DialogHeader>
+                                <ScrollArea className="max-h-[60vh]">
+                                  <RadioGroup
+                                    onValueChange={(value) => {
+                                      field.onChange(value);
+                                      setIsIconModalOpen(false);
+                                    }}
+                                    defaultValue={field.value}
+                                    className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4"
                                   >
-                                    <IconComponent className="h-5 w-5 mb-1" />
-                                    <span className="text-center text-xs">{iconTranslations[iconName] || iconName}</span>
-                                  </Label>
-                                </FormItem>
-                              );
-                            })}
-                          </RadioGroup>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                                    {iconNames.map((iconName) => {
+                                      const IconComponent = availableIcons[iconName as keyof typeof availableIcons];
+                                      if (!IconComponent) return null;
+                                      return (
+                                        <FormItem key={iconName}>
+                                          <FormControl>
+                                            <RadioGroupItem value={iconName} className="sr-only" id={iconName} />
+                                          </FormControl>
+                                          <Label
+                                            htmlFor={iconName}
+                                            className={cn(
+                                              "flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-2 hover:bg-accent hover:text-accent-foreground cursor-pointer aspect-square",
+                                              field.value === iconName && "border-primary"
+                                            )}
+                                          >
+                                            <IconComponent className="h-5 w-5 mb-1" />
+                                            <span className="text-center text-xs">{iconTranslations[iconName] || iconName}</span>
+                                          </Label>
+                                        </FormItem>
+                                      );
+                                    })}
+                                  </RadioGroup>
+                                </ScrollArea>
+                              </DialogContent>
+                            </Dialog>
+                          </FormItem>
+                        );
+                      }}
                     />
                     
                     <FormField
                       control={form.control}
                       name="primaryColorHsl"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Cor da Marca</FormLabel>
-                          <FormDescription>
-                            Selecione uma cor para personalizar a aparência do sistema.
-                          </FormDescription>
-                          <FormControl>
-                            <div className="grid grid-cols-8 gap-2 pt-2">
-                                {brandColors.map((color) => (
-                                <TooltipProvider key={color.name}>
-                                    <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <button
-                                        type="button"
-                                        onClick={() => field.onChange(color.hsl)}
-                                        className={cn(
-                                            'h-8 w-8 rounded-md',
-                                            color.bg,
-                                            'flex items-center justify-center ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
-                                        )}
-                                        >
-                                        {field.value &&
-                                        field.value.h === color.hsl.h &&
-                                        field.value.s === color.hsl.s &&
-                                        field.value.l === color.hsl.l ? (
-                                            <Check className="h-5 w-5 text-white mix-blend-difference" />
-                                        ) : null}
-                                        </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                        <p>{color.name}</p>
-                                    </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
-                                ))}
+                      render={({ field }) => {
+                        const selectedColor = brandColors.find(c => 
+                          field.value &&
+                          c.hsl.h === field.value.h &&
+                          c.hsl.s === field.value.s &&
+                          c.hsl.l === field.value.l
+                        );
+                        return (
+                          <FormItem>
+                            <FormLabel>Cor da Marca</FormLabel>
+                             <div className="flex items-center gap-4 pt-2">
+                                <div className="w-16 h-16 rounded-lg border flex items-center justify-center" style={{ backgroundColor: selectedColor ? `hsl(${selectedColor.hsl.h}, ${selectedColor.hsl.s}%, ${selectedColor.hsl.l}%)` : 'hsl(var(--primary))' }}>
+                                    <span className="text-white mix-blend-difference font-semibold text-xs text-center p-1">{selectedColor?.name || 'Padrão'}</span>
+                                </div>
+                                <Button type="button" variant="outline" onClick={() => setIsColorModalOpen(true)}>
+                                    <Pencil className="mr-2 h-4 w-4" /> Alterar Cor
+                                </Button>
                             </div>
-                          </FormControl>
-                        </FormItem>
-                      )}
+                            <FormDescription>
+                              Selecione uma cor para personalizar a aparência do sistema.
+                            </FormDescription>
+                            <FormMessage />
+
+                            <Dialog open={isColorModalOpen} onOpenChange={setIsColorModalOpen}>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Selecione uma Cor</DialogTitle>
+                                        <DialogDescription>
+                                            Esta cor será usada em botões, links e outros elementos de destaque.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid grid-cols-6 gap-2 pt-2">
+                                        {brandColors.map((color) => (
+                                            <TooltipProvider key={color.name}>
+                                                <Tooltip>
+                                                    <TooltipTrigger asChild>
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                field.onChange(color.hsl);
+                                                                setIsColorModalOpen(false);
+                                                            }}
+                                                            className={cn(
+                                                                'h-10 w-10 rounded-md',
+                                                                color.bg,
+                                                                'flex items-center justify-center ring-offset-background transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2'
+                                                            )}
+                                                        >
+                                                            {field.value &&
+                                                                field.value.h === color.hsl.h &&
+                                                                field.value.s === color.hsl.s &&
+                                                                field.value.l === color.hsl.l ? (
+                                                                <Check className="h-5 w-5 text-white mix-blend-difference" />
+                                                            ) : null}
+                                                        </button>
+                                                    </TooltipTrigger>
+                                                    <TooltipContent>
+                                                        <p>{color.name}</p>
+                                                    </TooltipContent>
+                                                </Tooltip>
+                                            </TooltipProvider>
+                                        ))}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                          </FormItem>
+                        );
+                      }}
                     />
 
                     <Button type="submit" disabled={form.formState.isSubmitting}>
