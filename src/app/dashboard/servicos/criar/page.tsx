@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -68,6 +68,7 @@ function CreateServiceOrderForm() {
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -88,44 +89,63 @@ function CreateServiceOrderForm() {
   });
 
   useEffect(() => {
+    if (!user) return;
+    
     const templateId = searchParams.get('templateId');
-    const fetchTemplate = async () => {
-        if (!templateId) {
-            setIsInitializing(false);
-            return;
-        }
+    const editId = searchParams.get('editId');
+    setIsEditMode(!!editId);
 
-        const templateRef = doc(db, 'serviceOrders', templateId);
-        const templateSnap = await getDoc(templateRef);
-        if(templateSnap.exists()) {
-            const templateData = templateSnap.data() as ServiceOrder;
-             form.reset({
-                ...form.getValues(), // keep client id if already selected
-                serviceType: templateData.serviceType,
-                problemDescription: templateData.problemDescription,
-                totalValue: templateData.totalValue,
-                collaboratorId: templateData.collaboratorId,
-                status: templateData.status,
-                dueDate: templateData.dueDate.toDate(),
-                customFields: templateData.customFields || {},
-            });
-            toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido.`});
-        } else {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
+    const initializeForm = async () => {
+        if (editId) {
+            const orderRef = doc(db, 'serviceOrders', editId);
+            const orderSnap = await getDoc(orderRef);
+            if (orderSnap.exists()) {
+                const data = orderSnap.data() as ServiceOrder;
+                const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
+                    const fieldType = settings.serviceOrderCustomFields?.find(f => f.id === key)?.type;
+                    if (fieldType === 'date' && value && value.toDate) {
+                        (acc as any)[key] = value.toDate();
+                    } else {
+                        (acc as any)[key] = value;
+                    }
+                    return acc;
+                }, {});
+
+                form.reset({
+                    ...data,
+                    dueDate: data.dueDate.toDate(),
+                    customFields: customFieldsWithDate,
+                });
+            } else {
+                toast({ variant: 'destructive', title: 'Erro', description: 'Ordem de serviço para edição não encontrada.' });
+                router.push('/dashboard/servicos');
+            }
+        } else if (templateId) {
+            const templateRef = doc(db, 'serviceOrders', templateId);
+            const templateSnap = await getDoc(templateRef);
+            if(templateSnap.exists()) {
+                const templateData = templateSnap.data() as ServiceOrder;
+                form.reset({
+                    ...form.getValues(),
+                    serviceType: templateData.serviceType,
+                    problemDescription: templateData.problemDescription,
+                    totalValue: templateData.totalValue,
+                    collaboratorId: templateData.collaboratorId,
+                    status: templateData.status,
+                    dueDate: templateData.dueDate.toDate(),
+                    customFields: templateData.customFields || {},
+                });
+                toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido.`});
+            } else {
+                toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
+            }
         }
         setIsInitializing(false);
-    }
-    fetchTemplate();
-  }, [searchParams, form, toast]);
+    };
 
+    initializeForm();
+  }, [searchParams, user, form, toast, router, settings.serviceOrderCustomFields]);
 
-  const newCustomerForm = useForm<NewCustomerValues>({
-    resolver: zodResolver(newCustomerSchema),
-    defaultValues: {
-      name: '',
-      phone: '',
-    },
-  });
 
   // Fetch Customers
   useEffect(() => {
@@ -189,6 +209,9 @@ function CreateServiceOrderForm() {
   
   const onServiceOrderSubmit = async (data: ServiceOrderValues) => {
     if (!user) return;
+    
+    const editId = searchParams.get('editId');
+
     try {
       const selectedCustomer = customers.find(c => c.id === data.clientId);
       if (!selectedCustomer) throw new Error("Cliente não encontrado");
@@ -202,28 +225,48 @@ function CreateServiceOrderForm() {
                 customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
             }
        });
-
-      await addDoc(collection(db, 'serviceOrders'), {
+       
+       const payload = {
         ...data,
         clientName: selectedCustomer.name,
         collaboratorName: selectedCollaborator.name,
         dueDate: Timestamp.fromDate(data.dueDate),
         customFields: customFieldsData,
-        userId: user.uid,
-        createdAt: Timestamp.now(),
         completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
-        attachments: [],
-        isTemplate: false,
-        activityLog: [{
+      };
+
+      if (isEditMode && editId) {
+        const orderRef = doc(db, 'serviceOrders', editId);
+        const logEntry = {
             timestamp: Timestamp.now(),
             userEmail: user?.email || 'Sistema',
-            description: 'Ordem de Serviço criada.'
-        }],
-      });
-      toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
-      router.push('/dashboard/servicos');
+            description: 'Ordem de Serviço atualizada.'
+        };
+        await updateDoc(orderRef, {
+            ...payload,
+            activityLog: arrayUnion(logEntry)
+        });
+        toast({ title: "Sucesso!", description: "Ordem de serviço atualizada." });
+        router.push(`/dashboard/servicos/${editId}`);
+      } else {
+         await addDoc(collection(db, 'serviceOrders'), {
+            ...payload,
+            userId: user.uid,
+            createdAt: Timestamp.now(),
+            attachments: [],
+            isTemplate: false,
+            activityLog: [{
+                timestamp: Timestamp.now(),
+                userEmail: user?.email || 'Sistema',
+                description: 'Ordem de Serviço criada.'
+            }],
+         });
+         toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
+         router.push('/dashboard/servicos');
+      }
+
     } catch (error: any) {
-      toast({ variant: "destructive", title: "Erro", description: `Falha ao criar a ordem de serviço: ${error.message}` });
+      toast({ variant: "destructive", title: "Erro", description: `Falha ao salvar a ordem de serviço: ${error.message}` });
     }
   };
 
@@ -245,8 +288,8 @@ function CreateServiceOrderForm() {
     <>
       <Card>
         <CardHeader>
-            <CardTitle>Detalhes da Ordem de Serviço</CardTitle>
-            <CardDescription>Preencha os detalhes abaixo para criar uma nova ordem de serviço.</CardDescription>
+            <CardTitle>{isEditMode ? 'Editar Ordem de Serviço' : 'Detalhes da Ordem de Serviço'}</CardTitle>
+            <CardDescription>{isEditMode ? 'Atualize os detalhes da ordem de serviço abaixo.' : 'Preencha os detalhes abaixo para criar uma nova ordem de serviço.'}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -255,12 +298,12 @@ function CreateServiceOrderForm() {
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)}>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isEditMode}>
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
                   <div className="relative" ref={customerDropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isEditMode}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>
@@ -413,7 +456,7 @@ function CreateServiceOrderForm() {
 
 
               <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/servicos')}>Cancelar</Button>
+                  <Button type="button" variant="ghost" onClick={() => router.back()}>Cancelar</Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
                       {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Salvar Ordem de Serviço
@@ -448,6 +491,10 @@ function CreateServiceOrderForm() {
 
 
 export default function CriarServicoPage() {
+    const searchParams = useSearchParams();
+    const isEditMode = !!searchParams.get('editId');
+    const pageTitle = isEditMode ? "Editar Ordem de Serviço" : "Criar Nova Ordem de Serviço";
+
     return (
         <Suspense fallback={
             <div className="flex justify-center items-center h-64">
@@ -461,7 +508,7 @@ export default function CriarServicoPage() {
                     </Button>
                     <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
                         <FilePlus className='h-5 w-5' />
-                        Criar Nova Ordem de Serviço
+                        {pageTitle}
                     </h1>
                 </div>
                 <CreateServiceOrderForm />

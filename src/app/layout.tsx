@@ -4,7 +4,6 @@ import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
 import { AuthProvider } from '@/components/auth-provider';
 import { SettingsProvider } from '@/components/settings-provider';
-import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { cn } from '@/lib/utils';
 
 const fontSans = PT_Sans({
@@ -38,7 +37,6 @@ export default function RootLayout({
       )}>
         <AuthProvider>
           <SettingsProvider>
-            <DynamicLayoutEffects />
             {children}
             <Toaster />
           </SettingsProvider>

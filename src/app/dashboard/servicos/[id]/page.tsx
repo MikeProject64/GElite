@@ -24,12 +24,13 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2 } from 'lucide-react';
 import { ServiceOrder, Collaborator, Customer } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 
@@ -74,6 +75,7 @@ export default function ServicoDetailPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; } | null>(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
 
   const orderId = Array.isArray(id) ? id[0] : id;
 
@@ -153,6 +155,11 @@ export default function ServicoDetailPage() {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
+  };
+
+  const handleCancelOrder = async () => {
+    await handleStatusChange('Cancelada');
+    setIsCancelAlertOpen(false);
   };
   
   const handleDueDateChange = async (date: Date | undefined) => {
@@ -320,6 +327,8 @@ export default function ServicoDetailPage() {
   if (!order) {
     return null;
   }
+  
+  const canManage = order.status !== 'Cancelada';
 
   return (
     <div className="flex flex-col gap-6">
@@ -363,7 +372,7 @@ export default function ServicoDetailPage() {
                         <Briefcase className="h-5 w-5 text-muted-foreground" />
                         <div>
                             <p className="text-sm text-muted-foreground">Colaborador / Setor</p>
-                            <Select value={order.collaboratorId} onValueChange={handleCollaboratorChange}>
+                            <Select value={order.collaboratorId} onValueChange={handleCollaboratorChange} disabled={!canManage}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Definir responsável" />
                                 </SelectTrigger>
@@ -383,6 +392,7 @@ export default function ServicoDetailPage() {
                                 <PopoverTrigger asChild>
                                     <Button
                                         variant={"outline"}
+                                        disabled={!canManage}
                                         className={cn(
                                             "w-[180px] justify-start text-left font-normal",
                                             !order.dueDate && "text-muted-foreground"
@@ -406,7 +416,7 @@ export default function ServicoDetailPage() {
                       <Thermometer className="h-5 w-5 text-muted-foreground" />
                       <div>
                             <p className="text-sm text-muted-foreground">Atualizar Status</p>
-                            <Select value={order.status} onValueChange={handleStatusChange}>
+                            <Select value={order.status} onValueChange={handleStatusChange} disabled={!canManage}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
@@ -425,9 +435,19 @@ export default function ServicoDetailPage() {
                 </div>
               </CardContent>
                <CardFooter className="justify-end gap-2 flex-wrap">
+                    {canManage && (
+                        <Button variant="destructive" size="sm" onClick={() => setIsCancelAlertOpen(true)}>
+                          <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
+                        </Button>
+                    )}
                     <Button variant="outline" size="sm" onClick={handleSendWhatsApp} disabled={!customerPhone}>
                         <WhatsAppIcon />
                         Enviar por WhatsApp
+                    </Button>
+                     <Button variant="outline" size="sm" asChild>
+                        <Link href={`/dashboard/servicos/criar?editId=${order.id}`}>
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
+                        </Link>
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
                       <Save className="mr-2 h-4 w-4" />
@@ -512,7 +532,7 @@ export default function ServicoDetailPage() {
             <CardContent className="space-y-4">
               <div className="grid w-full max-w-sm items-center gap-1.5">
                   <Label htmlFor="picture">Adicionar anexo</Label>
-                  <Input id="picture" type="file" onChange={handleFileUpload} disabled={isUploading}/>
+                  <Input id="picture" type="file" onChange={handleFileUpload} disabled={isUploading || !canManage}/>
               </div>
               {isUploading && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -585,6 +605,23 @@ export default function ServicoDetailPage() {
                 </Form>
             </DialogContent>
         </Dialog>
+        
+        <AlertDialog open={isCancelAlertOpen} onOpenChange={setIsCancelAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manualmente.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Voltar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleCancelOrder} className="bg-destructive hover:bg-destructive/90">
+                        Sim, cancelar
+                    </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

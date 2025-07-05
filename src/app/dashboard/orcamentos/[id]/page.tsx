@@ -69,6 +69,7 @@ export default function OrcamentoDetailPage() {
   const [isConverting, setIsConverting] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isRecusarAlertOpen, setIsRecusarAlertOpen] = useState(false);
 
   const quoteId = Array.isArray(id) ? id[0] : id;
   
@@ -142,6 +143,11 @@ export default function OrcamentoDetailPage() {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
   };
+  
+  const handleRecusarQuote = async () => {
+    await handleStatusChange('Recusado');
+    setIsRecusarAlertOpen(false);
+  }
 
   const convertToServiceOrder = async () => {
     if (!quote || !user) return;
@@ -152,7 +158,8 @@ export default function OrcamentoDetailPage() {
             clientName: quote.clientName,
             problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
             serviceType: quote.title,
-            status: 'Pendente',
+            status: 'Pendente', // Default status for new OS
+            collaboratorId: '', // Needs to be assigned
             dueDate: Timestamp.fromDate(new Date()),
             totalValue: quote.totalValue,
             attachments: [],
@@ -242,6 +249,7 @@ export default function OrcamentoDetailPage() {
   if (!quote) return null;
 
   const canCreateNewVersion = quote.status === 'Pendente' || quote.status === 'Recusado';
+  const canBeManaged = quote.status !== 'Convertido';
 
   return (
     <div className="flex flex-col gap-6">
@@ -292,7 +300,7 @@ export default function OrcamentoDetailPage() {
                     <Thermometer className="h-5 w-5 text-muted-foreground" />
                     <div>
                             <p className="text-sm text-muted-foreground">Atualizar Status</p>
-                            <Select value={quote.status} onValueChange={(val) => handleStatusChange(val as Quote['status'])} disabled={quote.status === 'Convertido'}>
+                            <Select value={quote.status} onValueChange={(val) => handleStatusChange(val as Quote['status'])} disabled={!canBeManaged}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
@@ -313,6 +321,11 @@ export default function OrcamentoDetailPage() {
                 
             </CardContent>
             <CardFooter className="justify-end gap-2 flex-wrap">
+                 {quote.status === 'Pendente' && (
+                  <Button variant="destructive" size="sm" onClick={() => setIsRecusarAlertOpen(true)}>
+                    <XCircle className="mr-2 h-4 w-4" /> Recusar
+                  </Button>
+                )}
                  <Button variant="outline" size="sm" onClick={handleSendWhatsApp} disabled={!customerPhone}>
                     <WhatsAppIcon />
                     Enviar por WhatsApp
@@ -411,6 +424,21 @@ export default function OrcamentoDetailPage() {
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
                     <AlertDialogAction onClick={convertToServiceOrder}>Sim, converter</AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={isRecusarAlertOpen} onOpenChange={setIsRecusarAlertOpen}>
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmar Recusa</AlertDialogTitle>
+                    <AlertDialogDescription>
+                        Esta ação alterará o status do orçamento para "Recusado". Esta ação pode ser revertida. Deseja continuar?
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRecusarQuote} className="bg-destructive hover:bg-destructive/90">Sim, recusar</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

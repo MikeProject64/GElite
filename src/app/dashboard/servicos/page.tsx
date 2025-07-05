@@ -17,9 +17,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
@@ -46,9 +45,6 @@ export default function ServicosPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', collaboratorName: '', clientName: '' });
 
-  const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
-
   // Pagination state
   const [page, setPage] = useState(1);
   const [lastDoc, setLastDoc] = useState<QueryDocumentSnapshot | null>(null);
@@ -63,7 +59,6 @@ export default function ServicosPage() {
       const baseQuery = query(
           collection(db, 'serviceOrders'),
           where('userId', '==', user.uid),
-          // where('isTemplate', '==', false), // Removed to prevent composite index requirement
           orderBy('createdAt', 'desc')
       );
 
@@ -96,7 +91,6 @@ export default function ServicosPage() {
           } else if(direction === 'next') {
               setIsLastPage(true);
           } else if (direction === 'prev' && snapshot.empty) {
-             // Stay on page 1 if going back from page 2 leads to empty results
              setPage(1);
           }
 
@@ -135,28 +129,6 @@ export default function ServicosPage() {
 
   const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
-  };
-
-  const openCancelDialog = (orderId: string) => {
-    setCancellingOrderId(orderId);
-    setIsAlertOpen(true);
-  };
-
-  const handleCancelOrder = async () => {
-    if (!cancellingOrderId) return;
-    try {
-      const orderRef = doc(db, 'serviceOrders', cancellingOrderId);
-      await updateDoc(orderRef, { status: 'Cancelada', completedAt: null });
-      toast({ title: 'Sucesso', description: 'Ordem de serviço cancelada.' });
-      // Refetch current page to see update
-      const updatedOrders = serviceOrders.map(o => o.id === cancellingOrderId ? {...o, status: 'Cancelada'} : o);
-      setServiceOrders(updatedOrders);
-    } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível cancelar a ordem de serviço.' });
-    } finally {
-      setIsAlertOpen(false);
-      setCancellingOrderId(null);
-    }
   };
 
   return (
@@ -304,10 +276,6 @@ export default function ServicosPage() {
                                 <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
                                     <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
                                 </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-destructive" onSelect={() => openCancelDialog(order.id)}>
-                                   <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
-                                </DropdownMenuItem>
                             </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -335,22 +303,6 @@ export default function ServicosPage() {
             </div>
         </CardFooter>
       </Card>
-      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manually.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCancellingOrderId(null)}>Voltar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleCancelOrder} className="bg-destructive hover:bg-destructive/90">
-                Sim, cancelar
-            </AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-    </AlertDialog>
     </div>
   );
 }
