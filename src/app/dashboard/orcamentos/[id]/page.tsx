@@ -109,7 +109,16 @@ export default function OrcamentoDetailPage() {
     try {
       const quoteRef = doc(db, 'quotes', quote.id);
       await updateDoc(quoteRef, { status: newStatus });
-      toast({ title: 'Sucesso!', description: 'Status do orçamento atualizado.' });
+      
+      if (newStatus === 'Aprovado') {
+        toast({
+          title: 'Orçamento Aprovado!',
+          description: 'Lembre-se de convertê-lo em uma Ordem de Serviço para dar andamento.',
+          duration: 6000,
+        });
+      } else {
+        toast({ title: 'Sucesso!', description: 'Status do orçamento atualizado.' });
+      }
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
