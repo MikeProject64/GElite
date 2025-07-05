@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -44,9 +44,19 @@ export default function OrcamentosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', clientName: '' });
+
+  useEffect(() => {
+    // Check for status filter from URL params on initial load
+    const statusFromUrl = searchParams.get('status');
+    if (statusFromUrl) {
+      setFilters(prev => ({ ...prev, status: statusFromUrl }));
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (!user) return;

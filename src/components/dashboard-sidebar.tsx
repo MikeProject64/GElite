@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
@@ -20,10 +20,114 @@ import {
   Package,
   FileText,
   Briefcase,
+  Bell,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
+import { collection, query, where, onSnapshot, orderBy, limit } from 'firebase/firestore';
+import { RecentActivity } from '@/types';
+import { useEffect, useState } from 'react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+
+function NotificationBell() {
+    const { user } = useAuth();
+    const router = useRouter();
+    const [notifications, setNotifications] = useState<RecentActivity[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!user) return;
+        setIsLoading(true);
+        
+        const queries = [
+            query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
+            query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
+            query(collection(db, 'quotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
+        ];
+
+        const unsubscribes = queries.map(q => onSnapshot(q, () => {
+            // This is just to trigger a refetch when any collection changes.
+            // The actual data combination happens below.
+            fetchCombinedActivity();
+        }));
+        
+        const fetchCombinedActivity = async () => {
+            try {
+                const [ordersSnap, customersSnap, quotesSnap] = await Promise.all([
+                    await getDocs(queries[0]),
+                    await getDocs(queries[1]),
+                    await getDocs(queries[2])
+                ]);
+                
+                const ordersActivity: RecentActivity[] = ordersSnap.docs.map(doc => ({ id: doc.id, type: 'serviço', description: `Nova OS: ${doc.data().serviceType}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/servicos/${doc.id}`}));
+                const customersActivity: RecentActivity[] = customersSnap.docs.map(doc => ({ id: doc.id, type: 'cliente', description: `Novo cliente: ${doc.data().name}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/base-de-clientes/${doc.id}`}));
+                const quotesActivity: RecentActivity[] = quotesSnap.docs.map(doc => ({ id: doc.id, type: 'orçamento', description: `Orçamento para ${doc.data().clientName}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/orcamentos/${doc.id}`}));
+        
+                const combined = [...ordersActivity, ...customersActivity, ...quotesActivity]
+                    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+                    .slice(0, 5);
+                
+                setNotifications(combined);
+            } catch (error) {
+                console.error("Error fetching notifications", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchCombinedActivity();
+
+        return () => unsubscribes.forEach(unsub => unsub());
+
+    }, [user]);
+
+    const getIcon = (type: RecentActivity['type']) => {
+        switch (type) {
+            case 'cliente': return <Users className="h-4 w-4" />;
+            case 'serviço': return <Wrench className="h-4 w-4" />;
+            case 'orçamento': return <FileText className="h-4 w-4" />;
+            default: return null;
+        }
+    };
+
+    return (
+        <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                    <Bell className="h-4 w-4"/>
+                    {!isLoading && notifications.length > 0 && (
+                        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                        </span>
+                    )}
+                </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuLabel>Notificações Recentes</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {isLoading ? (
+                    <DropdownMenuItem disabled>Carregando...</DropdownMenuItem>
+                ) : notifications.length > 0 ? (
+                    notifications.map(n => (
+                        <DropdownMenuItem key={n.id} className="flex items-start gap-2" onSelect={() => router.push(n.href)}>
+                            <div className='text-muted-foreground mt-1'>{getIcon(n.type)}</div>
+                            <div className='flex flex-col'>
+                                <span className='text-sm whitespace-normal'>{n.description}</span>
+                                <span className='text-xs text-muted-foreground'>{formatDistanceToNow(n.timestamp, { addSuffix: true, locale: ptBR })}</span>
+                            </div>
+                        </DropdownMenuItem>
+                    ))
+                ) : (
+                    <DropdownMenuItem disabled>Nenhuma notificação recente.</DropdownMenuItem>
+                )}
+            </DropdownMenuContent>
+        </DropdownMenu>
+    );
+}
 
 function NavContent() {
   const pathname = usePathname();
@@ -83,11 +187,14 @@ function NavContent() {
         </nav>
       </div>
       <div className="mt-auto p-4 border-t">
-          <div className="flex items-center gap-2 mb-4">
-            <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary font-bold">
-                {user?.email?.charAt(0).toUpperCase()}
+          <div className="flex items-center justify-between gap-2 mb-4">
+            <div className="flex items-center gap-2 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary font-bold shrink-0">
+                  {user?.email?.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-sm font-medium truncate">{user?.email}</span>
             </div>
-            <span className="text-sm font-medium truncate">{user?.email}</span>
+            <NotificationBell />
           </div>
           <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
              <LogOut className="mr-2 h-4 w-4" /> Sair

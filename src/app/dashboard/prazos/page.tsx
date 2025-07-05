@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -94,6 +94,7 @@ export default function PrazosPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { settings } = useSettings();
     const isMobile = useIsMobile();
     
@@ -101,6 +102,13 @@ export default function PrazosPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
+    
+    useEffect(() => {
+        const filterFromUrl = searchParams.get('filter');
+        if (filterFromUrl && ['today', 'thisWeek', 'overdue'].includes(filterFromUrl)) {
+            setActiveFilter(filterFromUrl as 'today' | 'thisWeek' | 'overdue');
+        }
+    }, [searchParams]);
 
     useEffect(() => {
         if (isMobile !== undefined) {
@@ -155,7 +163,7 @@ export default function PrazosPage() {
             return orders.filter(o => {
                 const dueDate = o.dueDate.toDate();
                 dueDate.setHours(0,0,0,0);
-                return dueDate < now;
+                return dueDate < now && !isToday(dueDate);
             });
         }
         return orders;

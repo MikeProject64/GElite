@@ -3,22 +3,22 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Wrench, Users, Loader2, ListTodo, History, FileText, Package, Search, Briefcase } from 'lucide-react';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { Wrench, Users, Loader2, History, FileText, Search } from 'lucide-react';
+import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import type { RecentActivity, ServiceOrder, Quote, Customer, Collaborator } from '@/types';
 import Link from 'next/link';
-import { formatDistanceToNow, format, subMonths, startOfMonth } from 'date-fns';
+import { formatDistanceToNow, format, subMonths, startOfMonth, isPast, isToday } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
 import { MonthlyRevenueChart } from '@/components/dashboard/monthly-revenue-chart';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { QuickActions } from '@/components/dashboard/quick-actions';
 
 interface SearchResult {
   id: string;
@@ -31,6 +31,13 @@ interface SearchResult {
 interface ChartData {
   orderStatus: { status: string; count: number; fill: string; }[];
   monthlyRevenue: { month: string; total: number; }[];
+}
+
+interface DashboardStats {
+    activeOrders: number;
+    totalCustomers: number;
+    overdueOrders: number;
+    pendingQuotes: number;
 }
 
 const STATUS_COLORS: { [key: string]: string } = {
@@ -61,7 +68,7 @@ export default function DashboardPage() {
 
   // Page data state
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({ activeOrders: 0, totalCustomers: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0 });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [] });
   
@@ -90,12 +97,19 @@ export default function DashboardPage() {
             getDocs(customersQuery),
             getDocs(quotesQuery),
         ]);
+        
+        const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder);
+        const allQuotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
 
         // Process stats
-        const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder);
-        const activeCount = allOrders.filter(doc => activeStatuses.includes(doc.status)).length;
+        const activeCount = allOrders.filter(o => activeStatuses.includes(o.status)).length;
         const customerCount = customersSnap.size;
-        setStats({ activeOrders: activeCount, totalCustomers: customerCount });
+        const overdueCount = allOrders.filter(o => !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+        const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
+
+        setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
 
         // Process chart data
         // 1. Order Status Pie Chart
@@ -133,11 +147,11 @@ export default function DashboardPage() {
         // --- Fetch for Recent Activity ---
         const recentOrders = allOrders.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         const recentCustomers = customersSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Customer).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
-        const recentQuotes = quotesSnap.docs.map(doc => ({id: doc.id, ...doc.data()}) as Quote).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        const recentQuotesActivity = allQuotes.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         
         const ordersActivity: RecentActivity[] = recentOrders.map(data => ({ id: data.id, type: 'serviço', description: `Nova OS: ${data.serviceType} para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/servicos/${data.id}`}));
         const customersActivity: RecentActivity[] = recentCustomers.map(data => ({ id: data.id, type: 'cliente', description: `Novo cliente: ${data.name}`, timestamp: data.createdAt.toDate(), href: `/dashboard/base-de-clientes/${data.id}`}));
-        const quotesActivity: RecentActivity[] = recentQuotes.map(data => ({ id: data.id, type: 'orçamento', description: `Orçamento para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/orcamentos/${data.id}`}));
+        const quotesActivity: RecentActivity[] = recentQuotesActivity.map(data => ({ id: data.id, type: 'orçamento', description: `Orçamento para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/orcamentos/${data.id}`}));
         
         const combined = [...ordersActivity, ...customersActivity, ...quotesActivity]
             .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
@@ -229,7 +243,6 @@ export default function DashboardPage() {
       case 'Cliente': return <Users className="h-4 w-4 text-muted-foreground" />;
       case 'Serviço': return <Wrench className="h-4 w-4 text-muted-foreground" />;
       case 'Orçamento': return <FileText className="h-4 w-4 text-muted-foreground" />;
-      case 'Colaborador': return <Briefcase className="h-4 w-4 text-muted-foreground" />;
       default: return null;
     }
   };
@@ -246,13 +259,84 @@ export default function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-       {/* Main Grid: Stats and Recent Activity */}
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-             <Card>
+            <QuickActions stats={stats} loading={loading} />
+        </div>
+
+        <div className="lg:col-span-1 flex flex-col gap-6">
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Ordens de Serviço Ativas</CardTitle>
+                    <Wrench className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.activeOrders}</div>}
+                    <p className="text-xs text-muted-foreground">Ordens pendentes ou em andamento.</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Clientes Cadastrados</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.totalCustomers}</div>}
+                    <p className="text-xs text-muted-foreground">Total de clientes em sua base.</p>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
+      
+       {/* Charts Grid */}
+       <div className="grid gap-6 md:grid-cols-2">
+        {loading ? (
+          <>
+            <Card><CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>
+            <Card><CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>
+          </>
+        ) : (
+          <>
+            <OrderStatusChart data={chartData.orderStatus} />
+            <MonthlyRevenueChart data={chartData.monthlyRevenue} />
+          </>
+        )}
+      </div>
+
+       <div className="grid gap-6 lg:grid-cols-3">
+            <Card className='lg:col-span-2 h-full'>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-xl"><History/> Atividade Recente</CardTitle>
+                    <CardDescription>Últimas movimentações no sistema.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (
+                        recentActivity.length > 0 ? (
+                            <ul className="space-y-4">
+                                {recentActivity.map(activity => (
+                                    <li key={activity.id} className="flex items-start gap-3">
+                                        <div className="mt-1">
+                                            {getRecentActivityIcon(activity.type)}
+                                        </div>
+                                        <div className="flex-1">
+                                            <Link href={activity.href} className="hover:underline">
+                                                <p className="text-sm">{activity.description}</p>
+                                            </Link>
+                                            <p className="text-xs text-muted-foreground">
+                                                {formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}
+                                            </p>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        ) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>
+                    )}
+                </CardContent>
+            </Card>
+            <Card className='lg:col-span-1'>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl"><Search /> Busca Rápida</CardTitle>
-                    <CardDescription>Encontre clientes, serviços, orçamentos e colaboradores instantaneamente.</CardDescription>
+                    <CardDescription>Encontre clientes, serviços e orçamentos.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
@@ -314,77 +398,6 @@ export default function DashboardPage() {
                            </ScrollArea>
                         </PopoverContent>
                     </Popover>
-                </CardContent>
-            </Card>
-        </div>
-
-        <div className="lg:col-span-1 flex flex-col gap-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Ordens de Serviço Ativas</CardTitle>
-                    <Wrench className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.activeOrders}</div>}
-                    <p className="text-xs text-muted-foreground">Ordens pendentes ou em andamento.</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-sm font-medium">Clientes Cadastrados</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    {loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.totalCustomers}</div>}
-                    <p className="text-xs text-muted-foreground">Total de clientes em sua base.</p>
-                </CardContent>
-            </Card>
-        </div>
-      </div>
-      
-       {/* Charts Grid */}
-       <div className="grid gap-6 md:grid-cols-2">
-        {loading ? (
-          <>
-            <Card><CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>
-            <Card><CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card>
-          </>
-        ) : (
-          <>
-            <OrderStatusChart data={chartData.orderStatus} />
-            <MonthlyRevenueChart data={chartData.monthlyRevenue} />
-          </>
-        )}
-      </div>
-
-       <div className="grid gap-6">
-            <Card className='h-full'>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2 text-xl"><History/> Atividade Recente</CardTitle>
-                    <CardDescription>Últimas movimentações no sistema.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (
-                        recentActivity.length > 0 ? (
-                            <ul className="space-y-4">
-                                {recentActivity.map(activity => (
-                                    <li key={activity.id} className="flex items-start gap-3">
-                                        <div className="mt-1">
-                                            {getRecentActivityIcon(activity.type)}
-                                        </div>
-                                        <div className="flex-1">
-                                            <Link href={activity.href} className="hover:underline">
-                                                <p className="text-sm">{activity.description}</p>
-                                            </Link>
-                                            <p className="text-xs text-muted-foreground">
-                                                {formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}
-                                            </p>
-                                        </div>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>
-                    )}
                 </CardContent>
             </Card>
        </div>
