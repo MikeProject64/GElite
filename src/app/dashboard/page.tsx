@@ -2,7 +2,7 @@
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Wrench, Users, Loader2, History, FileText, Search } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -173,7 +173,7 @@ export default function DashboardPage() {
         // Fetch for Recent Activity (using already sanitized data)
         const recentOrders = [...allOrders].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         const recentCustomers = [...allCustomers].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
-        const recentQuotesActivity = [...allQuotes].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        const recentQuotesActivity = [...allQuotes].filter(q => !q.isTemplate).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         
         const ordersActivity: RecentActivity[] = recentOrders.map(data => ({ id: data.id, type: 'serviço', description: `Nova OS: ${data.serviceType} para ${data.clientName}`, timestamp: data.createdAt.toDate(), href: `/dashboard/servicos/${data.id}`}));
         const customersActivity: RecentActivity[] = recentCustomers.map(data => ({ id: data.id, type: 'cliente', description: `Novo cliente: ${data.name}`, timestamp: data.createdAt.toDate(), href: `/dashboard/base-de-clientes/${data.id}`}));
@@ -330,12 +330,12 @@ export default function DashboardPage() {
       </div>
 
        <div className="grid gap-6 lg:grid-cols-3">
-            <Card className='lg:col-span-2 h-full'>
+            <Card className='lg:col-span-2 h-full flex flex-col'>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-xl"><History/> Atividade Recente</CardTitle>
                     <CardDescription>Últimas movimentações no sistema.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className='flex-grow'>
                     {loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (
                         recentActivity.length > 0 ? (
                             <ul className="space-y-4">
@@ -358,6 +358,13 @@ export default function DashboardPage() {
                         ) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>
                     )}
                 </CardContent>
+                 <CardFooter>
+                    <Button asChild variant="secondary" className="w-full">
+                        <Link href="/dashboard/atividades">
+                            Ver todo o histórico
+                        </Link>
+                    </Button>
+                </CardFooter>
             </Card>
             <Card className='lg:col-span-1'>
                 <CardHeader>

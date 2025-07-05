@@ -140,6 +140,7 @@ function NavContent() {
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
     { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
+    { href: '/dashboard/atividades', label: 'Atividades', icon: Bell },
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users },
     { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package },
