@@ -43,6 +43,12 @@ export interface Customer {
 
 type CustomFields = Record<string, any>;
 
+export interface ActivityLogEntry {
+  timestamp: Timestamp;
+  userEmail: string;
+  description: string;
+}
+
 export interface ServiceOrder {
     id: string;
     userId: string;
@@ -59,6 +65,7 @@ export interface ServiceOrder {
     createdAt: Timestamp;
     completedAt?: Timestamp | null;
     customFields?: CustomFields;
+    activityLog?: ActivityLogEntry[];
 }
 
 export interface Quote {

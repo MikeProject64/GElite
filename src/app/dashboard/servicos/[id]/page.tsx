@@ -8,7 +8,7 @@ import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
-import { format } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 
@@ -21,7 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History } from 'lucide-react';
 import { ServiceOrder, Collaborator } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -89,10 +89,17 @@ export default function ServicoDetailPage() {
   }, [user]);
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!order) return;
+    if (!order || !user) return;
     try {
       const orderRef = doc(db, 'serviceOrders', order.id);
       const updateData: any = { status: newStatus };
+
+      const logEntry = {
+          timestamp: Timestamp.now(),
+          userEmail: user?.email || 'Sistema',
+          description: `Status alterado de "${order.status}" para "${newStatus}".`
+      };
+      updateData.activityLog = arrayUnion(logEntry);
 
       if (newStatus === 'Concluída' && !order.completedAt) {
         updateData.completedAt = Timestamp.now();
@@ -119,15 +126,21 @@ export default function ServicoDetailPage() {
   };
 
   const handleCollaboratorChange = async (newCollaboratorId: string) => {
-    if (!order || !newCollaboratorId) return;
+    if (!order || !newCollaboratorId || !user) return;
     const selectedCollaborator = collaborators.find(m => m.id === newCollaboratorId);
     if (!selectedCollaborator) return;
 
     try {
         const orderRef = doc(db, 'serviceOrders', order.id);
+        const logEntry = {
+            timestamp: Timestamp.now(),
+            userEmail: user.email || 'Sistema',
+            description: `Responsável alterado de "${order.collaboratorName || 'Nenhum'}" para "${selectedCollaborator.name}".`
+        };
         await updateDoc(orderRef, {
             collaboratorId: selectedCollaborator.id,
-            collaboratorName: selectedCollaborator.name
+            collaboratorName: selectedCollaborator.name,
+            activityLog: arrayUnion(logEntry)
         });
         toast({ title: 'Sucesso!', description: 'Colaborador atualizado.' });
     } catch (error) {
@@ -146,19 +159,23 @@ export default function ServicoDetailPage() {
         const fileName = `${uuidv4()}.${fileExtension}`;
         const storageRef = ref(storage, `serviceOrders/${order.id}/${fileName}`);
         
-        // Add user ID to file metadata for security rule verification
         const metadata = {
-            customMetadata: {
-                'userId': user.uid,
-            },
+            customMetadata: { 'userId': user.uid },
         };
         
         const snapshot = await uploadBytes(storageRef, file, metadata);
         const downloadURL = await getDownloadURL(snapshot.ref);
 
         const orderRef = doc(db, 'serviceOrders', order.id);
+        const logEntry = {
+            timestamp: Timestamp.now(),
+            userEmail: user?.email || 'Sistema',
+            description: `Arquivo "${file.name}" foi anexado.`
+        };
+
         await updateDoc(orderRef, {
-            attachments: arrayUnion({ name: file.name, url: downloadURL })
+            attachments: arrayUnion({ name: file.name, url: downloadURL }),
+            activityLog: arrayUnion(logEntry)
         });
 
         toast({ title: 'Sucesso!', description: 'Arquivo anexado.' });
@@ -192,7 +209,7 @@ export default function ServicoDetailPage() {
 
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-4">
-          <File className="h-16 w-16 text-muted-foreground mb-4" />
+          <FileIcon className="h-16 w-16 text-muted-foreground mb-4" />
           <p className='font-medium'>Pré-visualização não disponível</p>
           <p className="text-sm text-muted-foreground">O arquivo '{file.name}' não pode ser exibido aqui.</p>
           <Button asChild variant="link" className="mt-2">
@@ -367,6 +384,37 @@ export default function ServicoDetailPage() {
                     </CardContent>
                 </Card>
             )}
+
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5"/> Histórico de Alterações</CardTitle>
+                    <CardDescription>Trilha de auditoria de todas as ações realizadas nesta O.S.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    {order.activityLog && order.activityLog.length > 0 ? (
+                        <ul className="space-y-4">
+                        {order.activityLog
+                            .slice()
+                            .sort((a, b) => b.timestamp.toDate().getTime() - a.timestamp.toDate().getTime())
+                            .map((log, index) => (
+                            <li key={index} className="flex gap-3">
+                                <div className="flex-shrink-0 h-6 w-6 rounded-full bg-muted flex items-center justify-center ring-2 ring-background">
+                                    <User className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                                <div>
+                                <p className="text-sm">{log.description}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {log.userEmail} em {format(log.timestamp.toDate(), "dd/MM/yy 'às' HH:mm", { locale: ptBR })}
+                                </p>
+                                </div>
+                            </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade registrada.</p>
+                    )}
+                </CardContent>
+            </Card>
 
         </div>
 

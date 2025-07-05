@@ -172,6 +172,11 @@ export default function CriarOrdemDeServicoPage() {
         createdAt: Timestamp.now(),
         completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
         attachments: [],
+        activityLog: [{
+            timestamp: Timestamp.now(),
+            userEmail: user?.email || 'Sistema',
+            description: 'Ordem de Serviço criada.'
+        }],
       });
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       router.push('/dashboard/servicos');
