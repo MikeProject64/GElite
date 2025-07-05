@@ -43,7 +43,7 @@ const defaultSettings: UserSettings = {
   customerCustomFields: [],
   serviceOrderCustomFields: [],
   quoteCustomFields: [],
-  serviceStatuses: ['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada'],
+  serviceStatuses: ['Pendente', 'Em Andamento', 'Concluída', 'Cancelada'],
   tags: [],
 };
 

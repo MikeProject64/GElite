@@ -76,7 +76,6 @@ const getEventStyle = (event: Event) => {
 
     if (order.status === 'Concluída') backgroundColor = 'hsl(var(--accent))';
     if (order.status === 'Em Andamento') backgroundColor = 'hsl(210, 70%, 60%)';
-    if (order.status === 'Aguardando Peça') backgroundColor = 'hsl(var(--secondary))';
     if (isPast(dueDate) && !isToday(dueDate)) backgroundColor = 'hsl(var(--destructive))';
     if (isToday(dueDate)) backgroundColor = 'hsl(48, 96%, 58%)';
 
@@ -121,7 +120,7 @@ export default function PrazosPage() {
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
+            const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
             const fetchedOrders = querySnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
                 .filter(order => order.dueDate && activeStatuses.includes(order.status));

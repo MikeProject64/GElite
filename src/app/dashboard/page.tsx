@@ -44,7 +44,6 @@ interface DashboardStats {
 const STATUS_COLORS: { [key: string]: string } = {
   'Pendente': 'hsl(var(--chart-1))',
   'Em Andamento': 'hsl(var(--chart-2))',
-  'Aguardando Peça': 'hsl(var(--chart-3))',
   'Concluída': 'hsl(var(--chart-4))',
   'Cancelada': 'hsl(var(--chart-5))',
 };
@@ -111,7 +110,7 @@ export default function DashboardPage() {
             .map(doc => ({ id: doc.id, ...doc.data() }) as Quote)
             .filter(q => q.createdAt && typeof q.createdAt.toDate === 'function');
 
-        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
+        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
         const now = new Date();
         now.setHours(0, 0, 0, 0);
 
@@ -441,3 +440,4 @@ export default function DashboardPage() {
     
 
     
+
