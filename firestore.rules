@@ -1,51 +1,57 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Reusable function to check if the requesting user is the owner of a document.
-    function isOwner(docUserId) {
-      return request.auth != null && request.auth.uid == docUserId;
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
-    // Users can only read/write their own user document.
     match /users/{userId} {
+      // Users can only access their own document
       allow read, write: if isOwner(userId);
     }
-    
-    // Users can only read/write their own settings document.
+
     match /userSettings/{userId} {
+      // Users can only access their own settings document
       allow read, write: if isOwner(userId);
     }
-
-    match /customers/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+    
+    // Rules for collections owned by a user
+    match /customers/{customerId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if request.auth != null; // Relies on client-side query for security
+      allow write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
-      allow list: if request.auth != null;
     }
     
-    match /serviceOrders/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+    match /serviceOrders/{orderId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if request.auth != null; // Relies on client-side query for security
+      allow write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
-      allow list: if request.auth != null;
     }
     
-    match /inventory/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+    match /inventory/{itemId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if request.auth != null; // Relies on client-side query for security
+      allow write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
-      allow list: if request.auth != null;
     }
     
-    match /quotes/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+    match /quotes/{quoteId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if request.auth != null; // Relies on client-side query for security
+      allow write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
-      allow list: if request.auth != null;
     }
-
-    match /managers/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+    
+    match /collaborators/{collaboratorId} {
+      allow get: if isOwner(resource.data.userId);
+      allow list: if request.auth != null; // Relies on client-side query for security
+      allow write: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
-      allow list: if request.auth != null;
     }
   }
 }
