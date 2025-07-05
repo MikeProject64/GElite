@@ -8,7 +8,7 @@ import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'fireba
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
-import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek } from 'date-fns';
+import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { dateFnsLocalizer, Event } from 'react-big-calendar';
 
@@ -47,15 +47,18 @@ interface ServiceOrder {
 
 const localizer = dateFnsLocalizer({
   format,
-  parse: (str, format, locale) => new Date(str),
-  startOfWeek: () => new Date(),
-  getDay: (date) => date.getDay(),
+  parse: (str: string, format: any, locale: any) => parseISO(str),
+  startOfWeek: (date: Date, options: any) => startOfWeek(date, options),
+  getDay: (date: Date) => date.getDay(),
   locales: {
     'pt-BR': ptBR,
   },
 });
 
 const getDueDateStatus = (dueDate: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
+    
     if (isPast(dueDate) && !isToday(dueDate)) {
       return { text: `Vencido há ${differenceInDays(new Date(), dueDate)} dia(s)`, variant: 'destructive' as const };
     }
@@ -63,6 +66,9 @@ const getDueDateStatus = (dueDate: Date) => {
       return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600' };
     }
     const daysUntilDue = differenceInDays(dueDate, new Date());
+    if (daysUntilDue < 0) { // Should be handled by isPast, but as a fallback
+        return { text: `Vencido`, variant: 'destructive' as const };
+    }
     if (daysUntilDue <= 3) {
       return { text: `Vence em ${daysUntilDue + 1} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600' };
     }
@@ -134,19 +140,27 @@ export default function PrazosPage() {
 
     const filteredOrders = useMemo(() => {
         const now = new Date();
+        now.setHours(0,0,0,0);
         if (activeFilter === 'all') return orders;
         if (activeFilter === 'today') return orders.filter(o => isToday(o.dueDate.toDate()));
         if (activeFilter === 'thisWeek') {
-            const start = startOfWeek(now);
-            const end = endOfWeek(now);
+            const start = startOfWeek(now, { locale: ptBR });
+            const end = endOfWeek(now, { locale: ptBR });
             return orders.filter(o => {
                 const dueDate = o.dueDate.toDate();
                 return dueDate >= start && dueDate <= end;
             });
         }
-        if (activeFilter === 'overdue') return orders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
+        if (activeFilter === 'overdue') {
+            return orders.filter(o => {
+                const dueDate = o.dueDate.toDate();
+                dueDate.setHours(0,0,0,0);
+                return dueDate < now;
+            });
+        }
         return orders;
     }, [orders, activeFilter]);
+
 
     const calendarEvents = useMemo(() => orders.map(order => ({
         title: `${order.clientName} - ${order.serviceType}`,
@@ -197,11 +211,11 @@ export default function PrazosPage() {
                         </div>
                     ) : viewMode === 'list' ? (
                         <>
-                            <div className="flex gap-2 mb-4">
-                                <Button variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
-                                <Button variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
-                                <Button variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
-                                <Button variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
+                            <div className="flex gap-2 mb-4 flex-wrap">
+                                <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
+                                <Button size="sm" variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
+                                <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
+                                <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
                             </div>
                             {filteredOrders.length === 0 ? (
                                 <div className="text-center py-10">
@@ -271,3 +285,5 @@ export default function PrazosPage() {
         </div>
     );
 }
+
+    

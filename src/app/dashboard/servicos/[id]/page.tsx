@@ -5,7 +5,7 @@ import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion, collection, query, where, orderBy } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { db } from '@/lib/firebase';
+import { db, storage } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -140,7 +140,6 @@ export default function ServicoDetailPage() {
     setIsUploading(true);
     
     try {
-      const storage = getStorage();
       const fileExtension = file.name.split('.').pop();
       const fileName = `${uuidv4()}.${fileExtension}`;
       const storageRef = ref(storage, `serviceOrders/${order.id}/${fileName}`);
@@ -367,3 +366,5 @@ export default function ServicoDetailPage() {
     </div>
   );
 }
+
+    

@@ -91,6 +91,9 @@ export default function ServicosPage() {
               setIsLastPage(nextSnap.empty);
           } else if(direction === 'next') {
               setIsLastPage(true);
+          } else if (direction === 'prev' && snapshot.empty) {
+             // Stay on page 1 if going back from page 2 leads to empty results
+             setPage(1);
           }
 
       } catch (error) {
@@ -222,7 +225,6 @@ export default function ServicosPage() {
                     <TableHead className='w-[100px]'>OS</TableHead>
                     <TableHead>Serviço / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Responsável</TableHead>
-                    <TableHead className="hidden lg:table-cell">Criação</TableHead>
                     <TableHead className="hidden md:table-cell">Vencimento</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
@@ -232,14 +234,23 @@ export default function ServicosPage() {
                 {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
                      <TableCell>
-                        <span className="font-mono text-sm">#{order.id.substring(0, 6).toUpperCase()}</span>
+                        <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
+                            #{order.id.substring(0, 6).toUpperCase()}
+                        </Link>
                       </TableCell>
                     <TableCell>
                         <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
-                        <div className="text-sm text-muted-foreground">{order.clientName}</div>
+                        <div className="text-sm text-muted-foreground">
+                            <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
+                        </div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{order.managerName || 'Não definido'}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                    <TableCell className="hidden md:table-cell">
+                        {order.managerId ? (
+                            <Link href={`/dashboard/responsaveis/${order.managerId}`} className="hover:underline">{order.managerName}</Link>
+                        ) : (
+                            'Não definido'
+                        )}
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                     <TableCell>
                         <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
@@ -306,3 +317,5 @@ export default function ServicosPage() {
     </div>
   );
 }
+
+    

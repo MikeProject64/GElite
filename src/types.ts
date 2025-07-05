@@ -1,8 +1,19 @@
 
 import type { Timestamp } from 'firebase/firestore';
 
-export interface CustomFields {
-  [key: string]: string | number | Timestamp | Date;
+export interface CustomField {
+  id: string;
+  name: string;
+  type: 'text' | 'number' | 'date';
+}
+
+export interface UserSettings {
+  siteName: string;
+  iconName: string;
+  customerCustomFields?: CustomField[];
+  serviceOrderCustomFields?: CustomField[];
+  quoteCustomFields?: CustomField[];
+  serviceStatuses?: string[];
 }
 
 export interface Manager {
@@ -64,3 +75,5 @@ export interface RecentActivity {
     timestamp: Date;
     href: string;
 }
+
+    

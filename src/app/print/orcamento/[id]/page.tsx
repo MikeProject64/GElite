@@ -1,35 +1,51 @@
+
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { notFound } from 'next/navigation';
-import { Quote } from '@/types';
+import { Quote, UserSettings } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Wrench } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
+import { availableIcons } from '@/components/icon-map';
+import { UserSettings } from '@/types';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-async function getQuote(id: string): Promise<Quote | null> {
+async function getQuoteAndSettings(id: string): Promise<{quote: Quote, settings: UserSettings} | null> {
     const quoteRef = doc(db, 'quotes', id);
     const quoteSnap = await getDoc(quoteRef);
+    
     if (!quoteSnap.exists()) {
         return null;
     }
-    return { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+    const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+
+    let settings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+    if(quote.userId) {
+        const settingsRef = doc(db, 'userSettings', quote.userId);
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+            settings = { ...settings, ...settingsSnap.data() } as UserSettings;
+        }
+    }
+
+    return { quote, settings };
 }
 
 export default async function PrintOrcamentoPage({ params }: { params: { id: string } }) {
-    const quote = await getQuote(params.id);
+    const data = await getQuoteAndSettings(params.id);
 
-    if (!quote) {
+    if (!data) {
         notFound();
     }
     
-    // In a real app, you might fetch user-specific settings (like company name/logo) here.
-    const siteName = 'ServiceWise';
-    const Icon = Wrench;
+    const { quote, settings } = data;
+    const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
+    const siteName = settings.siteName || 'ServiceWise';
+
 
     return (
         <div className="max-w-4xl mx-auto p-8 font-body text-gray-800 bg-white">
@@ -82,3 +98,5 @@ export default async function PrintOrcamentoPage({ params }: { params: { id: str
         </div>
     );
 }
+
+    

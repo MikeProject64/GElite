@@ -2,34 +2,48 @@
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { notFound } from 'next/navigation';
-import { ServiceOrder } from '@/types';
+import { ServiceOrder, UserSettings } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Wrench } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
+import { availableIcons } from '@/components/icon-map';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-async function getServiceOrder(id: string): Promise<ServiceOrder | null> {
+async function getServiceOrderAndSettings(id: string): Promise<{ order: ServiceOrder, settings: UserSettings } | null> {
     const orderRef = doc(db, 'serviceOrders', id);
     const orderSnap = await getDoc(orderRef);
+
     if (!orderSnap.exists()) {
         return null;
     }
-    return { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
+    const order = { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
+
+    let settings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+    if (order.userId) {
+        const settingsRef = doc(db, 'userSettings', order.userId);
+        const settingsSnap = await getDoc(settingsRef);
+        if (settingsSnap.exists()) {
+            settings = { ...settings, ...settingsSnap.data() } as UserSettings;
+        }
+    }
+
+    return { order, settings };
 }
 
 export default async function PrintServicoPage({ params }: { params: { id: string } }) {
-    const order = await getServiceOrder(params.id);
+    const data = await getServiceOrderAndSettings(params.id);
 
-    if (!order) {
+    if (!data) {
         notFound();
     }
     
-    const siteName = 'ServiceWise';
-    const Icon = Wrench;
+    const { order, settings } = data;
+    const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
+    const siteName = settings.siteName || 'ServiceWise';
 
     return (
         <div className="max-w-4xl mx-auto p-8 font-body text-gray-800 bg-white">
@@ -100,3 +114,5 @@ export default async function PrintServicoPage({ params }: { params: { id: strin
         </div>
     );
 }
+
+    

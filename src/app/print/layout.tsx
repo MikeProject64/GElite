@@ -1,30 +1,13 @@
+
 import { ReactNode } from "react";
-import '@/app/globals.css';
-import { Poppins, PT_Sans } from 'next/font/google';
-import { cn } from "@/lib/utils";
-
-const fontSans = PT_Sans({
-  subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-pt-sans',
-});
-
-const fontHeading = Poppins({
-  subsets: ['latin'],
-  weight: ['600', '700'],
-  variable: '--font-poppins',
-});
 
 export default function PrintLayout({ children }: { children: ReactNode }) {
-  return (
-    <html lang="pt-BR">
-      <body className={cn(
-        "bg-white font-body",
-        fontSans.variable,
-        fontHeading.variable
-      )}>
-        {children}
-      </body>
-    </html>
-  );
+  // This layout wrapper ensures that print routes do not inherit the
+  // main application's navigation, sidebars, etc. It provides a clean
+  // slate for a print-friendly document structure. The root layout's
+  // <html> and <body> tags are handled by Next.js, and we avoid
+  // nesting them here to prevent hydration errors.
+  return <>{children}</>;
 }
+
+    

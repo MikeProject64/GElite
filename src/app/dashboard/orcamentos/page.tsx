@@ -153,10 +153,9 @@ export default function OrcamentosPage() {
                 <TableHeader>
                 <TableRow>
                     <TableHead>ID</TableHead>
-                    <TableHead>Cliente</TableHead>
+                    <TableHead>Título / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                     <TableHead className="hidden lg:table-cell">Criação</TableHead>
-                    <TableHead className="hidden md:table-cell">Validade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
@@ -170,13 +169,17 @@ export default function OrcamentosPage() {
                         </Link>
                       </TableCell>
                     <TableCell>
-                         <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="font-medium hover:underline" title="Ver detalhes do cliente">
-                            {quote.clientName}
+                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title="Ver detalhes do orçamento">
+                            Orçamento para {quote.clientName}
                          </Link>
+                         <div className="text-sm text-muted-foreground">
+                            <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="hover:underline" title="Ver detalhes do cliente">
+                                {quote.clientName}
+                            </Link>
+                         </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell className="hidden md:table-cell">{format(quote.validUntil.toDate(), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>
                         <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
                     </TableCell>
@@ -212,3 +215,5 @@ export default function OrcamentosPage() {
     </div>
   );
 }
+
+    
