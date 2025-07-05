@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import Link from 'next/link';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -268,9 +269,17 @@ export default function PrazosPage() {
                                                     const dueDate = order.dueDate.toDate();
                                                     const statusInfo = getDueDateStatus(dueDate);
                                                     return (
-                                                        <TableRow key={order.id} onClick={() => handleRowClick(order.id)} className="cursor-pointer">
-                                                            <TableCell className="font-medium">{order.clientName}</TableCell>
-                                                            <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
+                                                        <TableRow key={order.id}>
+                                                            <TableCell className="font-medium">
+                                                                <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">
+                                                                    {order.clientName}
+                                                                </Link>
+                                                            </TableCell>
+                                                            <TableCell className="hidden sm:table-cell">
+                                                                <Link href={`/dashboard/servicos/${order.id}`} className="hover:underline">
+                                                                    {order.serviceType}
+                                                                </Link>
+                                                            </TableCell>
                                                             <TableCell><Badge variant={'outline'}>{order.status}</Badge></TableCell>
                                                             <TableCell className="text-right"><Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.text}</Badge></TableCell>
                                                         </TableRow>
