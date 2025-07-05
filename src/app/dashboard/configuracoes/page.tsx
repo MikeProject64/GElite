@@ -9,13 +9,30 @@ import { useSettings, CustomField, Tag } from '@/components/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { availableIcons } from '@/components/icon-map';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -45,6 +62,30 @@ const tagColors: { name: string, value: string }[] = [
     { name: 'Rosa', value: 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800' },
 ];
 
+function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} className="flex items-center gap-2 bg-muted/50 p-2 rounded-md">
+       <button {...listeners} className="cursor-grab p-1 touch-none">
+          <GripVertical className="h-5 w-5 text-muted-foreground" />
+       </button>
+      <div className="flex-grow">{children}</div>
+    </div>
+  );
+}
+
 interface CustomFieldManagerProps {
   title: string;
   icon: React.ReactNode;
@@ -55,6 +96,22 @@ interface CustomFieldManagerProps {
 const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, icon, fields, onUpdateFields }) => {
     const [newFieldName, setNewFieldName] = useState('');
     const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+          coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+          const oldIndex = fields.findIndex((field) => field.id === active.id);
+          const newIndex = fields.findIndex((field) => field.id === over.id);
+          onUpdateFields(arrayMove(fields, oldIndex, newIndex));
+        }
+    };
 
     const handleAddField = (e: React.FormEvent) => {
         e.preventDefault();
@@ -99,15 +156,23 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
                     <Button type="submit" size="icon" variant="outline"><PlusCircle className="h-4 w-4" /></Button>
                 </form>
                 <div className="space-y-2">
-                    {fields.length > 0 ? fields.map(field => (
-                        <div key={field.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                            <div>
-                                <p className="font-medium">{field.name}</p>
-                                <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
-                            </div>
-                            <Button size="icon" variant="ghost" onClick={() => handleRemoveField(field.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                    )) : (
+                    {fields.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                                {fields.map(field => (
+                                    <SortableItem key={field.id} id={field.id}>
+                                        <div className="flex items-center justify-between w-full">
+                                            <div>
+                                                <p className="font-medium">{field.name}</p>
+                                                <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
+                                            </div>
+                                            <Button size="icon" variant="ghost" onClick={() => handleRemoveField(field.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </div>
+                                    </SortableItem>
+                                ))}
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
                         <p className="text-sm text-center text-muted-foreground py-4">Nenhum campo personalizado adicionado.</p>
                     )}
                 </div>
@@ -255,6 +320,26 @@ SkillTagManager.displayName = "SkillTagManager";
 const CustomStatusManager = () => {
     const { settings, updateSettings } = useSettings();
     const [newStatusName, setNewStatusName] = useState('');
+    const coreStatuses = ['Pendente', 'Concluída', 'Cancelada'];
+
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        const statuses = settings.serviceStatuses || [];
+        if (over && active.id !== over.id) {
+            const oldIndex = statuses.findIndex((status) => status === active.id);
+            const newIndex = statuses.findIndex((status) => status === over.id);
+            const reorderedStatuses = arrayMove(statuses, oldIndex, newIndex);
+            updateSettings({ serviceStatuses: reorderedStatuses });
+        }
+    };
+
 
     const handleAddStatus = (e: React.FormEvent) => {
         e.preventDefault();
@@ -265,7 +350,7 @@ const CustomStatusManager = () => {
     };
 
     const handleRemoveStatus = (statusToRemove: string) => {
-        if (statusToRemove === 'Concluída') return;
+        if (coreStatuses.includes(statusToRemove)) return;
         const newStatuses = settings.serviceStatuses?.filter(status => status !== statusToRemove);
         updateSettings({ serviceStatuses: newStatuses });
     };
@@ -284,14 +369,22 @@ const CustomStatusManager = () => {
                     <Button type="submit" size="icon" variant="outline"><PlusCircle className="h-4 w-4" /></Button>
                 </form>
                 <div className="space-y-2">
-                    {settings.serviceStatuses?.length > 0 ? settings.serviceStatuses.map(status => (
-                        <div key={status} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                            <p className="font-medium">{status}</p>
-                            {status !== 'Concluída' && (
-                                <Button size="icon" variant="ghost" onClick={() => handleRemoveStatus(status)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                            )}
-                        </div>
-                    )) : (
+                    {settings.serviceStatuses?.length > 0 ? (
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={settings.serviceStatuses.map(s => s)} strategy={verticalListSortingStrategy}>
+                                {settings.serviceStatuses.map(status => (
+                                    <SortableItem key={status} id={status}>
+                                        <div className="flex items-center justify-between w-full">
+                                            <p className="font-medium">{status}</p>
+                                            {!coreStatuses.includes(status) && (
+                                                <Button size="icon" variant="ghost" onClick={() => handleRemoveStatus(status)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            )}
+                                        </div>
+                                    </SortableItem>
+                                ))}
+                            </SortableContext>
+                        </DndContext>
+                    ) : (
                         <p className="text-sm text-center text-muted-foreground py-4">Nenhum status personalizado adicionado.</p>
                     )}
                 </div>

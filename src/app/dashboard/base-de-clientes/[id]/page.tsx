@@ -219,9 +219,6 @@ export default function ClienteDetailPage() {
     return null;
   }
 
-  const getCustomFieldLabel = (fieldId: string) => settings.customerCustomFields?.find(f => f.id === fieldId)?.name || fieldId;
-  const getCustomFieldType = (fieldId: string) => settings.customerCustomFields?.find(f => f.id === fieldId)?.type || 'text';
-
   const renderTimelineItem = (item: TimelineItem) => {
       const { type, data, date } = item;
       let content = null;
@@ -308,22 +305,26 @@ export default function ClienteDetailPage() {
         </CardContent>
       </Card>
       
-      {customer.customFields && Object.keys(customer.customFields).length > 0 && (
+      {settings.customerCustomFields && settings.customerCustomFields.length > 0 && customer.customFields && Object.keys(customer.customFields).length > 0 && (
           <Card>
               <CardHeader>
                   <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
               </CardHeader>
               <CardContent className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {Object.entries(customer.customFields).map(([key, value]) => {
+                  {settings.customerCustomFields
+                    .filter(field => customer.customFields && customer.customFields[field.id])
+                    .map(field => {
+                      const value = customer.customFields![field.id];
                       if (!value) return null;
-                      const fieldType = getCustomFieldType(key);
+
+                      const fieldType = field.type;
                       let displayValue = value;
                       if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
                           displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
                       }
                       return (
-                          <div key={key} className="flex flex-col">
-                              <p className="text-sm font-medium">{getCustomFieldLabel(key)}</p>
+                          <div key={field.id} className="flex flex-col">
+                              <p className="text-sm font-medium">{field.name}</p>
                               <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
                           </div>
                       );

@@ -192,14 +192,6 @@ export default function OrcamentoDetailPage() {
 
   if (!quote) return null;
 
-  const getCustomFieldLabel = (fieldId: string) => {
-    return settings.quoteCustomFields?.find(f => f.id === fieldId)?.name || fieldId;
-  };
-
-  const getCustomFieldType = (fieldId: string) => {
-    return settings.quoteCustomFields?.find(f => f.id === fieldId)?.type || 'text';
-  }
-
   const canCreateNewVersion = quote.status === 'Pendente' || quote.status === 'Recusado';
 
   return (
@@ -304,25 +296,29 @@ export default function OrcamentoDetailPage() {
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
-            {quote.customFields && Object.keys(quote.customFields).length > 0 && (
+            {settings.quoteCustomFields && quote.customFields && Object.keys(quote.customFields).length > 0 && (
                 <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-1 gap-4">
-                       {Object.entries(quote.customFields).map(([key, value]) => {
-                           if (!value) return null;
-                           const fieldType = getCustomFieldType(key);
-                           let displayValue = value;
-                           if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
-                                displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
-                           }
-                           return (
-                                <div key={key} className="flex flex-col">
-                                    <p className="text-sm font-medium">{getCustomFieldLabel(key)}</p>
-                                    <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
-                                </div>
-                           )
+                       {settings.quoteCustomFields
+                           .filter(field => quote.customFields && quote.customFields[field.id])
+                           .map((field) => {
+                               const value = quote.customFields![field.id];
+                               if (!value) return null;
+                               
+                               const fieldType = field.type;
+                               let displayValue = value;
+                               if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
+                                   displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
+                               }
+                               return (
+                                   <div key={field.id} className="flex flex-col">
+                                       <p className="text-sm font-medium">{field.name}</p>
+                                       <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
+                                   </div>
+                               );
                        })}
                     </CardContent>
                 </Card>
