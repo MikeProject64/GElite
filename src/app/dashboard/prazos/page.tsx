@@ -20,6 +20,9 @@ import { Loader2, CalendarClock, Calendar as CalendarIcon, List } from "lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import type { ServiceOrder, Collaborator } from '@/types';
 
 
 // Dynamic import for the Calendar component
@@ -34,16 +37,6 @@ const BigCalendar = dynamic(
     ),
   }
 );
-
-interface ServiceOrder {
-    id: string;
-    clientName: string;
-    serviceType: string;
-    status: string;
-    dueDate: Timestamp;
-    userId: string;
-    createdAt: Timestamp;
-}
 
 const localizer = dateFnsLocalizer({
   format,
@@ -99,9 +92,11 @@ export default function PrazosPage() {
     const isMobile = useIsMobile();
     
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
+    const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
+    const [selectedCollaborator, setSelectedCollaborator] = useState<string>('all');
     
     useEffect(() => {
         const filterFromUrl = searchParams.get('filter');
@@ -130,7 +125,7 @@ export default function PrazosPage() {
             const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
             const fetchedOrders = querySnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
-                .filter(order => activeStatuses.includes(order.status));
+                .filter(order => order.dueDate && activeStatuses.includes(order.status));
             setOrders(fetchedOrders);
             setIsLoading(false);
         }, (error: any) => {
@@ -146,37 +141,59 @@ export default function PrazosPage() {
         return () => unsubscribe();
     }, [user, toast, settings.serviceStatuses]);
 
+    useEffect(() => {
+        if (!user) return;
+        const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+        const unsubscribe = onSnapshot(q, (querySnapshot) => {
+            const collaboratorList = querySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            } as Collaborator));
+            setCollaborators(collaboratorList);
+        }, (error) => {
+            console.error("Error fetching collaborators:", error);
+        });
+        return () => unsubscribe();
+    }, [user]);
+
     const filteredOrders = useMemo(() => {
         const now = new Date();
         now.setHours(0,0,0,0);
-        if (activeFilter === 'all') return orders;
-        if (activeFilter === 'today') return orders.filter(o => isToday(o.dueDate.toDate()));
-        if (activeFilter === 'thisWeek') {
+        
+        let tempOrders = orders;
+
+        if (activeFilter === 'today') {
+            tempOrders = tempOrders.filter(o => isToday(o.dueDate.toDate()));
+        } else if (activeFilter === 'thisWeek') {
             const start = startOfWeek(now, { locale: ptBR });
             const end = endOfWeek(now, { locale: ptBR });
-            return orders.filter(o => {
+            tempOrders = tempOrders.filter(o => {
                 const dueDate = o.dueDate.toDate();
                 return dueDate >= start && dueDate <= end;
             });
-        }
-        if (activeFilter === 'overdue') {
-            return orders.filter(o => {
+        } else if (activeFilter === 'overdue') {
+            tempOrders = tempOrders.filter(o => {
                 const dueDate = o.dueDate.toDate();
                 dueDate.setHours(0,0,0,0);
                 return dueDate < now && !isToday(dueDate);
             });
         }
-        return orders;
-    }, [orders, activeFilter]);
+
+        if (selectedCollaborator !== 'all') {
+            tempOrders = tempOrders.filter(o => o.collaboratorId === selectedCollaborator);
+        }
+        
+        return tempOrders;
+    }, [orders, activeFilter, selectedCollaborator]);
 
 
-    const calendarEvents = useMemo(() => orders.map(order => ({
+    const calendarEvents = useMemo(() => filteredOrders.map(order => ({
         title: `${order.clientName} - ${order.serviceType}`,
         start: order.dueDate.toDate(),
         end: order.dueDate.toDate(),
         allDay: true,
         resource: order,
-    })), [orders]);
+    })), [filteredOrders]);
 
     const handleRowClick = (orderId: string) => {
         router.push(`/dashboard/servicos/${orderId}`);
@@ -217,71 +234,95 @@ export default function PrazosPage() {
                         <div className="flex justify-center items-center h-64">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                         </div>
-                    ) : viewMode === 'list' ? (
+                    ) : (
                         <>
-                            <div className="flex gap-2 mb-4 flex-wrap">
-                                <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
-                                <Button size="sm" variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
-                                <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
-                                <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
-                            </div>
-                            {filteredOrders.length === 0 ? (
-                                <div className="text-center py-10">
-                                    <CalendarClock className="mx-auto h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada para este filtro.</h3>
-                                    <p className="text-sm text-muted-foreground">Todos os prazos estão em dia!</p>
+                            <div className="flex flex-wrap items-end gap-4 mb-4">
+                                <div>
+                                    <Label className="text-sm font-medium">Filtrar por data</Label>
+                                    <div className="flex gap-2 flex-wrap mt-2">
+                                        <Button size="sm" variant={activeFilter === 'all' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('all')}>Todos</Button>
+                                        <Button size="sm" variant={activeFilter === 'overdue' ? 'destructive' : 'ghost'} onClick={() => setActiveFilter('overdue')}>Vencidos</Button>
+                                        <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
+                                        <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'ghost'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
+                                    </div>
                                 </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader>
-                                        <TableRow>
-                                            <TableHead>Cliente</TableHead>
-                                            <TableHead className="hidden sm:table-cell">Serviço</TableHead>
-                                            <TableHead>Status</TableHead>
-                                            <TableHead className="text-right">Vencimento</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {filteredOrders.map((order) => {
-                                            const dueDate = order.dueDate.toDate();
-                                            const statusInfo = getDueDateStatus(dueDate);
-                                            return (
-                                                <TableRow key={order.id} onClick={() => handleRowClick(order.id)} className="cursor-pointer">
-                                                    <TableCell className="font-medium">{order.clientName}</TableCell>
-                                                    <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
-                                                    <TableCell><Badge variant={'outline'}>{order.status}</Badge></TableCell>
-                                                    <TableCell className="text-right"><Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.text}</Badge></TableCell>
+                                <div className="grid gap-1.5">
+                                    <Label htmlFor="collaborator-filter" className="text-sm font-medium">Filtrar por Colaborador</Label>
+                                    <Select value={selectedCollaborator} onValueChange={setSelectedCollaborator}>
+                                        <SelectTrigger id="collaborator-filter" className="w-full sm:w-[240px]">
+                                            <SelectValue placeholder="Todos Colaboradores" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="all">Todos Colaboradores / Setores</SelectItem>
+                                            {collaborators.map(c => (
+                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            {viewMode === 'list' ? (
+                                <>
+                                    {filteredOrders.length === 0 ? (
+                                        <div className="text-center py-10">
+                                            <CalendarClock className="mx-auto h-12 w-12 text-muted-foreground" />
+                                            <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada para este filtro.</h3>
+                                            <p className="text-sm text-muted-foreground">Todos os prazos estão em dia!</p>
+                                        </div>
+                                    ) : (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Cliente</TableHead>
+                                                    <TableHead className="hidden sm:table-cell">Serviço</TableHead>
+                                                    <TableHead>Status</TableHead>
+                                                    <TableHead className="text-right">Vencimento</TableHead>
                                                 </TableRow>
-                                            );
-                                        })}
-                                    </TableBody>
-                                </Table>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {filteredOrders.map((order) => {
+                                                    const dueDate = order.dueDate.toDate();
+                                                    const statusInfo = getDueDateStatus(dueDate);
+                                                    return (
+                                                        <TableRow key={order.id} onClick={() => handleRowClick(order.id)} className="cursor-pointer">
+                                                            <TableCell className="font-medium">{order.clientName}</TableCell>
+                                                            <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
+                                                            <TableCell><Badge variant={'outline'}>{order.status}</Badge></TableCell>
+                                                            <TableCell className="text-right"><Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.text}</Badge></TableCell>
+                                                        </TableRow>
+                                                    );
+                                                })}
+                                            </TableBody>
+                                        </Table>
+                                    )}
+                                </>
+                            ) : (
+                                <div className="h-[600px]">
+                                    <BigCalendar
+                                        localizer={localizer}
+                                        events={calendarEvents}
+                                        startAccessor="start"
+                                        endAccessor="end"
+                                        culture="pt-BR"
+                                        messages={{
+                                            next: "Próximo",
+                                            previous: "Anterior",
+                                            today: "Hoje",
+                                            month: "Mês",
+                                            week: "Semana",
+                                            day: "Dia",
+                                            agenda: "Agenda",
+                                            date: "Data",
+                                            time: "Hora",
+                                            event: "Evento"
+                                        }}
+                                        eventPropGetter={getEventStyle}
+                                        onSelectEvent={(event) => handleRowClick((event.resource as ServiceOrder).id)}
+                                    />
+                                </div>
                             )}
                         </>
-                    ) : (
-                        <div className="h-[600px]">
-                            <BigCalendar
-                                localizer={localizer}
-                                events={calendarEvents}
-                                startAccessor="start"
-                                endAccessor="end"
-                                culture="pt-BR"
-                                messages={{
-                                    next: "Próximo",
-                                    previous: "Anterior",
-                                    today: "Hoje",
-                                    month: "Mês",
-                                    week: "Semana",
-                                    day: "Dia",
-                                    agenda: "Agenda",
-                                    date: "Data",
-                                    time: "Hora",
-                                    event: "Evento"
-                                }}
-                                eventPropGetter={getEventStyle}
-                                onSelectEvent={(event) => handleRowClick((event.resource as ServiceOrder).id)}
-                            />
-                        </div>
                     )}
                 </CardContent>
                 <CardFooter>
