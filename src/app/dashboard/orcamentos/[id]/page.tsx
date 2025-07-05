@@ -24,7 +24,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History } from 'lucide-react';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -263,34 +262,27 @@ export default function OrcamentoDetailPage() {
                 </div>
                 
             </CardContent>
-            <CardFooter className="justify-end gap-2">
-                    <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
-                        <Link href={`/dashboard/orcamentos/criar?versionOf=${quote.id}`}>
-                            <Pencil className="mr-2 h-4 w-4" />
-                            Editar / Criar Nova Versão
-                        </Link>
+            <CardFooter className="justify-end gap-2 flex-wrap">
+                <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
+                    <Link href={`/dashboard/orcamentos/criar?versionOf=${quote.id}`}>
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Editar / Criar Nova Versão
+                    </Link>
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
+                  <Save className="mr-2 h-4 w-4" />
+                  Salvar como Modelo
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => window.open(`/print/orcamento/${quote.id}`, '_blank')}>
+                  <Printer className="mr-2 h-4 w-4"/>
+                  Imprimir / PDF
+                </Button>
+                {quote.status === 'Aprovado' && (
+                    <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
+                        {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
+                        Converter em Ordem de Serviço
                     </Button>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="secondary" size="sm">Ações</Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={() => setIsTemplateModalOpen(true)}>
-                          <Save className="mr-2 h-4 w-4" />
-                          Salvar como Modelo
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => window.open(`/print/orcamento/${quote.id}`, '_blank')}>
-                          <Printer className="mr-2 h-4 w-4"/>
-                          Imprimir / PDF
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    {quote.status === 'Aprovado' && (
-                        <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
-                            {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
-                            Converter em Ordem de Serviço
-                        </Button>
-                    )}
+                )}
             </CardFooter>
             </Card>
         </div>
@@ -406,5 +398,3 @@ export default function OrcamentoDetailPage() {
     </div>
   );
 }
-
-    
