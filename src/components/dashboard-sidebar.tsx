@@ -7,7 +7,7 @@ import { signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import {
   ClipboardList,
   Home,
@@ -229,6 +229,8 @@ export function DashboardSidebar() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="flex flex-col p-0">
+              <SheetTitle className="sr-only">Menu Principal</SheetTitle>
+              <SheetDescription className="sr-only">Navegue pelas diferentes seções do aplicativo.</SheetDescription>
               <NavContent />
             </SheetContent>
           </Sheet>
