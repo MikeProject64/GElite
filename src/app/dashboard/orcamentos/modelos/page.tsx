@@ -30,13 +30,16 @@ export default function OrcamentoModelosPage() {
     if (!user) return;
     setIsLoading(true);
     
-    const q = query(collection(db, 'quotes'), where('userId', '==', user.uid), where('isTemplate', '==', true), orderBy('templateName', 'asc'));
+    const q = query(collection(db, 'quotes'), where('userId', '==', user.uid), where('isTemplate', '==', true));
     
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const templateList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as Quote));
+
+      templateList.sort((a, b) => (a.templateName || '').localeCompare(b.templateName || ''));
+
       setTemplates(templateList);
       setIsLoading(false);
     }, (error: any) => {
