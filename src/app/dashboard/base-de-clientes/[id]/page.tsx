@@ -134,36 +134,49 @@ export default function ClienteDetailPage() {
 
   const timelineItems = useMemo<TimelineItem[]>(() => {
     if (!customer) return [];
-
-    const creationItem: TimelineItem = {
+  
+    const allItems: TimelineItem[] = [];
+  
+    // Add customer creation event if data is valid
+    if (customer.createdAt && typeof customer.createdAt.toDate === 'function') {
+      allItems.push({
         id: customer.id,
         type: 'creation',
         date: customer.createdAt.toDate(),
         data: customer,
-    };
-
-    const orderItems: TimelineItem[] = serviceOrders.map(o => ({
+      });
+    }
+  
+    // Add service orders if data is valid
+    serviceOrders
+      .filter(o => o.createdAt && typeof o.createdAt.toDate === 'function')
+      .forEach(o => allItems.push({
         id: o.id,
         type: 'serviceOrder',
         date: o.createdAt.toDate(),
         data: o,
-    }));
-
-    const quoteItems: TimelineItem[] = quotes.map(q => ({
+      }));
+  
+    // Add quotes if data is valid
+    quotes
+      .filter(q => q.createdAt && typeof q.createdAt.toDate === 'function')
+      .forEach(q => allItems.push({
         id: q.id,
         type: 'quote',
         date: q.createdAt.toDate(),
         data: q,
-    }));
-
-    const noteItems: TimelineItem[] = timelineNotes.map(n => ({
+      }));
+  
+    // Add notes if data is valid
+    timelineNotes
+      .filter(n => n.createdAt && typeof n.createdAt.toDate === 'function')
+      .forEach(n => allItems.push({
         id: n.id,
         type: 'note',
         date: n.createdAt.toDate(),
         data: n,
-    }));
-
-    const allItems = [creationItem, ...orderItems, ...quoteItems, ...noteItems];
+      }));
+  
     return allItems.sort((a, b) => b.date.getTime() - a.date.getTime());
   }, [customer, serviceOrders, quotes, timelineNotes]);
 
@@ -235,7 +248,7 @@ export default function ClienteDetailPage() {
       }
       
       return (
-        <div className="relative pl-12 pb-8">
+        <div key={item.id} className="relative pl-12 pb-8">
             <div className="absolute left-0 top-0 flex h-full w-6 justify-center">
                 <div className="w-px bg-border h-full"></div>
             </div>
