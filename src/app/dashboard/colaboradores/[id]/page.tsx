@@ -84,7 +84,7 @@ export default function ColaboradorDetailPage() {
   }, [user, collaboratorId, router, toast]);
 
   const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !collaborator || collaborator.type !== 'collaborator') return;
+    if (!e.target.files || e.target.files.length === 0 || !collaborator || collaborator.type !== 'collaborator' || !user) return;
     
     const file = e.target.files[0];
     setIsUploading(true);
@@ -103,7 +103,14 @@ export default function ColaboradorDetailPage() {
       }
 
       const storageRef = ref(storage, `collaborators/${collaborator.id}/${file.name}`);
-      const snapshot = await uploadBytes(storageRef, file);
+       // Add user ID to file metadata for security rule verification
+      const metadata = {
+        customMetadata: {
+          'userId': user.uid,
+        },
+      };
+
+      const snapshot = await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(snapshot.ref);
 
       const collaboratorRef = doc(db, 'collaborators', collaborator.id);

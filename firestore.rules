@@ -4,54 +4,46 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
-    match /users/{userId} {
-      // Users can only access their own document
-      allow read, write: if isOwner(userId);
-    }
-
-    match /userSettings/{userId} {
-      // Users can only access their own settings document
-      allow read, write: if isOwner(userId);
+    function isUserAuthenticated() {
+      return request.auth != null;
     }
     
-    // Rules for collections owned by a user
+    match /users/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+    
+    match /userSettings/{userId} {
+      allow read, write: if request.auth.uid == userId;
+    }
+
     match /customers/{customerId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if request.auth != null; // Relies on client-side query for security
-      allow write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow get, update, delete: if resource.data.userId == request.auth.uid;
+      allow list: if isUserAuthenticated();
+      allow create: if request.resource.data.userId == request.auth.uid;
+    }
+
+    match /collaborators/{collaboratorId} {
+      allow get, update, delete: if resource.data.userId == request.auth.uid;
+      allow list: if isUserAuthenticated();
+      allow create: if request.resource.data.userId == request.auth.uid;
     }
     
     match /serviceOrders/{orderId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if request.auth != null; // Relies on client-side query for security
-      allow write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow get, update, delete: if resource.data.userId == request.auth.uid;
+      allow list: if isUserAuthenticated();
+      allow create: if request.resource.data.userId == request.auth.uid;
+    }
+
+    match /quotes/{quoteId} {
+      allow get, update, delete: if resource.data.userId == request.auth.uid;
+      allow list: if isUserAuthenticated();
+      allow create: if request.resource.data.userId == request.auth.uid;
     }
     
     match /inventory/{itemId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if request.auth != null; // Relies on client-side query for security
-      allow write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-    
-    match /quotes/{quoteId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if request.auth != null; // Relies on client-side query for security
-      allow write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
-    }
-    
-    match /collaborators/{collaboratorId} {
-      allow get: if isOwner(resource.data.userId);
-      allow list: if request.auth != null; // Relies on client-side query for security
-      allow write: if isOwner(resource.data.userId);
-      allow create: if isOwner(request.resource.data.userId);
+      allow get, update, delete: if resource.data.userId == request.auth.uid;
+      allow list: if isUserAuthenticated();
+      allow create: if request.resource.data.userId == request.auth.uid;
     }
   }
 }
