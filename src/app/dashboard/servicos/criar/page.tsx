@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,7 +24,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-
+import { Badge } from '@/components/ui/badge';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -64,6 +65,8 @@ export default function CriarOrdemDeServicoPage() {
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const customerDropdownRef = useRef<HTMLDivElement>(null);
+  
+  const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
 
   const serviceOrderForm = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -189,6 +192,17 @@ export default function CriarOrdemDeServicoPage() {
     customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
     customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
+  
+  const getSkillTagById = (id: string) => settings.skillTags?.find(t => t.id === id);
+
+  const filteredCollaborators = useMemo(() => {
+    if (requiredSkills.length === 0) {
+        return collaborators;
+    }
+    return collaborators.filter(c => 
+        c.type === 'collaborator' && requiredSkills.every(skillId => c.skillIds?.includes(skillId))
+    );
+  }, [collaborators, requiredSkills]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -270,15 +284,76 @@ export default function CriarOrdemDeServicoPage() {
               <FormField control={serviceOrderForm.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
+               <FormItem>
+                  <FormLabel>Habilidades Necessárias</FormLabel>
+                   <Popover>
+                        <PopoverTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                    "w-full justify-between h-auto",
+                                    !requiredSkills.length && "text-muted-foreground"
+                                )}
+                            >
+                                <div className="flex gap-1 flex-wrap">
+                                    {requiredSkills.length > 0 ? (
+                                        requiredSkills.map(tagId => {
+                                            const tag = getSkillTagById(tagId);
+                                            return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
+                                        })
+                                    ) : (
+                                        "Filtrar por habilidade..."
+                                    )}
+                                </div>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command>
+                                <CommandInput placeholder="Buscar habilidades..." />
+                                 <CommandList>
+                                    <CommandEmpty>Nenhuma habilidade encontrada.</CommandEmpty>
+                                    <CommandGroup>
+                                        {settings.skillTags?.map(tag => (
+                                            <CommandItem
+                                                key={tag.id}
+                                                onSelect={() => {
+                                                    const newSkillIds = requiredSkills.includes(tag.id)
+                                                        ? requiredSkills.filter(id => id !== tag.id)
+                                                        : [...requiredSkills, tag.id];
+                                                    setRequiredSkills(newSkillIds);
+                                                }}
+                                            >
+                                                <Check className={cn("mr-2 h-4 w-4", requiredSkills.includes(tag.id) ? "opacity-100" : "opacity-0")} />
+                                                <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
+                                            </CommandItem>
+                                        ))}
+                                    </CommandGroup>
+                                </CommandList>
+                            </Command>
+                        </PopoverContent>
+                    </Popover>
+              </FormItem>
                <FormField control={serviceOrderForm.control} name="collaboratorId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Colaborador / Setor *</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {collaborators.map(collaborator => (
-                        <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
-                      ))}
+                      {requiredSkills.length > 0 ? (
+                         filteredCollaborators.length > 0 ? (
+                            filteredCollaborators.map(collaborator => (
+                                <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
+                            ))
+                         ) : (
+                            <div className='p-2 text-center text-sm text-muted-foreground'>Nenhum colaborador com as habilidades selecionadas.</div>
+                         )
+                      ) : (
+                        collaborators.map(collaborator => (
+                            <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                   <FormMessage />

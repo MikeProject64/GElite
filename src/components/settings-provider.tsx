@@ -27,6 +27,7 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
   tags?: Tag[];
+  skillTags?: Tag[];
 }
 
 interface SettingsContextType {
@@ -43,6 +44,7 @@ const defaultSettings: UserSettings = {
   quoteCustomFields: [],
   serviceStatuses: ['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada'],
   tags: [],
+  skillTags: [],
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -95,6 +97,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         }
         if (!newSettings.tags) {
             newSettings.tags = defaultSettings.tags;
+        }
+        if (!newSettings.skillTags) {
+            newSettings.skillTags = defaultSettings.skillTags;
         }
 
 

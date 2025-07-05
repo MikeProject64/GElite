@@ -7,6 +7,7 @@ import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'f
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -22,6 +23,8 @@ import { ServiceOrder, Collaborator } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -38,6 +41,7 @@ export default function ColaboradorDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
+  const { settings } = useSettings();
 
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -166,8 +170,20 @@ export default function ColaboradorDetailPage() {
                 <CardTitle className="pt-2">{collaborator.name}</CardTitle>
                 <CardDescription className='capitalize'>{collaborator.type === 'collaborator' ? 'Colaborador' : 'Setor'}</CardDescription>
             </CardHeader>
-            <CardContent>
-                <p className="text-sm text-center text-muted-foreground">{collaborator.description || 'Nenhuma descrição informada.'}</p>
+            <CardContent className='text-center'>
+                <p className="text-sm text-muted-foreground">{collaborator.description || 'Nenhuma descrição informada.'}</p>
+                
+                {collaborator.skillIds && collaborator.skillIds.length > 0 && (
+                    <div className='mt-4 pt-4 border-t'>
+                        <h4 className="text-sm font-semibold mb-2">Habilidades</h4>
+                        <div className="flex flex-wrap gap-1 justify-center">
+                            {collaborator.skillIds.map(skillId => {
+                                const tag = settings.skillTags?.find(t => t.id === skillId);
+                                return tag ? <Badge key={tag.id} variant="secondary" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
+                            })}
+                        </div>
+                    </div>
+                )}
             </CardContent>
             {collaborator.type === 'collaborator' && (
                 <CardFooter className='flex-col gap-2'>

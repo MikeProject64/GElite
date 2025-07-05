@@ -22,16 +22,18 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
   tags?: Tag[];
+  skillTags?: Tag[];
 }
 
 export interface Collaborator {
   id: string;
   userId: string;
-  name: string;
+  name:string;
   createdAt: Timestamp;
   type: 'collaborator' | 'sector';
   description?: string;
   photoURL?: string;
+  skillIds?: string[];
 }
 
 export interface Customer {
