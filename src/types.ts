@@ -82,3 +82,22 @@ export interface RecentActivity {
     timestamp: Date;
     href: string;
 }
+
+export interface TimelineNote {
+  id: string;
+  userId: string;
+  customerId: string;
+  note: string;
+  createdAt: Timestamp;
+}
+
+export type TimelineItemType = 'creation' | 'serviceOrder' | 'quote' | 'note';
+
+export interface TimelineItem {
+  id: string;
+  type: TimelineItemType;
+  date: Date;
+  data: Customer | ServiceOrder | Quote | TimelineNote;
+}
+
+    
