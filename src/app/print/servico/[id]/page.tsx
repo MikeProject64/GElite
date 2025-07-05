@@ -1,11 +1,14 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, notFound } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { notFound } from 'next/navigation';
 import { ServiceOrder, UserSettings } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Wrench } from 'lucide-react';
+import { Wrench, Loader2 } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
 import { availableIcons } from '@/components/icon-map';
 
@@ -13,35 +16,64 @@ const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-async function getServiceOrderAndSettings(id: string): Promise<{ order: ServiceOrder, settings: UserSettings } | null> {
-    const orderRef = doc(db, 'serviceOrders', id);
-    const orderSnap = await getDoc(orderRef);
+export default function PrintServicoPage() {
+    const { id } = useParams();
+    const [order, setOrder] = useState<ServiceOrder | null>(null);
+    const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
-    if (!orderSnap.exists()) {
-        return null;
-    }
-    const order = { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
-
-    let settings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
-    if (order.userId) {
-        const settingsRef = doc(db, 'userSettings', order.userId);
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-            settings = { ...settings, ...settingsSnap.data() } as UserSettings;
+    useEffect(() => {
+        if (!id) {
+            setIsLoading(false);
+            return;
         }
-    }
 
-    return { order, settings };
-}
+        const orderId = Array.isArray(id) ? id[0] : id;
 
-export default async function PrintServicoPage({ params }: { params: { id: string } }) {
-    const data = await getServiceOrderAndSettings(params.id);
+        const fetchOrderAndSettings = async () => {
+            const orderRef = doc(db, 'serviceOrders', orderId);
+            const orderSnap = await getDoc(orderRef);
 
-    if (!data) {
-        notFound();
+            if (!orderSnap.exists()) {
+                setIsLoading(false);
+                notFound();
+                return;
+            }
+
+            const orderData = { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
+            setOrder(orderData);
+
+            let userSettings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+            if (orderData.userId) {
+                const settingsRef = doc(db, 'userSettings', orderData.userId);
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    userSettings = { ...userSettings, ...settingsSnap.data() };
+                }
+            }
+            setSettings(userSettings);
+            setIsLoading(false);
+        };
+
+        fetchOrderAndSettings().catch(err => {
+            console.error(err);
+            setIsLoading(false);
+        });
+
+    }, [id]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
     }
     
-    const { order, settings } = data;
+    if (!order || !settings) {
+        return null;
+    }
+    
     const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
     const siteName = settings.siteName || 'ServiceWise';
 
@@ -114,5 +146,3 @@ export default async function PrintServicoPage({ params }: { params: { id: strin
         </div>
     );
 }
-
-    

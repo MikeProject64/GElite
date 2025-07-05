@@ -1,48 +1,79 @@
 
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useParams, notFound } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { notFound } from 'next/navigation';
 import { Quote, UserSettings } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Wrench } from 'lucide-react';
+import { Wrench, Loader2 } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
 import { availableIcons } from '@/components/icon-map';
-import { UserSettings } from '@/types';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-async function getQuoteAndSettings(id: string): Promise<{quote: Quote, settings: UserSettings} | null> {
-    const quoteRef = doc(db, 'quotes', id);
-    const quoteSnap = await getDoc(quoteRef);
+export default function PrintOrcamentoPage() {
+    const { id } = useParams();
+    const [quote, setQuote] = useState<Quote | null>(null);
+    const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        if (!id) {
+            setIsLoading(false);
+            return;
+        }
+
+        const quoteId = Array.isArray(id) ? id[0] : id;
+
+        const fetchQuoteAndSettings = async () => {
+            const quoteRef = doc(db, 'quotes', quoteId);
+            const quoteSnap = await getDoc(quoteRef);
+
+            if (!quoteSnap.exists()) {
+                setIsLoading(false);
+                notFound();
+                return;
+            }
+
+            const quoteData = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+            setQuote(quoteData);
+
+            let userSettings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+            if (quoteData.userId) {
+                const settingsRef = doc(db, 'userSettings', quoteData.userId);
+                const settingsSnap = await getDoc(settingsRef);
+                if (settingsSnap.exists()) {
+                    userSettings = { ...userSettings, ...settingsSnap.data() };
+                }
+            }
+            setSettings(userSettings);
+            setIsLoading(false);
+        };
+
+        fetchQuoteAndSettings().catch(err => {
+            console.error(err);
+            setIsLoading(false);
+        });
+
+    }, [id]);
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-screen">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
     
-    if (!quoteSnap.exists()) {
+    if (!quote || !settings) {
         return null;
     }
-    const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
-
-    let settings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
-    if(quote.userId) {
-        const settingsRef = doc(db, 'userSettings', quote.userId);
-        const settingsSnap = await getDoc(settingsRef);
-        if (settingsSnap.exists()) {
-            settings = { ...settings, ...settingsSnap.data() } as UserSettings;
-        }
-    }
-
-    return { quote, settings };
-}
-
-export default async function PrintOrcamentoPage({ params }: { params: { id: string } }) {
-    const data = await getQuoteAndSettings(params.id);
-
-    if (!data) {
-        notFound();
-    }
     
-    const { quote, settings } = data;
     const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
     const siteName = settings.siteName || 'ServiceWise';
 
@@ -98,5 +129,3 @@ export default async function PrintOrcamentoPage({ params }: { params: { id: str
         </div>
     );
 }
-
-    
