@@ -108,8 +108,8 @@ export default function DashboardPage() {
             .filter(c => c.createdAt && typeof c.createdAt.toDate === 'function');
 
         const allQuotes = quotesSnap.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Quote)
-            .filter(q => q.createdAt && typeof q.createdAt.toDate === 'function'));
+            .map(doc => ({ id: doc.id, ...doc.data() }) as Quote)
+            .filter(q => q.createdAt && typeof q.createdAt.toDate === 'function');
 
         const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
         const now = new Date();
