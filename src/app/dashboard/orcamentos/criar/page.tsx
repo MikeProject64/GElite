@@ -243,7 +243,16 @@ export default function CriarOrcamentoPage() {
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                  <FormField control={form.control} name="totalValue" render={({ field }) => (
-                    <FormItem><FormLabel>Valor Total (R$) *</FormLabel><FormControl><Input type="number" step="0.01" placeholder="250,00" {...field} /></FormControl><FormMessage /></FormItem>
+                    <FormItem>
+                      <FormLabel>Valor Total *</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">R$</span>
+                          <Input type="number" step="0.01" placeholder="250,00" className="pl-9" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
                 )}/>
 
                 <FormField control={form.control} name="validUntil" render={({ field }) => (

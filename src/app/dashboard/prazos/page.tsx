@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { dateFnsLocalizer, Event } from 'react-big-calendar';
@@ -18,6 +19,8 @@ import { Button } from '@/components/ui/button';
 import { Loader2, CalendarClock, Calendar as CalendarIcon, List } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useIsMobile } from '@/hooks/use-mobile';
+
 
 // Dynamic import for the Calendar component
 const BigCalendar = dynamic(
@@ -36,7 +39,7 @@ interface ServiceOrder {
     id: string;
     clientName: string;
     serviceType: string;
-    status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
+    status: string;
     dueDate: Timestamp;
     userId: string;
     createdAt: Timestamp;
@@ -85,10 +88,19 @@ export default function PrazosPage() {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
+    const { settings } = useSettings();
+    const isMobile = useIsMobile();
+    
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
+
+    useEffect(() => {
+        if (isMobile !== undefined) {
+            setViewMode(isMobile ? 'list' : 'calendar');
+        }
+    }, [isMobile]);
 
     useEffect(() => {
         if (!user) return;
@@ -101,7 +113,7 @@ export default function PrazosPage() {
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const activeStatuses = ['Pendente', 'Em Andamento', 'Aguardando Peça'];
+            const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
             const fetchedOrders = querySnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
                 .filter(order => activeStatuses.includes(order.status));
@@ -118,7 +130,7 @@ export default function PrazosPage() {
         });
 
         return () => unsubscribe();
-    }, [user, toast]);
+    }, [user, toast, settings.serviceStatuses]);
 
     const filteredOrders = useMemo(() => {
         const now = new Date();
@@ -215,7 +227,7 @@ export default function PrazosPage() {
                                                 <TableRow key={order.id} onClick={() => handleRowClick(order.id)} className="cursor-pointer">
                                                     <TableCell className="font-medium">{order.clientName}</TableCell>
                                                     <TableCell className="hidden sm:table-cell">{order.serviceType}</TableCell>
-                                                    <TableCell><Badge variant={order.status === 'Em Andamento' ? 'secondary' : 'outline'}>{order.status}</Badge></TableCell>
+                                                    <TableCell><Badge variant={'outline'}>{order.status}</Badge></TableCell>
                                                     <TableCell className="text-right"><Badge variant={statusInfo.variant} className={statusInfo.className}>{statusInfo.text}</Badge></TableCell>
                                                 </TableRow>
                                             );

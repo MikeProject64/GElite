@@ -38,7 +38,7 @@ const serviceOrderSchema = z.object({
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
   managerId: z.string({ required_error: "Por favor, selecione um responsável." }).min(1, "Por favor, selecione um responsável."),
   totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
-  status: z.enum(['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada']),
+  status: z.string({ required_error: "O status é obrigatório." }),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
   customFields: z.record(z.any()).optional(),
 });
@@ -73,7 +73,7 @@ export default function CriarOrdemDeServicoPage() {
       problemDescription: '',
       managerId: '',
       totalValue: 0,
-      status: 'Pendente',
+      status: settings.serviceStatuses?.[0] || 'Pendente',
       dueDate: new Date(),
       customFields: {},
     },
@@ -170,7 +170,7 @@ export default function CriarOrdemDeServicoPage() {
         customFields: customFieldsData,
         userId: user.uid,
         createdAt: Timestamp.now(),
-        completedAt: null,
+        completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
       });
       toast({ title: "Sucesso!", description: "Ordem de serviço criada." });
       router.push('/dashboard/servicos');
@@ -279,7 +279,16 @@ export default function CriarOrdemDeServicoPage() {
                 </FormItem>
               )}/>
                <FormField control={serviceOrderForm.control} name="totalValue" render={({ field }) => (
-                <FormItem><FormLabel>Valor Total (R$) *</FormLabel><FormControl><Input type="number" step="0.01" placeholder="250,00" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Valor Total *</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">R$</span>
+                        <Input type="number" step="0.01" placeholder="250,00" className="pl-9" {...field} />
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
               )}/>
               <FormField control={serviceOrderForm.control} name="dueDate" render={({ field }) => (
                 <FormItem className="flex flex-col">
@@ -308,9 +317,9 @@ export default function CriarOrdemDeServicoPage() {
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="Pendente">Pendente</SelectItem><SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                      <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem><SelectItem value="Concluída">Concluída</SelectItem>
-                      <SelectItem value="Cancelada">Cancelada</SelectItem>
+                      {settings.serviceStatuses?.map(status => (
+                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

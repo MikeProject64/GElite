@@ -18,6 +18,7 @@ export interface UserSettings {
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
+  serviceStatuses?: string[];
 }
 
 interface SettingsContextType {
@@ -32,6 +33,7 @@ const defaultSettings: UserSettings = {
   customerCustomFields: [],
   serviceOrderCustomFields: [],
   quoteCustomFields: [],
+  serviceStatuses: ['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada'],
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -69,6 +71,21 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
           ? { ...defaultSettings, ...docSnap.data() } as UserSettings
           : defaultSettings;
         
+        // Ensure essential default arrays exist if they are missing from Firestore
+        if (!newSettings.serviceStatuses) {
+            newSettings.serviceStatuses = defaultSettings.serviceStatuses;
+        }
+        if (!newSettings.customerCustomFields) {
+            newSettings.customerCustomFields = defaultSettings.customerCustomFields;
+        }
+        if (!newSettings.serviceOrderCustomFields) {
+            newSettings.serviceOrderCustomFields = defaultSettings.serviceOrderCustomFields;
+        }
+        if (!newSettings.quoteCustomFields) {
+            newSettings.quoteCustomFields = defaultSettings.quoteCustomFields;
+        }
+
+
         setSettings(newSettings); // Update React state
         
         // 3. Persist the latest settings to localStorage.

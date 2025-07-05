@@ -65,15 +65,18 @@ export default function ClienteDetailPage() {
     // Listener for customer data
     const customerRef = doc(db, 'customers', customerId);
     const unsubscribeCustomer = onSnapshot(customerRef, (docSnap) => {
-      if (docSnap.exists()) {
+      if (docSnap.exists() && docSnap.data().userId === user.uid) {
         const data = docSnap.data() as Omit<Customer, 'id'>;
         setCustomer({ id: docSnap.id, ...data });
         form.reset({ notes: data.notes || '' });
       } else {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado.' });
+        toast({ variant: 'destructive', title: 'Erro', description: 'Cliente não encontrado ou você não tem permissão para visualizá-lo.' });
         router.push('/dashboard/base-de-clientes');
       }
       setIsLoading(false);
+    }, (error) => {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar os dados do cliente.' });
+        setIsLoading(false);
     });
 
     // Listener for service orders
@@ -81,6 +84,9 @@ export default function ClienteDetailPage() {
     const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
       const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
       setServiceOrders(orders);
+    }, (error) => {
+        console.error("Error fetching service orders for customer:", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar o histórico de serviços.' });
     });
 
     return () => {
@@ -202,6 +208,7 @@ export default function ClienteDetailPage() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                        {Object.entries(customer.customFields).map(([key, value]) => {
+                           if (!value) return null;
                            const fieldType = getCustomFieldType(key);
                            let displayValue = value;
                            if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {

@@ -28,9 +28,11 @@ import { useAuth } from '@/components/auth-provider';
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Concluída': return 'default';
-    case 'Em Andamento': return 'secondary';
     case 'Cancelada': return 'destructive';
-    default: return 'outline';
+    default:
+        // Simple hash to get a deterministic but varied style for custom statuses
+        const hash = status.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+        return (Math.abs(hash) % 2 === 0) ? 'secondary' : 'outline';
   }
 };
 
@@ -81,7 +83,7 @@ export default function ServicoDetailPage() {
     return () => unsubscribe();
   }, [user]);
 
-  const handleStatusChange = async (newStatus: ServiceOrder['status']) => {
+  const handleStatusChange = async (newStatus: string) => {
     if (!order) return;
     try {
       const orderRef = doc(db, 'serviceOrders', order.id);
@@ -243,11 +245,9 @@ export default function ServicoDetailPage() {
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="Pendente">Pendente</SelectItem>
-                                    <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                                    <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
-                                    <SelectItem value="Concluída">Concluída</SelectItem>
-                                    <SelectItem value="Cancelada">Cancelada</SelectItem>
+                                    {settings.serviceStatuses?.map(status => (
+                                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                       </div>
@@ -276,6 +276,7 @@ export default function ServicoDetailPage() {
                     </CardHeader>
                     <CardContent className="grid sm:grid-cols-2 gap-4">
                        {Object.entries(order.customFields).map(([key, value]) => {
+                           if (!value) return null;
                            const fieldType = getCustomFieldType(key);
                            let displayValue = value;
                            if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {

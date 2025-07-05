@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { collection, query, where, orderBy, doc, updateDoc, getDocs, limit, startAfter, endBefore, limitToLast, QueryDocumentSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
@@ -25,9 +26,10 @@ import { ServiceOrder } from '@/types';
 const getStatusVariant = (status: string) => {
   switch (status) {
     case 'Concluída': return 'default';
-    case 'Em Andamento': return 'secondary';
     case 'Cancelada': return 'destructive';
-    default: return 'outline';
+    default:
+        const hash = status.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
+        return (Math.abs(hash) % 2 === 0) ? 'secondary' : 'outline';
   }
 };
 
@@ -37,6 +39,8 @@ export default function ServicosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const { settings } = useSettings();
+  
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', managerName: '', clientName: '' });
@@ -131,7 +135,7 @@ export default function ServicosPage() {
     if (!cancellingOrderId) return;
     try {
       const orderRef = doc(db, 'serviceOrders', cancellingOrderId);
-      await updateDoc(orderRef, { status: 'Cancelada' });
+      await updateDoc(orderRef, { status: 'Cancelada', completedAt: null });
       toast({ title: 'Sucesso', description: 'Ordem de serviço cancelada.' });
       // Refetch current page to see update
       const updatedOrders = serviceOrders.map(o => o.id === cancellingOrderId ? {...o, status: 'Cancelada'} : o);
@@ -185,11 +189,9 @@ export default function ServicosPage() {
                     </SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">Todos os Status</SelectItem>
-                        <SelectItem value="Pendente">Pendente</SelectItem>
-                        <SelectItem value="Em Andamento">Em Andamento</SelectItem>
-                        <SelectItem value="Aguardando Peça">Aguardando Peça</SelectItem>
-                        <SelectItem value="Concluída">Concluída</SelectItem>
-                        <SelectItem value="Cancelada">Cancelada</SelectItem>
+                        {settings.serviceStatuses?.map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                        ))}
                     </SelectContent>
                 </Select>
               </div>

@@ -36,7 +36,7 @@ export interface ServiceOrder {
     managerId?: string;
     managerName?: string;
     totalValue: number;
-    status: 'Pendente' | 'Em Andamento' | 'Aguardando Peça' | 'Concluída' | 'Cancelada';
+    status: string; // Changed from enum to string for custom statuses
     dueDate: Timestamp;
     attachments?: { name: string; url: string; }[];
     createdAt: Timestamp;
