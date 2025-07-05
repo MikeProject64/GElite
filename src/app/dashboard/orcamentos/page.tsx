@@ -152,6 +152,7 @@ export default function OrcamentosPage() {
             <Table>
                 <TableHeader>
                 <TableRow>
+                    <TableHead>ID</TableHead>
                     <TableHead>Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                     <TableHead className="hidden lg:table-cell">Criação</TableHead>
@@ -163,8 +164,15 @@ export default function OrcamentosPage() {
                 <TableBody>
                 {filteredQuotes.map((quote) => (
                     <TableRow key={quote.id}>
+                     <TableCell>
+                        <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">
+                          #{quote.id.substring(0, 6).toUpperCase()}
+                        </Link>
+                      </TableCell>
                     <TableCell>
-                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline">{quote.clientName}</Link>
+                         <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="font-medium hover:underline" title="Ver detalhes do cliente">
+                            {quote.clientName}
+                         </Link>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>

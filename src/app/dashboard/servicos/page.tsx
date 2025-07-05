@@ -219,8 +219,8 @@ export default function ServicosPage() {
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead className="hidden lg:table-cell">Serviço</TableHead>
+                    <TableHead className='w-[100px]'>OS</TableHead>
+                    <TableHead>Serviço / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Responsável</TableHead>
                     <TableHead className="hidden lg:table-cell">Criação</TableHead>
                     <TableHead className="hidden md:table-cell">Vencimento</TableHead>
@@ -231,11 +231,13 @@ export default function ServicosPage() {
                 <TableBody>
                 {filteredOrders.map((order) => (
                     <TableRow key={order.id}>
+                     <TableCell>
+                        <span className="font-mono text-sm">#{order.id.substring(0, 6).toUpperCase()}</span>
+                      </TableCell>
                     <TableCell>
-                        <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.clientName}</Link>
-                        <div className="text-sm text-muted-foreground lg:hidden">{order.serviceType}</div>
+                        <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
+                        <div className="text-sm text-muted-foreground">{order.clientName}</div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{order.serviceType}</TableCell>
                     <TableCell className="hidden md:table-cell">{order.managerName || 'Não definido'}</TableCell>
                     <TableCell className="hidden lg:table-cell">{order.createdAt ? format(order.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                     <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
@@ -290,7 +292,7 @@ export default function ServicosPage() {
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-                Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manualmente.
+                Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manually.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

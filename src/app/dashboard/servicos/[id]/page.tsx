@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,9 +21,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Calendar, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File, Loader2, Info, Printer, DollarSign, CalendarIcon } from 'lucide-react';
 import { ServiceOrder, Manager } from '@/types';
 import { useAuth } from '@/components/auth-provider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
 
 
 const getStatusVariant = (status: string) => {
@@ -101,6 +104,17 @@ export default function ServicoDetailPage() {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
   };
+  
+  const handleDueDateChange = async (date: Date | undefined) => {
+    if (!order || !date) return;
+    try {
+      const orderRef = doc(db, 'serviceOrders', order.id);
+      await updateDoc(orderRef, { dueDate: Timestamp.fromDate(date) });
+      toast({ title: 'Sucesso!', description: 'Prazo de entrega atualizado.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o prazo.' });
+    }
+  };
 
   const handleManagerChange = async (newManagerId: string) => {
     if (!order || !newManagerId) return;
@@ -120,7 +134,7 @@ export default function ServicoDetailPage() {
   };
 
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0 || !order) return;
+    if (!e.target.files || e.target.files.length === 0 || !order || !user) return;
     
     const file = e.target.files[0];
     setIsUploading(true);
@@ -140,12 +154,16 @@ export default function ServicoDetailPage() {
       });
 
       toast({ title: 'Sucesso!', description: 'Arquivo anexado.' });
-    } catch (error) {
+    } catch (error: any) {
       console.error("File upload error:", error);
-      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao anexar o arquivo.' });
+      let description = 'Falha ao anexar o arquivo.';
+      if (error.code === 'storage/unauthorized') {
+          description = 'Você não tem permissão para enviar arquivos. Verifique as regras de segurança do Storage.';
+      }
+      toast({ variant: 'destructive', title: 'Erro de Upload', description });
     } finally {
       setIsUploading(false);
-      e.target.value = ''; // Reset input
+      if (e.target) e.target.value = ''; // Reset input
     }
   };
 
@@ -229,11 +247,31 @@ export default function ServicoDetailPage() {
                             </Select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <Calendar className="h-5 w-5 text-muted-foreground" />
+                     <div className="flex items-center gap-3">
+                        <CalendarIcon className="h-5 w-5 text-muted-foreground" />
                         <div>
                             <p className="text-sm text-muted-foreground">Prazo de Entrega</p>
-                            <p className="font-medium">{format(order.dueDate.toDate(), 'dd/MM/yyyy', { locale: ptBR })}</p>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-[180px] justify-start text-left font-normal",
+                                            !order.dueDate && "text-muted-foreground"
+                                        )}
+                                    >
+                                        {order.dueDate ? format(order.dueDate.toDate(), "dd/MM/yyyy") : <span>Escolha uma data</span>}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0">
+                                    <Calendar
+                                        mode="single"
+                                        selected={order.dueDate.toDate()}
+                                        onSelect={handleDueDateChange}
+                                        initialFocus
+                                    />
+                                </PopoverContent>
+                            </Popover>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">

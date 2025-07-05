@@ -83,7 +83,7 @@ export default function OrcamentoDetailPage() {
         const serviceOrderData = {
             clientId: quote.clientId,
             clientName: quote.clientName,
-            problemDescription: `Serviços baseados no orçamento #${quote.id.substring(0, 6)}:\n\n${quote.description}`,
+            problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()}`,
             serviceType: "Serviço a partir de orçamento",
             status: 'Pendente',
             dueDate: Timestamp.fromDate(new Date()), // Define a default due date
