@@ -73,8 +73,6 @@ function CreateServiceOrderForm() {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const customerDropdownRef = useRef<HTMLDivElement>(null);
   
-  const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
-
   const form = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: {
@@ -234,17 +232,6 @@ function CreateServiceOrderForm() {
     customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
   );
   
-  const getSkillTagById = (id: string) => settings.skillTags?.find(t => t.id === id);
-
-  const filteredCollaborators = useMemo(() => {
-    if (requiredSkills.length === 0) {
-        return collaborators;
-    }
-    return collaborators.filter(c => 
-        c.type === 'collaborator' && requiredSkills.every(skillId => c.skillIds?.includes(skillId))
-    );
-  }, [collaborators, requiredSkills]);
-  
   if (isInitializing) {
     return (
         <div className="flex justify-center items-center h-64">
@@ -325,76 +312,15 @@ function CreateServiceOrderForm() {
               <FormField control={form.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
-               <FormItem>
-                  <FormLabel>Habilidades Necessárias</FormLabel>
-                   <Popover>
-                        <PopoverTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                className={cn(
-                                    "w-full justify-between h-auto",
-                                    !requiredSkills.length && "text-muted-foreground"
-                                )}
-                            >
-                                <div className="flex gap-1 flex-wrap">
-                                    {requiredSkills.length > 0 ? (
-                                        requiredSkills.map(tagId => {
-                                            const tag = getSkillTagById(tagId);
-                                            return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
-                                        })
-                                    ) : (
-                                        "Filtrar por habilidade..."
-                                    )}
-                                </div>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                            <Command>
-                                <CommandInput placeholder="Buscar habilidades..." />
-                                 <CommandList>
-                                    <CommandEmpty>Nenhuma habilidade encontrada.</CommandEmpty>
-                                    <CommandGroup>
-                                        {settings.skillTags?.map(tag => (
-                                            <CommandItem
-                                                key={tag.id}
-                                                onSelect={() => {
-                                                    const newSkillIds = requiredSkills.includes(tag.id)
-                                                        ? requiredSkills.filter(id => id !== tag.id)
-                                                        : [...requiredSkills, tag.id];
-                                                    setRequiredSkills(newSkillIds);
-                                                }}
-                                            >
-                                                <Check className={cn("mr-2 h-4 w-4", requiredSkills.includes(tag.id) ? "opacity-100" : "opacity-0")} />
-                                                <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
-                                            </CommandItem>
-                                        ))}
-                                    </CommandGroup>
-                                </CommandList>
-                            </Command>
-                        </PopoverContent>
-                    </Popover>
-              </FormItem>
                <FormField control={form.control} name="collaboratorId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Colaborador / Setor *</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {requiredSkills.length > 0 ? (
-                         filteredCollaborators.length > 0 ? (
-                            filteredCollaborators.map(collaborator => (
-                                <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
-                            ))
-                         ) : (
-                            <div className='p-2 text-center text-sm text-muted-foreground'>Nenhum colaborador com as habilidades selecionadas.</div>
-                         )
-                      ) : (
-                        collaborators.map(collaborator => (
-                            <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
-                        ))
-                      )}
+                      {collaborators.map(collaborator => (
+                        <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />

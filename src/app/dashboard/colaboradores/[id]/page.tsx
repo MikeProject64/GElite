@@ -172,18 +172,6 @@ export default function ColaboradorDetailPage() {
             </CardHeader>
             <CardContent className='text-center'>
                 <p className="text-sm text-muted-foreground">{collaborator.description || 'Nenhuma descrição informada.'}</p>
-                
-                {collaborator.skillIds && collaborator.skillIds.length > 0 && (
-                    <div className='mt-4 pt-4 border-t'>
-                        <h4 className="text-sm font-semibold mb-2">Habilidades</h4>
-                        <div className="flex flex-wrap gap-1 justify-center">
-                            {collaborator.skillIds.map(skillId => {
-                                const tag = settings.skillTags?.find(t => t.id === skillId);
-                                return tag ? <Badge key={tag.id} variant="secondary" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
-                            })}
-                        </div>
-                    </div>
-                )}
             </CardContent>
             {collaborator.type === 'collaborator' && (
                 <CardFooter className='flex-col gap-2'>

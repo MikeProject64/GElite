@@ -23,7 +23,6 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
   tags?: Tag[];
-  skillTags?: Tag[];
 }
 
 export interface Collaborator {
@@ -34,7 +33,6 @@ export interface Collaborator {
   type: 'collaborator' | 'sector';
   description?: string;
   photoURL?: string;
-  skillIds?: string[];
 }
 
 export interface Customer {

@@ -257,74 +257,6 @@ const CustomTagManager: React.FC<{ tags: Tag[], onUpdateTags: (tags: Tag[]) => v
 });
 CustomTagManager.displayName = "CustomTagManager";
 
-const SkillTagManager: React.FC<{ tags: Tag[], onUpdateTags: (tags: Tag[]) => void }> = memo(({ tags, onUpdateTags }) => {
-    const [newTagName, setNewTagName] = useState('');
-    const [newTagColor, setNewTagColor] = useState(tagColors[0].value);
-
-    const handleAddTag = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (newTagName.trim() === '') return;
-        const newTag: Tag = {
-            id: uuidv4(),
-            name: newTagName.trim(),
-            color: newTagColor,
-        };
-        onUpdateTags([...tags, newTag]);
-        setNewTagName('');
-    };
-
-    const handleRemoveTag = (id: string) => {
-        onUpdateTags(tags.filter(tag => tag.id !== id));
-    };
-
-    return (
-        <Card className="mt-4">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-lg"><Briefcase className="h-5 w-5 text-primary" /> Habilidades de Colaborador</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleAddTag} className="flex items-end gap-2 mb-4">
-                    <div className="grid gap-1.5 flex-grow">
-                        <Label htmlFor="new-skill-tag-name">Nome da Habilidade</Label>
-                        <Input id="new-skill-tag-name" value={newTagName} onChange={e => setNewTagName(e.target.value)} placeholder="Ex: Eletricista" />
-                    </div>
-                    <div className="grid gap-1.5">
-                        <Label htmlFor="new-skill-tag-color">Cor</Label>
-                        <Select value={newTagColor} onValueChange={setNewTagColor}>
-                            <SelectTrigger id="new-skill-tag-color" className="w-[120px]">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {tagColors.map(color => (
-                                    <SelectItem key={color.value} value={color.value}>
-                                        <div className='flex items-center gap-2'>
-                                            <div className={cn('w-3 h-3 rounded-full border', color.value)}></div>
-                                            {color.name}
-                                        </div>
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <Button type="submit" size="icon" variant="outline"><PlusCircle className="h-4 w-4" /></Button>
-                </form>
-                <div className="space-y-2">
-                    {tags.length > 0 ? tags.map(tag => (
-                        <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
-                            <Badge variant="outline" className={cn('font-medium', tag.color)}>{tag.name}</Badge>
-                            <Button size="icon" variant="ghost" onClick={() => handleRemoveTag(tag.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                        </div>
-                    )) : (
-                        <p className="text-sm text-center text-muted-foreground py-4">Nenhuma habilidade criada.</p>
-                    )}
-                </div>
-            </CardContent>
-        </Card>
-    );
-});
-SkillTagManager.displayName = "SkillTagManager";
-
-
 const CustomStatusManager = () => {
     const { settings, updateSettings } = useSettings();
     const [newStatusName, setNewStatusName] = useState('');
@@ -531,10 +463,6 @@ export default function ConfiguracoesPage() {
     updateSettings({ tags: tags });
   };
   
-  const handleUpdateSkillTags = (tags: Tag[]) => {
-    updateSettings({ skillTags: tags });
-  };
-
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold md:text-2xl">Configurações</h1>
@@ -696,10 +624,6 @@ export default function ConfiguracoesPage() {
                                 tags={settings.tags || []}
                                 onUpdateTags={handleUpdateTags}
                             />
-                            <SkillTagManager
-                                tags={settings.skillTags || []}
-                                onUpdateTags={handleUpdateSkillTags}
-                            />
                             <CustomFieldManager
                                 title="Campos para Clientes"
                                 icon={<Users className="h-5 w-5 text-primary" />}
@@ -730,5 +654,3 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
-
-    

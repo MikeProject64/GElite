@@ -33,7 +33,6 @@ const collaboratorFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
   description: z.string().optional(),
   type: z.enum(['collaborator', 'sector'], { required_error: 'Por favor, selecione um tipo.' }),
-  skillIds: z.array(z.string()).optional(),
 });
 
 type CollaboratorFormValues = z.infer<typeof collaboratorFormSchema>;
@@ -52,7 +51,7 @@ export default function ColaboradoresPage() {
 
   const form = useForm<CollaboratorFormValues>({
     resolver: zodResolver(collaboratorFormSchema),
-    defaultValues: { name: '', description: '', type: 'collaborator', skillIds: [] },
+    defaultValues: { name: '', description: '', type: 'collaborator' },
   });
 
   useEffect(() => {
@@ -83,12 +82,9 @@ export default function ColaboradoresPage() {
   useEffect(() => {
     if (isDialogOpen) {
       if (editingCollaborator) {
-        form.reset({
-          ...editingCollaborator,
-          skillIds: editingCollaborator.skillIds || []
-        });
+        form.reset(editingCollaborator);
       } else {
-        form.reset({ name: '', description: '', type: 'collaborator', skillIds: [] });
+        form.reset({ name: '', description: '', type: 'collaborator' });
       }
     }
   }, [isDialogOpen, editingCollaborator, form]);
@@ -160,9 +156,6 @@ export default function ColaboradoresPage() {
     }
   };
   
-  const getSkillTagById = (id: string) => settings.skillTags?.find(t => t.id === id);
-
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
@@ -220,68 +213,6 @@ export default function ColaboradoresPage() {
                     <FormMessage />
                   </FormItem>
                 )}/>
-
-                <FormField
-                    control={form.control}
-                    name="skillIds"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Habilidades</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn(
-                                                "w-full justify-between h-auto",
-                                                !field.value?.length && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <div className="flex gap-1 flex-wrap">
-                                                {field.value?.length > 0 ? (
-                                                    field.value.map(tagId => {
-                                                        const tag = getSkillTagById(tagId);
-                                                        return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
-                                                    })
-                                                ) : (
-                                                    "Selecione habilidades"
-                                                )}
-                                            </div>
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar habilidades..." />
-                                        <CommandList>
-                                            <CommandEmpty>Nenhuma habilidade encontrada.</CommandEmpty>
-                                            <CommandGroup>
-                                                {settings.skillTags?.map(tag => (
-                                                    <CommandItem
-                                                        key={tag.id}
-                                                        onSelect={() => {
-                                                            const currentTagIds = field.value || [];
-                                                            const newTagIds = currentTagIds.includes(tag.id)
-                                                                ? currentTagIds.filter(id => id !== tag.id)
-                                                                : [...currentTagIds, tag.id];
-                                                            field.onChange(newTagIds);
-                                                        }}
-                                                    >
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value?.includes(tag.id) ? "opacity-100" : "opacity-0")} />
-                                                        <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                             <FormMessage />
-                        </FormItem>
-                    )}
-                 />
 
                 <DialogFooter className='pt-4'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -357,12 +288,6 @@ export default function ColaboradoresPage() {
                 </CardHeader>
                 <CardContent className="flex-grow space-y-2">
                   <p className="text-sm text-muted-foreground line-clamp-2">{c.description || 'Nenhuma descrição.'}</p>
-                   <div className="flex flex-wrap gap-1">
-                    {c.skillIds?.map(skillId => {
-                        const tag = getSkillTagById(skillId);
-                        return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
-                    })}
-                  </div>
                 </CardContent>
                 <CardFooter>
                    <Button variant="outline" size="sm" className='w-full' asChild>
