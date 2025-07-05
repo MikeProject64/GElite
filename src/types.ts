@@ -106,5 +106,3 @@ export interface TimelineItem {
   date: Date;
   data: Customer | ServiceOrder | Quote | TimelineNote;
 }
-
-    
