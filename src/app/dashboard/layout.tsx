@@ -18,6 +18,10 @@ export default function DashboardLayout({
     if (!loading && !user) {
       router.push('/login');
     }
+    // Log the user ID to the console for debugging purposes
+    if (user) {
+      console.log('Current User ID:', user.uid);
+    }
   }, [user, loading, router]);
 
   if (loading || !user) {
