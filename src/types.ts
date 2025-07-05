@@ -141,4 +141,7 @@ export interface InventoryMovement {
     notes?: string;
     attachments?: { name: string; url: string; }[];
     createdAt: Timestamp;
+    serviceOrderId?: string;
+    serviceOrderCode?: string;
 }
+

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, ChangeEvent } from 'react';
+import { useState, useEffect, ChangeEvent, useRef, useMemo } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
 import { doc, onSnapshot, updateDoc, collection, query, where, addDoc, Timestamp, orderBy, runTransaction, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -14,6 +14,7 @@ import * as z from 'zod';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
+import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,15 +24,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { InventoryItem, InventoryMovement } from '@/types';
+import { InventoryItem, InventoryMovement, ServiceOrder } from '@/types';
 import { Label } from '@/components/ui/label';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const movementSchema = z.object({
   quantity: z.coerce.number().positive({ message: "A quantidade deve ser maior que zero." }),
   notes: z.string().optional(),
+  serviceOrderId: z.string().optional(),
 });
 type MovementFormValues = z.infer<typeof movementSchema>;
 
@@ -45,17 +50,22 @@ export default function InventarioItemDetailPage() {
 
     const [item, setItem] = useState<InventoryItem | null>(null);
     const [movements, setMovements] = useState<InventoryMovement[]>([]);
+    const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [dialogType, setDialogType] = useState<'entrada' | 'saída' | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [fileToUpload, setFileToUpload] = useState<File | null>(null);
+
+    const [isOrderDropdownOpen, setIsOrderDropdownOpen] = useState(false);
+    const [orderSearchTerm, setOrderSearchTerm] = useState('');
+    const orderDropdownRef = useRef<HTMLDivElement>(null);
     
     const itemId = Array.isArray(id) ? id[0] : id;
 
     const form = useForm<MovementFormValues>({
         resolver: zodResolver(movementSchema),
-        defaultValues: { quantity: 1, notes: '' },
+        defaultValues: { quantity: 1, notes: '', serviceOrderId: '' },
     });
 
     useEffect(() => {
@@ -76,16 +86,39 @@ export default function InventarioItemDetailPage() {
             setMovements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryMovement)));
             setIsLoading(false);
         }, () => setIsLoading(false));
+
+        const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('isTemplate', '==', false), orderBy('createdAt', 'desc'));
+        const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
+            setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
+        });
         
         return () => {
             unsubItem();
             unsubMovements();
+            unsubOrders();
         };
-    }, [user, itemId]);
+    }, [user, itemId, notFound]);
+
+     useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+          if (orderDropdownRef.current && !orderDropdownRef.current.contains(event.target as Node)) {
+            setIsOrderDropdownOpen(false);
+          }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+      }, [orderDropdownRef]);
+
+    const filteredServiceOrders = useMemo(() => 
+        serviceOrders.filter(order => 
+            order.serviceType.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+            order.clientName.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+            order.id.toLowerCase().includes(orderSearchTerm.toLowerCase())
+        ), [serviceOrders, orderSearchTerm]);
     
     const handleOpenDialog = (type: 'entrada' | 'saída') => {
         setDialogType(type);
-        form.reset({ quantity: 1, notes: '' });
+        form.reset({ quantity: 1, notes: '', serviceOrderId: '' });
         setFileToUpload(null);
         setIsDialogOpen(true);
     };
@@ -127,10 +160,18 @@ export default function InventarioItemDetailPage() {
                     attachments.push({ name: fileToUpload.name, url: downloadURL });
                 }
 
-                const movementPayload: Omit<InventoryMovement, 'id'> = {
+                const movementPayload: Omit<InventoryMovement, 'id' | 'serviceOrderCode'> = {
                     itemId: item.id, userId: user.uid, type: dialogType,
                     quantity: data.quantity, notes: data.notes, createdAt: Timestamp.now(), attachments,
                 };
+                
+                 if (dialogType === 'saída' && data.serviceOrderId) {
+                    const selectedOrder = serviceOrders.find(o => o.id === data.serviceOrderId);
+                    if (selectedOrder) {
+                        (movementPayload as InventoryMovement).serviceOrderId = selectedOrder.id;
+                        (movementPayload as InventoryMovement).serviceOrderCode = `#${selectedOrder.id.substring(0, 6).toUpperCase()}`;
+                    }
+                }
                 
                 const movementRef = doc(collection(db, 'inventoryMovements'));
                 transaction.set(movementRef, movementPayload);
@@ -200,6 +241,7 @@ export default function InventarioItemDetailPage() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Quantidade</TableHead>
+                                    <TableHead>OS Associada</TableHead>
                                     <TableHead>Notas</TableHead>
                                     <TableHead>Anexo</TableHead>
                                 </TableRow>
@@ -213,6 +255,17 @@ export default function InventarioItemDetailPage() {
                                         </TableCell>
                                         <TableCell className={`font-medium ${m.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.type === 'entrada' ? '+' : '-'}{m.quantity}
+                                        </TableCell>
+                                         <TableCell>
+                                            {m.serviceOrderId ? (
+                                                <Button variant="link" asChild className="p-0 h-auto font-mono text-sm">
+                                                    <Link href={`/dashboard/servicos/${m.serviceOrderId}`}>
+                                                        {m.serviceOrderCode}
+                                                    </Link>
+                                                </Button>
+                                            ) : (
+                                                '-'
+                                            )}
                                         </TableCell>
                                         <TableCell>{m.notes}</TableCell>
                                         <TableCell>
@@ -247,6 +300,50 @@ export default function InventarioItemDetailPage() {
                                     <FormMessage />
                                 </FormItem>
                             )}/>
+                             {dialogType === 'saída' && (
+                                <FormField control={form.control} name="serviceOrderId" render={({ field }) => (
+                                    <FormItem className="flex flex-col">
+                                        <FormLabel>Associar à Ordem de Serviço (Opcional)</FormLabel>
+                                        <div className="relative" ref={orderDropdownRef}>
+                                            <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsOrderDropdownOpen(prev => !prev)}>
+                                                <span className='truncate'>
+                                                    {field.value ? serviceOrders.find(o => o.id === field.value)?.serviceType : "Selecione uma O.S."}
+                                                </span>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                            {isOrderDropdownOpen && (
+                                            <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
+                                                <div className="p-2">
+                                                    <Input placeholder="Buscar O.S..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} autoFocus />
+                                                </div>
+                                                <ScrollArea className="h-48">
+                                                {filteredServiceOrders.length > 0 ? (
+                                                    filteredServiceOrders.map((order) => (
+                                                    <button type="button" key={order.id} className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
+                                                        onClick={() => {
+                                                            field.onChange(order.id);
+                                                            setIsOrderDropdownOpen(false);
+                                                            setOrderSearchTerm('');
+                                                        }}
+                                                    >
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value === order.id ? "opacity-100" : "opacity-0")} />
+                                                        <div>
+                                                            <p className="font-medium">{order.serviceType}</p>
+                                                            <p className="text-xs text-muted-foreground">{order.clientName} / #{order.id.substring(0, 6).toUpperCase()}</p>
+                                                        </div>
+                                                    </button>
+                                                    ))
+                                                ) : (
+                                                    <p className="p-2 text-center text-sm text-muted-foreground">Nenhuma O.S. encontrada.</p>
+                                                )}
+                                                </ScrollArea>
+                                            </div>
+                                            )}
+                                        </div>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}/>
+                             )}
                              <FormField control={form.control} name="notes" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Notas (Opcional)</FormLabel>
@@ -272,3 +369,4 @@ export default function InventarioItemDetailPage() {
         </div>
     );
 }
+
