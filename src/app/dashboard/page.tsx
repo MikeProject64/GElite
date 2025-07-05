@@ -73,6 +73,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0 });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [] });
+  const [criticalDeadlines, setCriticalDeadlines] = useState<ServiceOrder[]>([]);
   
   // Search state
   const [searchTerm, setSearchTerm] = useState('');
@@ -128,6 +129,13 @@ export default function DashboardPage() {
         const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
 
         setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
+        
+        // Process critical deadlines
+        const activeOrdersWithDueDates = allOrders.filter(o => activeStatuses.includes(o.status) && o.dueDate && typeof o.dueDate.toDate === 'function');
+        const overdue = activeOrdersWithDueDates.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).sort((a,b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
+        const dueToday = activeOrdersWithDueDates.filter(o => isToday(o.dueDate.toDate()));
+        const critical = [...overdue, ...dueToday].slice(0, 5);
+        setCriticalDeadlines(critical);
 
         // Process chart data
         const statusCounts = allOrders.reduce((acc, order) => {
@@ -279,7 +287,7 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-            <QuickActions stats={stats} loading={loading} />
+            <QuickActions stats={stats} loading={loading} deadlines={criticalDeadlines} />
         </div>
 
         <div className="lg:col-span-1 flex flex-col gap-6">
@@ -422,5 +430,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     

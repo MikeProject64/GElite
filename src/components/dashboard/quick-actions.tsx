@@ -2,10 +2,14 @@
 'use client';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertTriangle, Hourglass, Activity, Loader2, PlusCircle, FilePlus, UserPlus } from "lucide-react";
+import { AlertTriangle, Hourglass, Activity, Loader2, PlusCircle, FilePlus, UserPlus, CalendarClock } from "lucide-react";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import type { ServiceOrder } from "@/types";
+import { isPast, isToday } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface QuickActionsProps {
   stats: {
@@ -13,9 +17,20 @@ interface QuickActionsProps {
     pendingQuotes: number;
   };
   loading: boolean;
+  deadlines: ServiceOrder[];
 }
 
-export function QuickActions({ stats, loading }: QuickActionsProps) {
+const getDueDateStatus = (dueDate: Date) => {
+    if (isPast(dueDate) && !isToday(dueDate)) {
+      return { text: `Vencido`, variant: 'destructive' as const };
+    }
+    if (isToday(dueDate)) {
+      return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600' };
+    }
+    return null;
+};
+
+export function QuickActions({ stats, loading, deadlines }: QuickActionsProps) {
   const alertActions = [
     {
       title: "Serviços Vencidos",
@@ -60,13 +75,14 @@ export function QuickActions({ stats, loading }: QuickActionsProps) {
     <Card className="h-full flex flex-col">
         <CardHeader>
             <CardTitle className="flex items-center gap-2"><Activity /> Ações Rápidas</CardTitle>
-            <CardDescription>Atalhos para as tarefas mais importantes.</CardDescription>
+            <CardDescription>Atalhos e alertas para as tarefas mais importantes.</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col flex-grow">
-            <div className='flex-grow'>
-              {loading ? (
-                  <div className="flex justify-center items-center h-full">
-                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <div className='flex-grow space-y-4'>
+                 {loading ? (
+                  <div className="space-y-4">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
                   </div>
               ) : (
                   <div className="space-y-4">
@@ -86,11 +102,44 @@ export function QuickActions({ stats, loading }: QuickActionsProps) {
                               </Link>
                           )
                       ))}
-                      {!alertActions.some(a => a.count > 0) && (
-                          <p className="text-sm text-center text-muted-foreground py-4">Nenhuma ação urgente no momento. Bom trabalho!</p>
+                      {!alertActions.some(a => a.count > 0) && !loading && (
+                          <p className="text-sm text-center text-muted-foreground py-2">Nenhuma ação urgente no momento.</p>
                       )}
                   </div>
               )}
+
+              <Separator />
+
+              <div>
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-2 flex items-center gap-2"><CalendarClock className="h-4 w-4"/> Prazos Críticos</h3>
+                  {loading ? (
+                    <div className="space-y-2">
+                        <Skeleton className="h-10 w-full" />
+                        <Skeleton className="h-10 w-full" />
+                    </div>
+                  ) : deadlines.length > 0 ? (
+                      <div className="space-y-2">
+                          {deadlines.map(order => {
+                              const status = getDueDateStatus(order.dueDate.toDate());
+                              if (!status) return null;
+                              return (
+                                  <Link key={order.id} href={`/dashboard/servicos/${order.id}`} className="block p-2 rounded-lg hover:bg-secondary transition-colors text-sm">
+                                      <div className="flex justify-between items-center">
+                                          <div>
+                                              <p className="font-medium truncate">{order.serviceType}</p>
+                                              <p className="text-xs text-muted-foreground">{order.clientName}</p>
+                                          </div>
+                                          <Badge variant={status.variant} className={status.className}>{status.text}</Badge>
+                                      </div>
+                                  </Link>
+                              )
+                          })}
+                      </div>
+                  ) : (
+                    <p className="text-xs text-center text-muted-foreground py-4">Nenhum serviço vencido ou vencendo hoje. Bom trabalho!</p>
+                  )}
+              </div>
+
             </div>
             
             <div className="mt-auto pt-4">
@@ -110,3 +159,5 @@ export function QuickActions({ stats, loading }: QuickActionsProps) {
     </Card>
   );
 }
+
+    
