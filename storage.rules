@@ -2,11 +2,14 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Path for service order attachments: serviceOrders/{orderId}/{fileName}
-    match /serviceOrders/{orderId}/{allPaths=**} {
-      // Allow read/write only if the user is authenticated and is the owner of the service order document in Firestore.
+    // Files can be uploaded to a path like: serviceOrders/<some-order-id>/<some-file-name>
+    match /serviceOrders/{orderId}/{fileName} {
+      // Allow read and write (which includes create, update, delete) operations if:
+      // 1. The user is authenticated (request.auth is not null).
+      // 2. We can successfully get the corresponding document from the 'serviceOrders' collection in Firestore.
+      // 3. The 'userId' field on that Firestore document matches the UID of the user making the request.
       allow read, write: if request.auth != null &&
-                          get(/databases/$(database)/documents/serviceOrders/$(orderId)).data.userId == request.auth.uid;
+                         get(/databases/$(database)/documents/serviceOrders/$(orderId)).data.userId == request.auth.uid;
     }
   }
 }
