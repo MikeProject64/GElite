@@ -39,6 +39,8 @@ import { Label } from '@/components/ui/label';
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
+import { Slider } from '@/components/ui/slider';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -46,6 +48,11 @@ const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[]
 const settingsFormSchema = z.object({
   siteName: z.string().min(3, { message: 'O nome do site deve ter pelo menos 3 caracteres.' }).max(30, { message: 'O nome do site deve ter no máximo 30 caracteres.' }),
   iconName: z.string({ required_error: 'Por favor, selecione um ícone.' }),
+  primaryColorHsl: z.object({
+    h: z.number().min(0).max(360),
+    s: z.number().min(0).max(100),
+    l: z.number().min(0).max(100),
+  }).optional(),
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
@@ -402,6 +409,7 @@ export default function ConfiguracoesPage() {
     defaultValues: {
       siteName: '',
       iconName: '',
+      primaryColorHsl: { h: 210, s: 70, l: 40 },
     },
   });
 
@@ -413,7 +421,11 @@ export default function ConfiguracoesPage() {
 
   const onSubmit = async (data: SettingsFormValues) => {
     try {
-      await updateSettings({ siteName: data.siteName, iconName: data.iconName });
+      await updateSettings({
+        siteName: data.siteName,
+        iconName: data.iconName,
+        primaryColorHsl: data.primaryColorHsl,
+      });
       toast({
         title: 'Sucesso!',
         description: 'Suas configurações foram salvas.',
@@ -448,12 +460,14 @@ export default function ConfiguracoesPage() {
     updateSettings({ skillTags: tags });
   };
 
+  const watchedColor = form.watch("primaryColorHsl");
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold md:text-2xl">Configurações</h1>
       <Tabs defaultValue="data" className="w-full">
         <TabsList className="grid w-full grid-cols-3 max-w-lg">
-          <TabsTrigger value="data">Dados do Site</TabsTrigger>
+          <TabsTrigger value="data">Aparência</TabsTrigger>
           <TabsTrigger value="fields">Personalização</TabsTrigger>
           <TabsTrigger value="billing" disabled>Faturamento</TabsTrigger>
         </TabsList>
@@ -533,6 +547,94 @@ export default function ConfiguracoesPage() {
                         </FormItem>
                       )}
                     />
+                    
+                    <Separator />
+                    
+                    <div className="space-y-4">
+                      <FormLabel>Cor da Marca</FormLabel>
+                      <FormDescription>Ajuste a cor primária para combinar com a identidade visual da sua empresa.</FormDescription>
+                      {watchedColor && (
+                        <div className="flex items-center gap-4 pt-2">
+                          <div
+                            className="h-12 w-12 rounded-full border shadow-inner"
+                            style={{
+                              backgroundColor: `hsl(${watchedColor.h}, ${watchedColor.s}%, ${watchedColor.l}%)`,
+                            }}
+                          />
+                          <div className="flex-1 space-y-4">
+                            <FormField
+                              control={form.control}
+                              name="primaryColorHsl.h"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex justify-between items-center">
+                                    <FormLabel className="text-xs">Matiz (Hue)</FormLabel>
+                                    <span className="text-xs font-mono">{field.value}°</span>
+                                  </div>
+                                  <FormControl>
+                                    <Slider
+                                      min={0}
+                                      max={360}
+                                      step={1}
+                                      value={[field.value ?? 0]}
+                                      onValueChange={(value) => field.onChange(value[0])}
+                                      className="[&>span:first-child]:bg-gradient-to-r from-red-500 via-yellow-500 to-red-500"
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="primaryColorHsl.s"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex justify-between items-center">
+                                    <FormLabel className="text-xs">Saturação</FormLabel>
+                                    <span className="text-xs font-mono">{field.value}%</span>
+                                  </div>
+                                  <FormControl>
+                                    <Slider
+                                      min={0}
+                                      max={100}
+                                      step={1}
+                                      value={[field.value ?? 0]}
+                                      onValueChange={(value) => field.onChange(value[0])}
+                                      style={{'--slider-bg': `linear-gradient(to right, hsl(${watchedColor.h}, 0%, ${watchedColor.l}%), hsl(${watchedColor.h}, 100%, ${watchedColor.l}%))`}}
+                                      className="[&>span:first-child]:bg-[--slider-bg]"
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="primaryColorHsl.l"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <div className="flex justify-between items-center">
+                                    <FormLabel className="text-xs">Luminosidade</FormLabel>
+                                    <span className="text-xs font-mono">{field.value}%</span>
+                                  </div>
+                                  <FormControl>
+                                    <Slider
+                                      min={0}
+                                      max={100}
+                                      step={1}
+                                      value={[field.value ?? 0]}
+                                      onValueChange={(value) => field.onChange(value[0])}
+                                      style={{'--slider-bg': `linear-gradient(to right, hsl(${watchedColor.h}, ${watchedColor.s}%, 0%), hsl(${watchedColor.h}, ${watchedColor.s}%, 50%), hsl(${watchedColor.h}, ${watchedColor.s}%, 100%))`}}
+                                      className="[&>span:first-child]:bg-[--slider-bg]"
+                                    />
+                                  </FormControl>
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
                     <Button type="submit" disabled={form.formState.isSubmitting}>
                       {form.formState.isSubmitting ? (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -598,5 +700,3 @@ export default function ConfiguracoesPage() {
     </div>
   );
 }
-
-    

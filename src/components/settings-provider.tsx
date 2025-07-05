@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 export interface Tag {
   id: string;
   name: string;
-  color: string;
+  color: string; // Stores the Tailwind CSS class for the color
 }
 
 export interface CustomField {
@@ -22,6 +22,7 @@ export interface UserSettings {
   siteName: string;
   iconName: string;
   logoURL?: string;
+  primaryColorHsl?: { h: number; s: number; l: number; };
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
@@ -39,6 +40,7 @@ interface SettingsContextType {
 const defaultSettings: UserSettings = {
   siteName: 'ServiceWise',
   iconName: 'Wrench',
+  primaryColorHsl: { h: 210, s: 70, l: 40 },
   customerCustomFields: [],
   serviceOrderCustomFields: [],
   quoteCustomFields: [],
@@ -101,7 +103,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (!newSettings.skillTags) {
             newSettings.skillTags = defaultSettings.skillTags;
         }
-
+        if (!newSettings.primaryColorHsl) {
+            newSettings.primaryColorHsl = defaultSettings.primaryColorHsl;
+        }
 
         setSettings(newSettings); // Update React state
         

@@ -17,6 +17,14 @@ const DynamicLayoutEffects = () => {
       document.title = settings.siteName;
     }
 
+    // Update primary color CSS variables
+    if (settings.primaryColorHsl) {
+      const { h, s, l } = settings.primaryColorHsl;
+      document.documentElement.style.setProperty('--primary-h', String(h));
+      document.documentElement.style.setProperty('--primary-s', `${s}%`);
+      document.documentElement.style.setProperty('--primary-l', `${l}%`);
+    }
+
     // Update favicon
     if (settings.iconName) {
       const IconComponent = availableIcons[settings.iconName as keyof typeof availableIcons];

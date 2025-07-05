@@ -17,6 +17,7 @@ export interface UserSettings {
   siteName: string;
   iconName: string;
   logoURL?: string;
+  primaryColorHsl?: { h: number, s: number, l: number };
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
