@@ -46,7 +46,12 @@ const serviceOrderSchema = z.object({
 
 const newCustomerSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  phone: z.string().min(10, "O telefone deve ter pelo menos 10 caracteres."),
+  phone: z.string().refine(val => {
+    const digits = val.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 11;
+  }, {
+    message: "O telefone deve conter entre 10 e 11 dígitos numéricos."
+  }),
 });
 
 type ServiceOrderValues = z.infer<typeof serviceOrderSchema>;

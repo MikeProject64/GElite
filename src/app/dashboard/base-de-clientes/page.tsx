@@ -35,7 +35,12 @@ import { Badge } from '@/components/ui/badge';
 
 const customerFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
-  phone: z.string().min(10, { message: 'O telefone deve ter pelo menos 10 caracteres.' }),
+  phone: z.string().refine(val => {
+    const digits = val.replace(/\D/g, '');
+    return digits.length >= 10 && digits.length <= 11;
+  }, {
+    message: 'O telefone deve conter entre 10 e 11 dígitos numéricos.'
+  }),
   email: z.string().email({ message: "Por favor, insira um e-mail válido." }).optional().or(z.literal('')),
   address: z.string().optional(),
   cpfCnpj: z.string().optional(),
@@ -587,5 +592,7 @@ export default function BaseDeClientesPage() {
     </div>
   );
 }
+
+    
 
     
