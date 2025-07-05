@@ -115,15 +115,15 @@ export default function PrazosPage() {
         
         const q = query(
             collection(db, "serviceOrders"), 
-            where("userId", "==", user.uid),
-            orderBy("dueDate", "asc")
+            where("userId", "==", user.uid)
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
             const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
             const fetchedOrders = querySnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
-                .filter(order => order.dueDate && activeStatuses.includes(order.status));
+                .filter(order => order.dueDate && activeStatuses.includes(order.status))
+                .sort((a,b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
             setOrders(fetchedOrders);
             setIsLoading(false);
         }, (error: any) => {

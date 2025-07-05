@@ -68,11 +68,12 @@ export default function ColaboradorDetailPage() {
     const ordersQuery = query(
       collection(db, 'serviceOrders'),
       where('userId', '==', user.uid),
-      where('collaboratorId', '==', collaboratorId),
-      orderBy('createdAt', 'desc')
+      where('collaboratorId', '==', collaboratorId)
     );
     const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-      const orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
+      const orders = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
+        .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
       setServiceOrders(orders);
       setIsLoading(false);
     }, (error) => {

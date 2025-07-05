@@ -63,7 +63,7 @@ export default function ServicosPage() {
       const baseQuery = query(
           collection(db, 'serviceOrders'),
           where('userId', '==', user.uid),
-          where('isTemplate', '==', false),
+          // where('isTemplate', '==', false), // Removed to prevent composite index requirement
           orderBy('createdAt', 'desc')
       );
 
@@ -77,7 +77,9 @@ export default function ServicosPage() {
 
       try {
           const snapshot = await getDocs(q);
-          const newOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
+          const newOrders = snapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
+            .filter(order => !order.isTemplate); // Filter client-side
           
           if (!snapshot.empty) {
               setServiceOrders(newOrders);
