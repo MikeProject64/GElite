@@ -5,7 +5,7 @@ import { useEffect, useState, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSettings, CustomField } from '@/components/settings-provider';
+import { useSettings, CustomField, Tag } from '@/components/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { availableIcons } from '@/components/icon-map';
 import { v4 as uuidv4 } from 'uuid';
@@ -15,11 +15,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import React from 'react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -30,6 +32,18 @@ const settingsFormSchema = z.object({
 });
 
 type SettingsFormValues = z.infer<typeof settingsFormSchema>;
+
+const tagColors: { name: string, value: string }[] = [
+    { name: 'Padrão', value: 'bg-muted text-muted-foreground border-border' },
+    { name: 'Vermelho', value: 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/40 dark:text-red-300 dark:border-red-800' },
+    { name: 'Laranja', value: 'bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-900/40 dark:text-orange-300 dark:border-orange-800' },
+    { name: 'Amarelo', value: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/40 dark:text-amber-300 dark:border-amber-800' },
+    { name: 'Verde', value: 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/40 dark:text-green-300 dark:border-green-800' },
+    { name: 'Azul', value: 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/40 dark:text-blue-300 dark:border-blue-800' },
+    { name: 'Índigo', value: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800' },
+    { name: 'Roxo', value: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800' },
+    { name: 'Rosa', value: 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800' },
+];
 
 interface CustomFieldManagerProps {
   title: string;
@@ -102,6 +116,73 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
     );
 });
 CustomFieldManager.displayName = "CustomFieldManager";
+
+const CustomTagManager: React.FC<{ tags: Tag[], onUpdateTags: (tags: Tag[]) => void }> = memo(({ tags, onUpdateTags }) => {
+    const [newTagName, setNewTagName] = useState('');
+    const [newTagColor, setNewTagColor] = useState(tagColors[0].value);
+
+    const handleAddTag = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (newTagName.trim() === '') return;
+        const newTag: Tag = {
+            id: uuidv4(),
+            name: newTagName.trim(),
+            color: newTagColor,
+        };
+        onUpdateTags([...tags, newTag]);
+        setNewTagName('');
+    };
+
+    const handleRemoveTag = (id: string) => {
+        onUpdateTags(tags.filter(tag => tag.id !== id));
+    };
+
+    return (
+        <Card className="mt-4">
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-lg"><TagIcon className="h-5 w-5 text-primary" /> Etiquetas de Cliente</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <form onSubmit={handleAddTag} className="flex items-end gap-2 mb-4">
+                    <div className="grid gap-1.5 flex-grow">
+                        <Label htmlFor="new-tag-name">Nome da Etiqueta</Label>
+                        <Input id="new-tag-name" value={newTagName} onChange={e => setNewTagName(e.target.value)} placeholder="Ex: Cliente VIP" />
+                    </div>
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="new-tag-color">Cor</Label>
+                        <Select value={newTagColor} onValueChange={setNewTagColor}>
+                            <SelectTrigger id="new-tag-color" className="w-[120px]">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {tagColors.map(color => (
+                                    <SelectItem key={color.value} value={color.value}>
+                                        <div className='flex items-center gap-2'>
+                                            <div className={cn('w-3 h-3 rounded-full border', color.value)}></div>
+                                            {color.name}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <Button type="submit" size="icon" variant="outline"><PlusCircle className="h-4 w-4" /></Button>
+                </form>
+                <div className="space-y-2">
+                    {tags.length > 0 ? tags.map(tag => (
+                        <div key={tag.id} className="flex items-center justify-between p-2 rounded-md bg-muted/50">
+                            <Badge variant="outline" className={cn('font-medium', tag.color)}>{tag.name}</Badge>
+                            <Button size="icon" variant="ghost" onClick={() => handleRemoveTag(tag.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </div>
+                    )) : (
+                        <p className="text-sm text-center text-muted-foreground py-4">Nenhuma etiqueta criada.</p>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
+    );
+});
+CustomTagManager.displayName = "CustomTagManager";
 
 const CustomStatusManager = () => {
     const { settings, updateSettings } = useSettings();
@@ -196,6 +277,10 @@ export default function ConfiguracoesPage() {
 
   const handleUpdateQuoteFields = (fields: CustomField[]) => {
     updateSettings({ quoteCustomFields: fields });
+  };
+
+  const handleUpdateTags = (tags: Tag[]) => {
+    updateSettings({ tags: tags });
   };
 
   return (
@@ -310,6 +395,10 @@ export default function ConfiguracoesPage() {
                         </div>
                     ) : (
                         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                           <CustomTagManager
+                                tags={settings.tags || []}
+                                onUpdateTags={handleUpdateTags}
+                            />
                             <CustomFieldManager
                                 title="Campos para Clientes"
                                 icon={<Users className="h-5 w-5 text-primary" />}

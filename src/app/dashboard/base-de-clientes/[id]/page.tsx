@@ -23,6 +23,7 @@ import { useSettings } from '@/components/settings-provider';
 import { Loader2, ArrowLeft, User, Mail, Phone, Home, History, Save, ClipboardList, Info, MessageSquare, Wrench, FileText, UserPlus } from 'lucide-react';
 import Link from 'next/link';
 import { Customer, ServiceOrder, Quote, TimelineNote, TimelineItem } from '@/types';
+import { cn } from '@/lib/utils';
 
 
 const notesSchema = z.object({
@@ -285,8 +286,19 @@ export default function ClienteDetailPage() {
       
       <Card>
         <CardHeader>
-            <CardTitle>{customer.name}</CardTitle>
-            <CardDescription>Informações de contato e pessoais.</CardDescription>
+            <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                    <CardTitle>{customer.name}</CardTitle>
+                    <CardDescription>Informações de contato e pessoais.</CardDescription>
+                </div>
+                 <div className="flex flex-wrap gap-2">
+                    {customer.tagIds?.map(tagId => {
+                        const tag = settings.tags?.find(t => t.id === tagId);
+                        if (!tag) return null;
+                        return <Badge key={tag.id} variant="outline" className={cn(tag.color)}>{tag.name}</Badge>
+                    })}
+                </div>
+            </div>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-2 gap-x-6 gap-y-4">
             <div className="flex items-center gap-3"><Phone className="h-4 w-4 text-muted-foreground" /><span>{customer.phone || 'Não informado'}</span></div>
@@ -353,5 +365,3 @@ export default function ClienteDetailPage() {
     </div>
   );
 }
-
-    

@@ -1,6 +1,12 @@
 
 import type { Timestamp } from 'firebase/firestore';
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string; // Stores the Tailwind CSS class for the color
+}
+
 export interface CustomField {
   id: string;
   name: string;
@@ -15,6 +21,7 @@ export interface UserSettings {
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
+  tags?: Tag[];
 }
 
 export interface Collaborator {
@@ -39,6 +46,7 @@ export interface Customer {
   notes?: string;
   createdAt: Timestamp;
   customFields?: CustomFields;
+  tagIds?: string[];
 }
 
 type CustomFields = Record<string, any>;

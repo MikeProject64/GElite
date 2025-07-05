@@ -27,9 +27,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen } from 'lucide-react';
+import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter } from 'lucide-react';
 import { Customer } from '@/types';
 import { Separator } from '@/components/ui/separator';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
 
 const customerFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
@@ -40,6 +42,7 @@ const customerFormSchema = z.object({
   birthDate: z.date().optional().nullable(),
   notes: z.string().optional(),
   customFields: z.record(z.any()).optional(),
+  tagIds: z.array(z.string()).optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -55,7 +58,9 @@ export default function BaseDeClientesPage() {
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
+  
   const [searchTerm, setSearchTerm] = useState('');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -68,6 +73,7 @@ export default function BaseDeClientesPage() {
       birthDate: null,
       notes: '',
       customFields: {},
+      tagIds: [],
     },
   });
 
@@ -103,29 +109,33 @@ export default function BaseDeClientesPage() {
             ...editingCustomer,
             birthDate: editingCustomer.birthDate ? editingCustomer.birthDate.toDate() : null,
             customFields: editingCustomer.customFields || {},
+            tagIds: editingCustomer.tagIds || [],
         };
         form.reset(defaultValues);
       } else {
         form.reset({
           name: '', phone: '', email: '', address: '',
-          cpfCnpj: '', birthDate: null, notes: '', customFields: {}
+          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagIds: []
         });
       }
     }
   }, [isDialogOpen, editingCustomer, form]);
 
-
   const filteredCustomers = useMemo(() => {
-    if (!searchTerm) {
-      return customers;
-    }
-    return customers.filter(customer =>
-      customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (customer.cpfCnpj && customer.cpfCnpj.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  }, [customers, searchTerm]);
+    return customers.filter(customer => {
+        const searchMatch = !searchTerm || (
+            customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            customer.phone.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+            (customer.cpfCnpj && customer.cpfCnpj.toLowerCase().includes(searchTerm.toLowerCase()))
+        );
+
+        const tagsMatch = tagFilter.length === 0 || 
+            tagFilter.every(tagId => customer.tagIds?.includes(tagId));
+        
+        return searchMatch && tagsMatch;
+    });
+  }, [customers, searchTerm, tagFilter]);
 
   const handleAddNew = () => {
     setEditingCustomer(null);
@@ -210,6 +220,9 @@ export default function BaseDeClientesPage() {
       });
     }
   };
+  
+  const getTagById = (id: string) => settings.tags?.find(t => t.id === id);
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -254,6 +267,69 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )}/>
+                
+                 <FormField
+                    control={form.control}
+                    name="tagIds"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Etiquetas</FormLabel>
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <FormControl>
+                                        <Button
+                                            variant="outline"
+                                            role="combobox"
+                                            className={cn(
+                                                "w-full justify-between h-auto",
+                                                !field.value?.length && "text-muted-foreground"
+                                            )}
+                                        >
+                                            <div className="flex gap-1 flex-wrap">
+                                                {field.value?.length > 0 ? (
+                                                    field.value.map(tagId => {
+                                                        const tag = getTagById(tagId);
+                                                        return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
+                                                    })
+                                                ) : (
+                                                    "Selecione etiquetas"
+                                                )}
+                                            </div>
+                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                        </Button>
+                                    </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-full p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar etiquetas..." />
+                                        <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
+                                        <CommandGroup>
+                                            <CommandList>
+                                                {settings.tags?.map(tag => (
+                                                    <CommandItem
+                                                        key={tag.id}
+                                                        onSelect={() => {
+                                                            const currentTagIds = field.value || [];
+                                                            const newTagIds = currentTagIds.includes(tag.id)
+                                                                ? currentTagIds.filter(id => id !== tag.id)
+                                                                : [...currentTagIds, tag.id];
+                                                            field.onChange(newTagIds);
+                                                        }}
+                                                    >
+                                                        <Check className={cn("mr-2 h-4 w-4", field.value?.includes(tag.id) ? "opacity-100" : "opacity-0")} />
+                                                        <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandList>
+                                        </CommandGroup>
+                                    </Command>
+                                </PopoverContent>
+                            </Popover>
+                             <FormMessage />
+                        </FormItem>
+                    )}
+                 />
+
                 <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Endereço</FormLabel>
@@ -352,8 +428,8 @@ export default function BaseDeClientesPage() {
           <CardDescription>Cadastre, pesquise e gerencie as informações dos seus clientes.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-             <div className="relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search-customer"
@@ -362,6 +438,50 @@ export default function BaseDeClientesPage() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+            </div>
+            <div className="relative">
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="outline" className="w-full justify-start">
+                           <Filter className="mr-2 h-4 w-4" />
+                           <div className='flex-1 text-left truncate'>
+                            {tagFilter.length > 0 ? `Filtrando por ${tagFilter.length} etiqueta(s)` : 'Filtrar por etiquetas'}
+                           </div>
+                           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="end">
+                         <Command>
+                            <CommandInput placeholder="Buscar etiquetas..." />
+                            <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
+                            <CommandGroup>
+                                <CommandList>
+                                    {settings.tags?.map(tag => (
+                                        <CommandItem
+                                            key={tag.id}
+                                            onSelect={() => {
+                                                const newTagFilter = tagFilter.includes(tag.id)
+                                                    ? tagFilter.filter(id => id !== tag.id)
+                                                    : [...tagFilter, tag.id];
+                                                setTagFilter(newTagFilter);
+                                            }}
+                                        >
+                                            <Check className={cn("mr-2 h-4 w-4", tagFilter.includes(tag.id) ? "opacity-100" : "opacity-0")} />
+                                            <Badge variant="outline" className={cn(tag.color)}>{tag.name}</Badge>
+                                        </CommandItem>
+                                    ))}
+                                </CommandList>
+                            </CommandGroup>
+                            {tagFilter.length > 0 && (
+                                <CommandGroup>
+                                    <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center">
+                                        Limpar filtros
+                                    </CommandItem>
+                                </CommandGroup>
+                            )}
+                        </Command>
+                    </PopoverContent>
+                </Popover>
             </div>
           </div>
           {isLoading ? (
@@ -373,7 +493,7 @@ export default function BaseDeClientesPage() {
                 <Users className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhum cliente encontrado.</h3>
                 <p className="text-sm text-muted-foreground">
-                  {searchTerm ? "Tente um termo de busca diferente." : "Comece adicionando seu primeiro cliente."}
+                  {searchTerm || tagFilter.length > 0 ? "Tente um filtro ou termo de busca diferente." : "Comece adicionando seu primeiro cliente."}
                 </p>
             </div>
           ) : (
@@ -382,8 +502,8 @@ export default function BaseDeClientesPage() {
                 <TableHeader>
                 <TableRow>
                     <TableHead>Cliente</TableHead>
+                    <TableHead>Etiquetas</TableHead>
                     <TableHead className="hidden md:table-cell">Contato</TableHead>
-                    <TableHead className="hidden lg:table-cell">CPF/CNPJ</TableHead>
                     <TableHead className="hidden md:table-cell">Cadastro</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
@@ -395,11 +515,18 @@ export default function BaseDeClientesPage() {
                         <Link href={`/dashboard/base-de-clientes/${customer.id}`} className="font-medium hover:underline">{customer.name}</Link>
                         <div className="text-sm text-muted-foreground md:hidden">{customer.phone}</div>
                     </TableCell>
+                    <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                            {customer.tagIds?.map(tagId => {
+                                const tag = getTagById(tagId);
+                                return tag ? <Badge key={tag.id} variant="outline" className={cn(tag.color)}>{tag.name}</Badge> : null;
+                            })}
+                        </div>
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
                         <div>{customer.phone}</div>
                         <div className="text-xs text-muted-foreground">{customer.email}</div>
                     </TableCell>
-                    <TableCell className="hidden lg:table-cell">{customer.cpfCnpj || 'N/A'}</TableCell>
                     <TableCell className="hidden md:table-cell">{customer.createdAt? format(customer.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                     <TableCell>
                         <DropdownMenu>

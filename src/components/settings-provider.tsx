@@ -6,6 +6,12 @@ import { useAuth } from './auth-provider';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
+export interface Tag {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface CustomField {
   id: string;
   name: string;
@@ -15,6 +21,7 @@ export interface CustomField {
 export interface UserSettings {
   siteName: string;
   iconName: string;
+  tags?: Tag[];
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
@@ -34,6 +41,7 @@ const defaultSettings: UserSettings = {
   serviceOrderCustomFields: [],
   quoteCustomFields: [],
   serviceStatuses: ['Pendente', 'Em Andamento', 'Aguardando Peça', 'Concluída', 'Cancelada'],
+  tags: [],
 };
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -83,6 +91,9 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         }
         if (!newSettings.quoteCustomFields) {
             newSettings.quoteCustomFields = defaultSettings.quoteCustomFields;
+        }
+        if (!newSettings.tags) {
+            newSettings.tags = defaultSettings.tags;
         }
 
 
