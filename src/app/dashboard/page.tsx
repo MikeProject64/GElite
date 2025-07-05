@@ -19,6 +19,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { QuickActions } from '@/components/dashboard/quick-actions';
+import { useSettings } from '@/components/settings-provider';
 
 interface SearchResult {
   id: string;
@@ -64,6 +65,7 @@ const getStatusColor = (status: string) => {
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { settings } = useSettings();
   const router = useRouter();
 
   // Page data state
@@ -85,7 +87,7 @@ export default function DashboardPage() {
     setLoading(true);
 
     try {
-        const activeStatuses = ['Pendente', 'Em Andamento', 'Aguardando Peça'];
+        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento', 'Aguardando Peça'];
         
         // --- Fetch for Stats and Charts ---
         const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
@@ -106,7 +108,12 @@ export default function DashboardPage() {
         // Process stats
         const activeCount = allOrders.filter(o => activeStatuses.includes(o.status)).length;
         const customerCount = customersSnap.size;
-        const overdueCount = allOrders.filter(o => !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+        
+        const overdueCount = allOrders.filter(o => {
+          if (!o.dueDate || typeof o.dueDate.toDate !== 'function') return false;
+          return !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate());
+        }).length;
+        
         const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
 
         setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
@@ -124,13 +131,14 @@ export default function DashboardPage() {
         }));
 
         // 2. Monthly Revenue Bar Chart
-        const completedOrders = allOrders.filter(o => o.status === 'Concluída' && o.completedAt);
         const sixMonthsAgo = subMonths(new Date(), 5);
-        const monthlyRevenueMap = completedOrders.reduce((acc, order) => {
-            const completionDate = order.completedAt!.toDate();
-            if (completionDate >= startOfMonth(sixMonthsAgo)) {
-                const monthKey = format(completionDate, 'yyyy-MM');
-                acc[monthKey] = (acc[monthKey] || 0) + order.totalValue;
+        const monthlyRevenueMap = allOrders.reduce((acc, order) => {
+            if (order.status === 'Concluída' && order.completedAt && typeof order.completedAt.toDate === 'function') {
+                const completionDate = order.completedAt.toDate();
+                if (completionDate >= startOfMonth(sixMonthsAgo)) {
+                    const monthKey = format(completionDate, 'yyyy-MM');
+                    acc[monthKey] = (acc[monthKey] || 0) + order.totalValue;
+                }
             }
             return acc;
         }, {} as Record<string, number>);
@@ -164,7 +172,7 @@ export default function DashboardPage() {
     } finally {
         setLoading(false);
     }
-  }, [user]);
+  }, [user, settings]);
   
   useEffect(() => {
     fetchDashboardData();
