@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -227,7 +227,7 @@ export default function DashboardPage() {
       
       const quoteResults: SearchResult[] = quotesSnap.docs
         .map(doc => ({ ...doc.data(), id: doc.id } as Quote))
-        .filter(q => (q.clientName && q.clientName.toLowerCase().includes(lowerTerm)) || (q.id && q.id.toLowerCase().includes(lowerTerm)))
+        .filter(q => (q.title && q.title.toLowerCase().includes(lowerTerm)) || (q.clientName && q.clientName.toLowerCase().includes(lowerTerm)) || (q.id && q.id.toLowerCase().includes(lowerTerm)))
         .map(doc => ({ id: doc.id, type: 'Orçamento', title: `Orçamento para ${doc.clientName}`, description: `ID: ...${doc.id.slice(-4)}`, href: `/dashboard/orcamentos/${doc.id}` }))
         .slice(0, 5);
       
@@ -268,6 +268,7 @@ export default function DashboardPage() {
       case 'Cliente': return <Users className="h-4 w-4 text-muted-foreground" />;
       case 'Serviço': return <Wrench className="h-4 w-4 text-muted-foreground" />;
       case 'Orçamento': return <FileText className="h-4 w-4 text-muted-foreground" />;
+      case 'Colaborador': return <Briefcase className="h-4 w-4 text-muted-foreground" />;
       default: return null;
     }
   };
@@ -392,16 +393,6 @@ export default function DashboardPage() {
                             </div>
                         </PopoverTrigger>
                         <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
-                           <div className="p-2 border-b">
-                             <Input
-                                placeholder="Buscar em todo o sistema..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                autoFocus
-                                className="pl-8"
-                              />
-                              <Search className="absolute left-5 top-4.5 h-4 w-4 text-muted-foreground" />
-                           </div>
                            <ScrollArea className="h-60">
                                 {searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}
                                 {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
@@ -436,7 +427,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    
