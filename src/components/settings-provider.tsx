@@ -21,11 +21,12 @@ export interface CustomField {
 export interface UserSettings {
   siteName: string;
   iconName: string;
-  tags?: Tag[];
+  logoURL?: string;
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
+  tags?: Tag[];
 }
 
 interface SettingsContextType {
