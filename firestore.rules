@@ -16,15 +16,35 @@ service cloud.firestore {
       allow read, write: if isOwner(userId);
     }
 
-    // Generic rule for all user-owned content collections.
-    // This applies to customers, serviceOrders, inventory, quotes, and managers.
-    match /{collection}/{docId}
-      where collection in ['customers', 'serviceOrders', 'inventory', 'quotes', 'managers'] {
-      
-      // Allow read, update, and delete if the user is the owner of the existing document.
+    // Rules for user-owned content collections.
+    
+    // Customers
+    match /customers/{customerId} {
       allow read, update, delete: if isOwner(resource.data.userId);
-      
-      // Allow creation if the user is setting themselves as the owner of the new document.
+      allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    // Service Orders
+    match /serviceOrders/{orderId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    // Inventory
+    match /inventory/{itemId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+    
+    // Quotes
+    match /quotes/{quoteId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    // Managers
+    match /managers/{managerId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
   }
