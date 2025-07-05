@@ -77,6 +77,8 @@ export interface ServiceOrder {
     completedAt?: Timestamp | null;
     customFields?: CustomFields;
     activityLog?: ActivityLogEntry[];
+    isTemplate?: boolean;
+    templateName?: string;
 }
 
 export interface Quote {

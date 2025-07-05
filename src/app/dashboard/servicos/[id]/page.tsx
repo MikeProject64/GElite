@@ -3,7 +3,7 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion, collection, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, Timestamp, arrayUnion, collection, query, where, orderBy, getDoc, addDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '@/lib/firebase';
 import { v4 as uuidv4 } from 'uuid';
@@ -11,6 +11,9 @@ import Link from 'next/link';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,12 +24,19 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save } from 'lucide-react';
 import { ServiceOrder, Collaborator, Customer } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+
+
+const templateFormSchema = z.object({
+  templateName: z.string().min(3, { message: 'O nome do modelo deve ter pelo menos 3 caracteres.' }),
+});
+type TemplateFormValues = z.infer<typeof templateFormSchema>;
 
 const WhatsAppIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="mr-2 h-4 w-4" viewBox="0 0 16 16">
@@ -63,8 +73,14 @@ export default function ServicoDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [previewFile, setPreviewFile] = useState<{ name: string; url: string; } | null>(null);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
 
   const orderId = Array.isArray(id) ? id[0] : id;
+
+  const templateForm = useForm<TemplateFormValues>({
+    resolver: zodResolver(templateFormSchema),
+    defaultValues: { templateName: '' },
+  });
 
   useEffect(() => {
     if (!orderId) return;
@@ -74,7 +90,13 @@ export default function ServicoDetailPage() {
 
     const unsubscribe = onSnapshot(orderRef, (docSnap) => {
       if (docSnap.exists()) {
-        setOrder({ id: docSnap.id, ...docSnap.data() } as ServiceOrder);
+        const orderData = { id: docSnap.id, ...docSnap.data() } as ServiceOrder;
+        if (orderData.isTemplate) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Este é um modelo, não uma ordem de serviço.' });
+            router.push('/dashboard/servicos/modelos');
+            return;
+        }
+        setOrder(orderData);
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Ordem de serviço não encontrada.' });
         router.push('/dashboard/servicos');
@@ -226,6 +248,28 @@ export default function ServicoDetailPage() {
     window.open(whatsappUrl, '_blank');
     toast({ title: "Redirecionando", description: "Abrindo o WhatsApp em uma nova aba." });
   };
+  
+  const handleSaveAsTemplate = async ({templateName}: TemplateFormValues) => {
+    if (!order || !user) return;
+    try {
+        const templateData = { ...order, isTemplate: true, templateName };
+        
+        delete (templateData as any).id;
+        delete (templateData as any).clientId;
+        delete (templateData as any).clientName;
+        delete (templateData as any).activityLog;
+
+        await addDoc(collection(db, 'serviceOrders'), templateData);
+
+        toast({ title: 'Sucesso!', description: 'Modelo de serviço salvo.' });
+        setIsTemplateModalOpen(false);
+        router.push('/dashboard/servicos/modelos');
+    } catch (error) {
+        console.error("Error saving service template:", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar o modelo de serviço.' });
+    }
+  };
+
 
   const renderPreview = (file: { name: string; url: string; } | null) => {
     if (!file) return null;
@@ -380,10 +424,14 @@ export default function ServicoDetailPage() {
                     <p className="text-muted-foreground bg-secondary/50 p-4 rounded-md whitespace-pre-wrap">{order.problemDescription}</p>
                 </div>
               </CardContent>
-               <CardFooter className="justify-end gap-2">
+               <CardFooter className="justify-end gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={handleSendWhatsApp} disabled={!customerPhone}>
                         <WhatsAppIcon />
                         Enviar por WhatsApp
+                    </Button>
+                    <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar como Modelo
                     </Button>
                     <Button variant="secondary" size="sm" asChild>
                         <Link href={`/print/servico/${order.id}`} target="_blank">
@@ -502,6 +550,41 @@ export default function ServicoDetailPage() {
           </div>
         </DialogContent>
       </Dialog>
+      
+        <Dialog open={isTemplateModalOpen} onOpenChange={setIsTemplateModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Salvar como Modelo de Serviço</DialogTitle>
+                    <DialogDescription>
+                        Dê um nome para este modelo para usá-lo facilmente no futuro.
+                    </DialogDescription>
+                </DialogHeader>
+                 <Form {...templateForm}>
+                    <form onSubmit={templateForm.handleSubmit(handleSaveAsTemplate)} className="space-y-4">
+                       <FormField
+                        control={templateForm.control}
+                        name="templateName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Nome do Modelo</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Ex: Instalação Padrão de Câmera" {...field} />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                       <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => setIsTemplateModalOpen(false)}>Cancelar</Button>
+                            <Button type="submit" disabled={templateForm.formState.isSubmitting}>
+                                {templateForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                Salvar Modelo
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

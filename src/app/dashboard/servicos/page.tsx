@@ -19,7 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Trash2, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { ServiceOrder } from '@/types';
@@ -63,6 +63,7 @@ export default function ServicosPage() {
       const baseQuery = query(
           collection(db, 'serviceOrders'),
           where('userId', '==', user.uid),
+          where('isTemplate', '==', false),
           orderBy('createdAt', 'desc')
       );
 
@@ -97,12 +98,16 @@ export default function ServicosPage() {
              setPage(1);
           }
 
-      } catch (error) {
+      } catch (error: any) {
           console.error("Error fetching service orders: ", error);
+          let description = "Não foi possível carregar as ordens de serviço.";
+          if (error.code === 'failed-precondition' && error.message.includes('index')) {
+              description = "A consulta ao banco de dados requer um índice. Por favor, clique no link no console de depuração do navegador para criá-lo.";
+          }
           toast({
               variant: "destructive",
               title: "Erro ao buscar dados",
-              description: "Não foi possível carregar as ordens de serviço.",
+              description,
           });
       } finally {
           setIsLoading(false);
@@ -156,14 +161,24 @@ export default function ServicosPage() {
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold md:text-2xl">Serviços</h1>
-        <Button size="sm" className="h-8 gap-1" asChild>
-            <Link href="/dashboard/servicos/criar">
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Nova Ordem de Serviço
-                </span>
-            </Link>
-        </Button>
+        <div className='flex gap-2'>
+             <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/servicos/modelos">
+                    <LayoutTemplate className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Modelos
+                    </span>
+                </Link>
+            </Button>
+            <Button size="sm" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/servicos/criar">
+                    <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                        Nova Ordem de Serviço
+                    </span>
+                </Link>
+            </Button>
+        </div>
       </div>
 
        <Card>

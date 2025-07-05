@@ -160,6 +160,7 @@ export default function OrcamentoDetailPage() {
             createdAt: Timestamp.now(),
             customFields: quote.customFields || {},
             completedAt: null,
+            isTemplate: false,
             activityLog: [{
                 timestamp: Timestamp.now(),
                 userEmail: user?.email || 'Sistema',

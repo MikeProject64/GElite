@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -30,7 +30,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Customer, Collaborator } from '@/types';
+import { Customer, Collaborator, ServiceOrder } from '@/types';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -57,15 +57,17 @@ const newCustomerSchema = z.object({
 type ServiceOrderValues = z.infer<typeof serviceOrderSchema>;
 type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 
-export default function CriarOrdemDeServicoPage() {
+function CreateServiceOrderForm() {
   const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { settings } = useSettings();
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
@@ -73,7 +75,7 @@ export default function CriarOrdemDeServicoPage() {
   
   const [requiredSkills, setRequiredSkills] = useState<string[]>([]);
 
-  const serviceOrderForm = useForm<ServiceOrderValues>({
+  const form = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: {
       clientId: '',
@@ -86,6 +88,39 @@ export default function CriarOrdemDeServicoPage() {
       customFields: {},
     },
   });
+
+  useEffect(() => {
+    const templateId = searchParams.get('templateId');
+    const fetchTemplate = async () => {
+        if (!templateId) {
+            setIsInitializing(false);
+            return;
+        }
+
+        const templateRef = doc(db, 'serviceOrders', templateId);
+        const templateSnap = await getDoc(templateRef);
+        if(templateSnap.exists()) {
+            const templateData = templateSnap.data() as ServiceOrder;
+             form.reset({
+                ...form.getValues(), // keep client id if already selected
+                serviceType: templateData.serviceType,
+                problemDescription: templateData.problemDescription,
+                totalValue: templateData.totalValue,
+                collaboratorId: templateData.collaboratorId,
+                status: templateData.status,
+                dueDate: templateData.dueDate.toDate(),
+                customFields: templateData.customFields || {},
+            });
+            toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido.`});
+        } else {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
+        }
+        setIsInitializing(false);
+    }
+    fetchTemplate();
+  }, [searchParams, form, toast]);
+
+
   const newCustomerForm = useForm<NewCustomerValues>({
     resolver: zodResolver(newCustomerSchema),
     defaultValues: {
@@ -147,7 +182,7 @@ export default function CriarOrdemDeServicoPage() {
         createdAt: Timestamp.now(),
       });
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      serviceOrderForm.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
+      form.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
       setIsNewClientDialogOpen(false);
     } catch (error) {
       toast({ variant: "destructive", title: "Erro", description: "Falha ao cadastrar o cliente." });
@@ -180,6 +215,7 @@ export default function CriarOrdemDeServicoPage() {
         createdAt: Timestamp.now(),
         completedAt: data.status === 'Concluída' ? Timestamp.now() : null,
         attachments: [],
+        isTemplate: false,
         activityLog: [{
             timestamp: Timestamp.now(),
             userEmail: user?.email || 'Sistema',
@@ -208,27 +244,27 @@ export default function CriarOrdemDeServicoPage() {
         c.type === 'collaborator' && requiredSkills.every(skillId => c.skillIds?.includes(skillId))
     );
   }, [collaborators, requiredSkills]);
+  
+  if (isInitializing) {
+    return (
+        <div className="flex justify-center items-center h-64">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+    );
+  }
+
 
   return (
-    <div className="flex flex-col gap-4">
-       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/dashboard/servicos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
-        </Button>
-        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
-            <FilePlus className='h-5 w-5' />
-            Criar Nova Ordem de Serviço
-        </h1>
-      </div>
+    <>
       <Card>
         <CardHeader>
             <CardTitle>Detalhes da Ordem de Serviço</CardTitle>
             <CardDescription>Preencha os detalhes abaixo para criar uma nova ordem de serviço.</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...serviceOrderForm}>
-            <form onSubmit={serviceOrderForm.handleSubmit(onServiceOrderSubmit)} className="space-y-6">
-               <FormField control={serviceOrderForm.control} name="clientId" render={({ field }) => (
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onServiceOrderSubmit)} className="space-y-6">
+               <FormField control={form.control} name="clientId" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
@@ -283,10 +319,10 @@ export default function CriarOrdemDeServicoPage() {
                   <FormMessage />
                 </FormItem>
               )}/>
-              <FormField control={serviceOrderForm.control} name="serviceType" render={({ field }) => (
+              <FormField control={form.control} name="serviceType" render={({ field }) => (
                 <FormItem><FormLabel>Serviço *</FormLabel><FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
-              <FormField control={serviceOrderForm.control} name="problemDescription" render={({ field }) => (
+              <FormField control={form.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
                <FormItem>
@@ -340,10 +376,10 @@ export default function CriarOrdemDeServicoPage() {
                         </PopoverContent>
                     </Popover>
               </FormItem>
-               <FormField control={serviceOrderForm.control} name="collaboratorId" render={({ field }) => (
+               <FormField control={form.control} name="collaboratorId" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Colaborador / Setor *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
                     <SelectContent>
                       {requiredSkills.length > 0 ? (
@@ -364,7 +400,7 @@ export default function CriarOrdemDeServicoPage() {
                   <FormMessage />
                 </FormItem>
               )}/>
-               <FormField control={serviceOrderForm.control} name="totalValue" render={({ field }) => (
+               <FormField control={form.control} name="totalValue" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Valor Total *</FormLabel>
                   <FormControl>
@@ -376,7 +412,7 @@ export default function CriarOrdemDeServicoPage() {
                   <FormMessage />
                 </FormItem>
               )}/>
-              <FormField control={serviceOrderForm.control} name="dueDate" render={({ field }) => (
+              <FormField control={form.control} name="dueDate" render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Data de Vencimento *</FormLabel>
                   <Popover>
@@ -397,10 +433,10 @@ export default function CriarOrdemDeServicoPage() {
                   <FormMessage />
                 </FormItem>
               )}/>
-              <FormField control={serviceOrderForm.control} name="status" render={({ field }) => (
+              <FormField control={form.control} name="status" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Status *</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
                     <SelectContent>
                       {settings.serviceStatuses?.map(status => (
@@ -419,7 +455,7 @@ export default function CriarOrdemDeServicoPage() {
                         {settings.serviceOrderCustomFields.map((customField) => (
                            <FormField
                                 key={customField.id}
-                                control={serviceOrderForm.control}
+                                control={form.control}
                                 name={`customFields.${customField.id}`}
                                 render={({ field }) => (
                                     <FormItem>
@@ -452,8 +488,8 @@ export default function CriarOrdemDeServicoPage() {
 
               <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/servicos')}>Cancelar</Button>
-                  <Button type="submit" disabled={serviceOrderForm.formState.isSubmitting}>
-                      {serviceOrderForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  <Button type="submit" disabled={form.formState.isSubmitting}>
+                      {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Salvar Ordem de Serviço
                   </Button>
               </div>
@@ -480,8 +516,30 @@ export default function CriarOrdemDeServicoPage() {
             </Form>
         </DialogContent>
     </Dialog>
-    </div>
+    </>
   );
 }
 
-    
+
+export default function CriarServicoPage() {
+    return (
+        <Suspense fallback={
+            <div className="flex justify-center items-center h-64">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        }>
+            <div className="flex flex-col gap-4">
+                <div className="flex items-center gap-4">
+                    <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                    <Link href="/dashboard/servicos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
+                    </Button>
+                    <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
+                        <FilePlus className='h-5 w-5' />
+                        Criar Nova Ordem de Serviço
+                    </h1>
+                </div>
+                <CreateServiceOrderForm />
+            </div>
+        </Suspense>
+    )
+}
