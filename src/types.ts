@@ -82,6 +82,8 @@ export interface Quote {
   customFields?: CustomFields;
   isTemplate?: boolean;
   templateName?: string;
+  originalQuoteId?: string;
+  version?: number;
 }
 
 export interface RecentActivity {

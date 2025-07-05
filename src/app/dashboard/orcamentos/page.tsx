@@ -51,7 +51,6 @@ export default function OrcamentosPage() {
   const [filters, setFilters] = useState({ status: '', clientName: '' });
 
   useEffect(() => {
-    // Check for status filter from URL params on initial load
     const statusFromUrl = searchParams.get('status');
     if (statusFromUrl) {
       setFilters(prev => ({ ...prev, status: statusFromUrl }));
@@ -67,7 +66,7 @@ export default function OrcamentosPage() {
       const quoteList = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Quote)).filter(q => !q.isTemplate); // Filter out templates on the client-side
+      } as Quote)).filter(q => !q.isTemplate);
       setQuotes(quoteList);
       setIsLoading(false);
     }, (error: any) => {
@@ -83,17 +82,34 @@ export default function OrcamentosPage() {
     return () => unsubscribe();
   }, [user, toast]);
 
+  const latestQuotes = useMemo(() => {
+    if (quotes.length === 0) return [];
+    
+    const quotesByOriginalId = new Map<string, Quote>();
+
+    quotes.forEach(quote => {
+        const originalId = quote.originalQuoteId || quote.id;
+        const existing = quotesByOriginalId.get(originalId);
+
+        if (!existing || (quote.version || 1) > (existing.version || 1)) {
+            quotesByOriginalId.set(originalId, quote);
+        }
+    });
+
+    return Array.from(quotesByOriginalId.values());
+  }, [quotes]);
+
   const filteredQuotes = useMemo(() => {
-    return quotes.filter(quote => {
+    return latestQuotes.filter(quote => {
         const statusMatch = filters.status ? quote.status === filters.status : true;
         const clientMatch = filters.clientName ? quote.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
         return statusMatch && clientMatch;
     });
-  }, [quotes, filters]);
+  }, [latestQuotes, filters]);
 
-  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
-    setFilters(prev => ({ ...prev, [filterName]: value }));
-  };
+  const totalQuotesCount = useMemo(() => {
+    return latestQuotes.length;
+  }, [latestQuotes]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -172,7 +188,7 @@ export default function OrcamentosPage() {
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead>ID</TableHead>
+                    <TableHead>ID (Versão)</TableHead>
                     <TableHead>Título / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                     <TableHead className="hidden lg:table-cell">Criação</TableHead>
@@ -185,7 +201,7 @@ export default function OrcamentosPage() {
                     <TableRow key={quote.id}>
                      <TableCell>
                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">
-                          #{quote.id.substring(0, 6).toUpperCase()}
+                          #{quote.id.substring(0, 6).toUpperCase()} (v{quote.version || 1})
                         </Link>
                       </TableCell>
                     <TableCell>
@@ -228,7 +244,7 @@ export default function OrcamentosPage() {
         </CardContent>
          <CardFooter>
           <div className="text-xs text-muted-foreground">
-            Mostrando <strong>{filteredQuotes.length}</strong> de <strong>{quotes.length}</strong> orçamentos.
+            Mostrando <strong>{filteredQuotes.length}</strong> de <strong>{totalQuotesCount}</strong> orçamentos.
           </div>
         </CardFooter>
       </Card>

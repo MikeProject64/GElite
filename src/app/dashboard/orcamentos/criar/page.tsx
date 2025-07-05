@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -60,6 +60,9 @@ function CreateQuoteForm() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
+  const [isVersioning, setIsVersioning] = useState(false);
+  const [baseQuote, setBaseQuote] = useState<Quote | null>(null);
+
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
     defaultValues: {
@@ -79,31 +82,63 @@ function CreateQuoteForm() {
 
   useEffect(() => {
     const templateId = searchParams.get('templateId');
-    if (templateId && user) {
-        const fetchTemplate = async () => {
-            const templateRef = doc(db, 'quotes', templateId);
-            const templateSnap = await getDoc(templateRef);
-            if(templateSnap.exists()) {
-                const templateData = templateSnap.data() as Quote;
-                 form.reset({
-                    title: templateData.title,
-                    description: templateData.description,
-                    totalValue: templateData.totalValue,
-                    customFields: templateData.customFields || {},
-                    validUntil: addDays(new Date(), 7), // Reset valid until
-                    clientId: '', // Reset client
-                });
-                toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
-            } else {
-                toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
-            }
+    const versionOfId = searchParams.get('versionOf');
+
+    const fetchTemplate = async () => {
+        const templateRef = doc(db, 'quotes', templateId!);
+        const templateSnap = await getDoc(templateRef);
+        if(templateSnap.exists()) {
+            const templateData = templateSnap.data() as Quote;
+             form.reset({
+                title: templateData.title,
+                description: templateData.description,
+                totalValue: templateData.totalValue,
+                customFields: templateData.customFields || {},
+                validUntil: addDays(new Date(), 7),
+                clientId: '',
+            });
+            toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
+        } else {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
+        }
+    }
+
+    const fetchBaseQuote = async () => {
+        setIsVersioning(true);
+        const quoteRef = doc(db, 'quotes', versionOfId!);
+        const quoteSnap = await getDoc(quoteRef);
+        if (quoteSnap.exists()) {
+            const data = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+            setBaseQuote(data);
+            form.reset({
+                ...data,
+                validUntil: addDays(new Date(), 7),
+                customFields: Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
+                    const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+                    if (fieldType === 'date' && value && value.toDate) {
+                        (acc as any)[key] = value.toDate();
+                    } else {
+                        (acc as any)[key] = value;
+                    }
+                    return acc;
+                }, {}),
+            });
+            toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version} do orçamento.` });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento base para nova versão não encontrado.' });
+        }
+    }
+
+    if (user) {
+        if (versionOfId) {
+            fetchBaseQuote().finally(() => setIsInitializing(false));
+        } else if (templateId) {
+            fetchTemplate().finally(() => setIsInitializing(false));
+        } else {
             setIsInitializing(false);
         }
-        fetchTemplate();
-    } else {
-        setIsInitializing(false);
     }
-  }, [searchParams, user, form, toast]);
+  }, [searchParams, user, form, toast, settings.quoteCustomFields]);
 
 
   useEffect(() => {
@@ -169,7 +204,7 @@ function CreateQuoteForm() {
             }
        });
 
-      await addDoc(collection(db, 'quotes'), {
+      const payload: Omit<Quote, 'id'> = {
         ...data,
         clientName: selectedCustomer.name,
         validUntil: Timestamp.fromDate(data.validUntil),
@@ -178,8 +213,21 @@ function CreateQuoteForm() {
         status: 'Pendente',
         createdAt: Timestamp.now(),
         isTemplate: false,
-      });
-      toast({ title: "Sucesso!", description: "Orçamento criado." });
+        version: 1,
+      };
+
+      if (isVersioning && baseQuote) {
+        payload.originalQuoteId = baseQuote.originalQuoteId || baseQuote.id;
+        payload.version = (baseQuote.version || 1) + 1;
+      }
+      
+      const docRef = await addDoc(collection(db, 'quotes'), payload);
+
+      if (!isVersioning) {
+        await updateDoc(docRef, { originalQuoteId: docRef.id });
+      }
+
+      toast({ title: "Sucesso!", description: isVersioning ? "Nova versão do orçamento criada." : "Orçamento criado." });
       router.push('/dashboard/orcamentos');
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erro", description: `Falha ao criar o orçamento: ${error.message}` });
@@ -203,8 +251,10 @@ function CreateQuoteForm() {
     <>
       <Card>
         <CardHeader>
-            <CardTitle>Detalhes do Orçamento</CardTitle>
-            <CardDescription>Preencha os detalhes abaixo para criar uma nova proposta.</CardDescription>
+            <CardTitle>{isVersioning ? 'Criar Nova Versão do Orçamento' : 'Detalhes do Orçamento'}</CardTitle>
+            <CardDescription>
+              {isVersioning ? `Criando uma nova versão para o orçamento de ${baseQuote?.clientName}. A versão anterior será mantida no histórico.` : 'Preencha os detalhes abaixo para criar uma nova proposta.'}
+            </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -217,12 +267,12 @@ function CreateQuoteForm() {
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)}>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning}>
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
                   <div className="relative" ref={dropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)} disabled={isVersioning}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>

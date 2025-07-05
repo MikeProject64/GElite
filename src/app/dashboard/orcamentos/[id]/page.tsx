@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ import { useSettings } from '@/components/settings-provider';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import { cn } from '@/lib/utils';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -57,6 +58,7 @@ export default function OrcamentoDetailPage() {
   const { settings } = useSettings();
 
   const [quote, setQuote] = useState<Quote | null>(null);
+  const [quoteVersions, setQuoteVersions] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
@@ -82,6 +84,18 @@ export default function OrcamentoDetailPage() {
             return;
         }
         setQuote(quoteData);
+
+        const originalId = quoteData.originalQuoteId || quoteData.id;
+        const versionsQuery = query(
+            collection(db, 'quotes'),
+            where('originalQuoteId', '==', originalId),
+            orderBy('version', 'desc')
+        );
+        onSnapshot(versionsQuery, (versionSnap) => {
+            const versions = versionSnap.docs.map(d => ({id: d.id, ...d.data()}) as Quote);
+            setQuoteVersions(versions);
+        });
+
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento não encontrado.' });
         router.push('/dashboard/orcamentos');
@@ -109,10 +123,10 @@ export default function OrcamentoDetailPage() {
         const serviceOrderData = {
             clientId: quote.clientId,
             clientName: quote.clientName,
-            problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()}`,
+            problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
             serviceType: quote.title,
             status: 'Pendente',
-            dueDate: Timestamp.fromDate(new Date()), // Define a default due date
+            dueDate: Timestamp.fromDate(new Date()),
             totalValue: quote.totalValue,
             attachments: [],
             userId: user.uid,
@@ -148,12 +162,13 @@ export default function OrcamentoDetailPage() {
             ...quote,
             isTemplate: true,
             templateName: templateName,
-            status: 'Pendente', // Reset status for template
+            status: 'Pendente',
         };
-        // Remove client-specific data
         delete (templateData as any).id;
         delete (templateData as any).clientId;
         delete (templateData as any).clientName;
+        delete (templateData as any).originalQuoteId;
+        delete (templateData as any).version;
         
         await addDoc(collection(db, 'quotes'), templateData);
 
@@ -185,6 +200,7 @@ export default function OrcamentoDetailPage() {
     return settings.quoteCustomFields?.find(f => f.id === fieldId)?.type || 'text';
   }
 
+  const canCreateNewVersion = quote.status === 'Pendente' || quote.status === 'Recusado';
 
   return (
     <div className="flex flex-col gap-6">
@@ -194,7 +210,7 @@ export default function OrcamentoDetailPage() {
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
             <FileText className='h-5 w-5' />
-            Detalhes do Orçamento
+            Detalhes do Orçamento (v{quote.version || 1})
         </h1>
         <Badge variant={getStatusVariant(quote.status)} className="text-base px-3 py-1">{quote.status}</Badge>
       </div>
@@ -256,6 +272,12 @@ export default function OrcamentoDetailPage() {
                 
             </CardContent>
             <CardFooter className="justify-end gap-2">
+                    <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
+                        <Link href={`/dashboard/orcamentos/criar?versionOf=${quote.id}`}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar / Criar Nova Versão
+                        </Link>
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="secondary" size="sm">Ações</Button>
@@ -281,7 +303,7 @@ export default function OrcamentoDetailPage() {
             </Card>
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 flex flex-col gap-6">
             {quote.customFields && Object.keys(quote.customFields).length > 0 && (
                 <Card>
                     <CardHeader>
@@ -305,6 +327,34 @@ export default function OrcamentoDetailPage() {
                     </CardContent>
                 </Card>
             )}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Histórico de Versões</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                    {quoteVersions.length > 0 ? (
+                        quoteVersions.map(v => (
+                            <Link key={v.id} href={`/dashboard/orcamentos/${v.id}`}>
+                                <div className={cn(
+                                    "p-3 rounded-md border cursor-pointer",
+                                    v.id === quote.id ? "bg-muted border-primary" : "hover:bg-muted/50"
+                                )}>
+                                    <div className="flex justify-between items-center font-medium">
+                                        <span>Versão {v.version}</span>
+                                        <span>{formatCurrency(v.totalValue)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                                        <span>{format(v.createdAt.toDate(), 'dd/MM/yy')}</span>
+                                        <Badge variant={getStatusVariant(v.status)}>{v.status}</Badge>
+                                    </div>
+                                </div>
+                            </Link>
+                        ))
+                    ) : (
+                        <p className="text-sm text-muted-foreground text-center py-2">Nenhuma outra versão encontrada.</p>
+                    )}
+                </CardContent>
+            </Card>
         </div>
       </div>
 
