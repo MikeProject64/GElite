@@ -20,10 +20,9 @@ import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle }
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { ServiceOrder, Collaborator } from '@/types';
+import type { ServiceOrder } from '@/types';
 
 
 // Dynamic import for the Calendar component
@@ -93,11 +92,9 @@ export default function PrazosPage() {
     const isMobile = useIsMobile();
     
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
-    const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
-    const [selectedCollaborator, setSelectedCollaborator] = useState<string>('all');
     
     useEffect(() => {
         const filterFromUrl = searchParams.get('filter');
@@ -142,21 +139,6 @@ export default function PrazosPage() {
         return () => unsubscribe();
     }, [user, toast, settings.serviceStatuses]);
 
-    useEffect(() => {
-        if (!user) return;
-        const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
-        const unsubscribe = onSnapshot(q, (querySnapshot) => {
-            const collaboratorList = querySnapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            } as Collaborator));
-            setCollaborators(collaboratorList);
-        }, (error) => {
-            console.error("Error fetching collaborators:", error);
-        });
-        return () => unsubscribe();
-    }, [user]);
-
     const overdueCount = useMemo(() => {
         if (isLoading) return 0;
         return orders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
@@ -180,13 +162,9 @@ export default function PrazosPage() {
         } else if (activeFilter === 'overdue') {
             tempOrders = tempOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
         }
-
-        if (selectedCollaborator !== 'all') {
-            tempOrders = tempOrders.filter(o => o.collaboratorId === selectedCollaborator);
-        }
         
         return tempOrders;
-    }, [orders, activeFilter, selectedCollaborator]);
+    }, [orders, activeFilter]);
 
 
     const calendarEvents = useMemo(() => filteredOrders.map(order => ({
@@ -264,20 +242,6 @@ export default function PrazosPage() {
                                         <Button size="sm" variant={activeFilter === 'today' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('today')}>Vencendo Hoje</Button>
                                         <Button size="sm" variant={activeFilter === 'thisWeek' ? 'secondary' : 'outline'} onClick={() => setActiveFilter('thisWeek')}>Esta Semana</Button>
                                     </div>
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <Label htmlFor="collaborator-filter" className="text-sm font-medium">Filtrar por Colaborador</Label>
-                                    <Select value={selectedCollaborator} onValueChange={setSelectedCollaborator}>
-                                        <SelectTrigger id="collaborator-filter" className="w-full sm:w-[240px]">
-                                            <SelectValue placeholder="Todos Colaboradores" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="all">Todos Colaboradores / Setores</SelectItem>
-                                            {collaborators.map(c => (
-                                                <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
                                 </div>
                             </div>
 
