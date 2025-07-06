@@ -17,6 +17,8 @@ import {
   Puzzle,
   Wrench,
   Settings,
+  LayoutDashboard,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -29,7 +31,8 @@ function AdminNavContent() {
   const { settings } = useSettings();
 
   const navItems = [
-    { href: '/admin/dashboard', label: 'Painel', icon: Home },
+    { href: '/admin/dashboard', label: 'Painel', icon: LayoutDashboard },
+    { href: '/admin/home', label: 'Home', icon: ImageIcon },
     { href: '/admin/users', label: 'Usuários', icon: Users },
     { href: '/admin/plans', label: 'Planos', icon: CreditCard },
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },

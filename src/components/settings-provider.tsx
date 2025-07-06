@@ -38,6 +38,13 @@ export interface UserSettings {
     colaboradores?: boolean;
     inventario?: boolean;
   };
+  landingPageImages?: {
+    heroImage?: string;
+    feature1Image?: string;
+    feature2Image?: string;
+    feature3Image?: string;
+    galleryImages?: string[];
+  };
 }
 
 interface SettingsContextType {
@@ -63,6 +70,13 @@ const defaultSettings: UserSettings = {
     clientes: true,
     colaboradores: true,
     inventario: true,
+  },
+  landingPageImages: {
+    heroImage: 'https://placehold.co/600x550.png',
+    feature1Image: 'https://placehold.co/550x450.png',
+    feature2Image: 'https://placehold.co/550x450.png',
+    feature3Image: 'https://placehold.co/550x450.png',
+    galleryImages: Array(9).fill('https://placehold.co/600x400.png'),
   },
 };
 
@@ -186,7 +200,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     try {
         localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
     } catch (e) {
-        console.error("Could not save optimistic update to localStorage", e);
+        console.error("Could not optimistic update to localStorage", e);
     }
     
     const settingsRef = doc(db, 'userSettings', user.uid);

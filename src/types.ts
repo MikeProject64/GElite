@@ -32,6 +32,13 @@ export interface UserSettings {
     colaboradores?: boolean;
     inventario?: boolean;
   };
+  landingPageImages?: {
+    heroImage?: string;
+    feature1Image?: string;
+    feature2Image?: string;
+    feature3Image?: string;
+    galleryImages?: string[];
+  };
 }
 
 export interface SystemUser {

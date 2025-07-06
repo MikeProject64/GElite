@@ -1,31 +1,36 @@
+
 'use client';
 
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { useSettings } from '@/components/settings-provider';
 
-const galleryImages = [
-  { src: 'https://placehold.co/600x400.png', alt: 'Dashboard de Análise de Dados', hint: 'dashboard analytics' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Técnico realizando serviço de reparo', hint: 'technician repair' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Interface de gerenciamento de clientes', hint: 'customer management' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Vista de um escritório moderno', hint: 'modern office' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Ferramentas de serviço organizadas', hint: 'tools organized' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Aplicativo móvel para ordens de serviço', hint: 'mobile app' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Gráfico de crescimento de produtividade', hint: 'productivity chart' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Equipe de serviço em reunião', hint: 'team meeting' },
-  { src: 'https://placehold.co/600x400.png', alt: 'Calendário de agendamento de serviços', hint: 'scheduling calendar' }
+const defaultImageHints = [
+  'dashboard analytics', 'technician repair', 'customer management',
+  'modern office', 'tools organized', 'mobile app',
+  'productivity chart', 'team meeting', 'scheduling calendar'
 ];
 
 export function Gallery() {
+  const { settings } = useSettings();
+  
+  const galleryImages = settings.landingPageImages?.galleryImages?.map((url, index) => ({
+    src: url,
+    alt: `Visualização da galeria ${index + 1}`,
+    hint: defaultImageHints[index] || 'software interface',
+  })) || [];
+
+
   return (
     <section id="gallery" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Uma Visão do ServiceWise em Ação
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Veja como nossa plataforma transforma a gestão de serviços em uma experiência visual e intuitiva.
           </p>
         </div>

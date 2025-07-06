@@ -1,40 +1,46 @@
+
+'use client';
+
 import Image from 'next/image';
 import { ClipboardList, Users, Wrench } from 'lucide-react';
 import React from 'react';
-
-const features = [
-  {
-    icon: <Wrench className="w-6 h-6 text-primary" />,
-    title: 'Criação de Ordem de Serviço Simplificada',
-    description: 'Crie e atribua rapidamente ordens de serviço detalhadas. Acompanhe cada trabalho do início à conclusão com campos e modelos personalizáveis que se adaptam ao seu fluxo de trabalho.',
-    image: "https://placehold.co/550x450.png",
-    imageHint: "interface service order"
-  },
-  {
-    icon: <ClipboardList className="w-6 h-6 text-primary" />,
-    title: 'Gerenciamento e Agendamento Centralizado',
-    description: 'Gerencie seus técnicos, agendas e inventário a partir de um único painel intuitivo. Otimize rotas, aloque recursos de forma eficiente e tenha uma visão clara de todos os prazos.',
-    image: "https://placehold.co/550x450.png",
-    imageHint: "dashboard analytics"
-  },
-  {
-    icon: <Users className="w-6 h-6 text-primary" />,
-    title: 'CRM Integrado para Relacionamentos Fortes',
-    description: 'Construa relacionamentos duradouros com os clientes com um CRM integrado. Acesse o histórico completo do cliente, preferências e registros de comunicação instantaneamente.',
-    image: "https://placehold.co/550x450.png",
-    imageHint: "customer relationship chart"
-  },
-];
+import { useSettings } from '@/components/settings-provider';
 
 export function Features() {
+  const { settings } = useSettings();
+
+  const features = [
+    {
+      icon: <Wrench className="w-6 h-6 text-primary" />,
+      title: 'Criação de Ordem de Serviço Simplificada',
+      description: 'Crie e atribua rapidamente ordens de serviço detalhadas. Acompanhe cada trabalho do início à conclusão com campos e modelos personalizáveis que se adaptam ao seu fluxo de trabalho.',
+      image: settings.landingPageImages?.feature1Image || "https://placehold.co/550x450.png",
+      imageHint: "interface service order"
+    },
+    {
+      icon: <ClipboardList className="w-6 h-6 text-primary" />,
+      title: 'Gerenciamento e Agendamento Centralizado',
+      description: 'Gerencie seus técnicos, agendas e inventário a partir de um único painel intuitivo. Otimize rotas, aloque recursos de forma eficiente e tenha uma visão clara de todos os prazos.',
+      image: settings.landingPageImages?.feature2Image || "https://placehold.co/550x450.png",
+      imageHint: "dashboard analytics"
+    },
+    {
+      icon: <Users className="w-6 h-6 text-primary" />,
+      title: 'CRM Integrado para Relacionamentos Fortes',
+      description: 'Construa relacionamentos duradouros com os clientes com um CRM integrado. Acesse o histórico completo do cliente, preferências e registros de comunicação instantaneamente.',
+      image: settings.landingPageImages?.feature3Image || "https://placehold.co/550x450.png",
+      imageHint: "customer relationship chart"
+    },
+  ];
+
   return (
     <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-      <div className="container px-4 md:px-6 lg:px-16 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Como o ServiceWise Funciona
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Nossa plataforma simplifica cada etapa do seu fluxo de trabalho de serviço, da criação à conclusão.
           </p>
         </div>
@@ -46,9 +52,9 @@ export function Features() {
                    <div className="p-3 bg-primary/10 rounded-full">
                      {feature.icon}
                    </div>
-                  <h3 className="text-2xl font-bold">{feature.title}</h3>
+                  <h3 className="text-2xl font-bold font-headline">{feature.title}</h3>
                 </div>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground font-body">
                   {feature.description}
                 </p>
               </div>
