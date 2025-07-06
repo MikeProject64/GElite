@@ -10,7 +10,7 @@ const fontSans = Inter({
 });
 
 export const metadata: Metadata = {
-  description: 'Otimize sua gestão de serviços com o ServiceWise.',
+  description: 'Otimize sua gestão de serviços com o Gestor Elite.',
 };
 
 export default function RootLayout({

@@ -28,7 +28,7 @@ export function Hero({ landingPageImages }: HeroProps) {
                 Software de gestão de serviços 100% integrado.
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
-                O ServiceWise oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
+                O Gestor Elite oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">

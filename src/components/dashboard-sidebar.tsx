@@ -150,7 +150,7 @@ function NavContent() {
 
   const handleLogout = async () => {
     if (user) {
-      const storageKey = `servicewise-settings-${user.uid}`;
+      const storageKey = `gestor-elite-settings-${user.uid}`;
       localStorage.removeItem(storageKey);
     }
     await signOut(auth);
@@ -158,7 +158,7 @@ function NavContent() {
   };
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'ServiceWise';
+  const siteName = settings.siteName || 'Gestor Elite';
   const logoURL = settings.logoURL;
 
   return (
@@ -220,7 +220,7 @@ function NavContent() {
 export function DashboardSidebar() {
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'ServiceWise';
+  const siteName = settings.siteName || 'Gestor Elite';
   const logoURL = settings.logoURL;
 
   return (

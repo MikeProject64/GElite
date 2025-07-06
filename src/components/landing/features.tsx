@@ -43,7 +43,7 @@ export function Features({ landingPageImages }: FeaturesProps) {
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
-            Como o ServiceWise Funciona
+            Como o Gestor Elite Funciona
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Nossa plataforma simplifica cada etapa do seu fluxo de trabalho de serviço, da criação à conclusão.

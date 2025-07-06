@@ -54,7 +54,7 @@ interface SettingsContextType {
 }
 
 const defaultSettings: UserSettings = {
-  siteName: 'ServiceWise',
+  siteName: 'Gestor Elite',
   iconName: 'Wrench',
   primaryColorHsl: { h: 210, s: 70, l: 40 },
   customerCustomFields: [],
@@ -133,7 +133,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   // Effect to fetch user-specific settings (for appearance)
   useEffect(() => {
     if (user) {
-      const storageKey = `servicewise-settings-${user.uid}`;
+      const storageKey = `gestor-elite-settings-${user.uid}`;
       try {
         const storedSettings = localStorage.getItem(storageKey);
         if (storedSettings) {
@@ -211,7 +211,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const updatedSettings = { ...userSettings, ...newSettings };
     setUserSettings(updatedSettings);
 
-    const storageKey = `servicewise-settings-${user.uid}`;
+    const storageKey = `gestor-elite-settings-${user.uid}`;
     try {
         localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
     } catch (e) {

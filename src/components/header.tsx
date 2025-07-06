@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -16,7 +17,7 @@ export function Header() {
   const { settings } = useSettings();
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'ServiceWise';
+  const siteName = settings.siteName || 'Gestor Elite';
 
   const handleLogout = async () => {
     await signOut(auth);

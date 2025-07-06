@@ -34,7 +34,7 @@ export function Benefits() {
             Desbloqueie o Potencial do Seu Negócio
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
-            O ServiceWise é mais do que uma ferramenta—é um parceiro de crescimento.
+            O Gestor Elite é mais do que uma ferramenta—é um parceiro de crescimento.
           </p>
         </div>
         

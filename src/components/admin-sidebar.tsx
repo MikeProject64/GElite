@@ -45,7 +45,7 @@ function AdminNavContent() {
   };
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'ServiceWise';
+  const siteName = settings.siteName || 'Gestor Elite';
 
   return (
     <div className="flex h-full max-h-screen flex-col gap-2">
@@ -95,7 +95,7 @@ function AdminNavContent() {
 export function AdminSidebar() {
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'ServiceWise';
+  const siteName = settings.siteName || 'Gestor Elite';
 
   return (
     <>

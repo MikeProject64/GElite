@@ -43,7 +43,7 @@ export default function PrintServicoPage() {
             const orderData = { id: orderSnap.id, ...orderSnap.data() } as ServiceOrder;
             setOrder(orderData);
 
-            let userSettings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+            let userSettings: UserSettings = { siteName: 'Gestor Elite', iconName: 'Wrench' };
             if (orderData.userId) {
                 const settingsRef = doc(db, 'userSettings', orderData.userId);
                 const settingsSnap = await getDoc(settingsRef);
@@ -75,7 +75,7 @@ export default function PrintServicoPage() {
     }
     
     const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-    const siteName = settings.siteName || 'ServiceWise';
+    const siteName = settings.siteName || 'Gestor Elite';
 
     return (
         <div className="max-w-4xl mx-auto p-8 font-body text-gray-800 bg-white">

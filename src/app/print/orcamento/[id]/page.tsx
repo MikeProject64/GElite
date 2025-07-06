@@ -43,7 +43,7 @@ export default function PrintOrcamentoPage() {
             const quoteData = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
             setQuote(quoteData);
 
-            let userSettings: UserSettings = { siteName: 'ServiceWise', iconName: 'Wrench' };
+            let userSettings: UserSettings = { siteName: 'Gestor Elite', iconName: 'Wrench' };
             if (quoteData.userId) {
                 const settingsRef = doc(db, 'userSettings', quoteData.userId);
                 const settingsSnap = await getDoc(settingsRef);
@@ -75,7 +75,7 @@ export default function PrintOrcamentoPage() {
     }
     
     const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-    const siteName = settings.siteName || 'ServiceWise';
+    const siteName = settings.siteName || 'Gestor Elite';
 
 
     return (
