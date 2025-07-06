@@ -30,9 +30,21 @@ function SignupForm() {
 
   const planId = searchParams.get('planId');
   const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
+  const emailFromUrl = searchParams.get('email');
   
   const [isVerifying, setIsVerifying] = useState(true);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { email: '' },
+  });
+
+  useEffect(() => {
+    if (emailFromUrl) {
+      form.setValue('email', emailFromUrl);
+    }
+  }, [emailFromUrl, form]);
 
   useEffect(() => {
     const verifyPlan = async () => {
@@ -64,11 +76,6 @@ function SignupForm() {
     verifyPlan();
   }, [planId, router, toast]);
 
-
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: { email: '' },
-  });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!planId) {
@@ -115,7 +122,7 @@ function SignupForm() {
     <Card className="w-full max-w-sm">
       <CardHeader>
         <CardTitle className="text-2xl font-headline">Iniciando Assinatura</CardTitle>
-        <CardDescription>Você está assinando o plano <span className='font-bold text-primary'>{selectedPlan?.name}</span>. Por favor, insira seu e-mail para continuar para o pagamento.</CardDescription>
+        <CardDescription>Você está assinando o plano <span className='font-bold text-primary'>{selectedPlan?.name}</span>. Por favor, confirme seu e-mail para continuar para o pagamento.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -127,7 +134,7 @@ function SignupForm() {
                 <FormItem>
                   <FormLabel>Seu melhor e-mail</FormLabel>
                   <FormControl>
-                    <Input placeholder="seu@email.com" {...field} />
+                    <Input placeholder="seu@email.com" {...field} readOnly={!!emailFromUrl} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

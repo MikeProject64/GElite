@@ -1,7 +1,30 @@
+
+'use client';
+
 import { Button } from '@/components/ui/button';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { Input } from '../ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 export function Hero() {
+  const router = useRouter();
+  const [email, setEmail] = useState('');
+  const { toast } = useToast();
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      toast({
+        title: 'E-mail Inválido',
+        description: 'Por favor, insira um endereço de e-mail válido.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    router.push(`/#pricing?email=${encodeURIComponent(email)}`);
+  };
+
   return (
     <section className="w-full py-20 md:py-32 lg:py-40 bg-card">
       <div className="container px-4 md:px-6 mx-auto">
@@ -15,15 +38,23 @@ export function Hero() {
                 O ServiceWise oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
               </p>
             </div>
-            <div className="w-full max-w-sm space-y-2 mx-auto">
-              <div className="flex justify-center space-x-4">
-                <Button size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90" asChild>
-                  <Link href="/signup">Teste Gratuitamente</Link>
+            <div className="w-full max-w-lg space-y-2 mx-auto">
+              <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-2">
+                <Input
+                  type="email"
+                  placeholder="Digite seu melhor e-mail para começar"
+                  className="max-w-lg flex-1 text-base"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                <Button type="submit" size="lg" className="bg-accent text-accent-foreground hover:bg-accent/90">
+                  Começar Agora
                 </Button>
-                <Button size="lg" variant="outline" asChild>
-                  <Link href="#pricing">Escolha um Plano</Link>
-                </Button>
-              </div>
+              </form>
+              <p className="text-xs text-muted-foreground">
+                Vamos verificar seu e-mail antes de prosseguir para a escolha do plano.
+              </p>
             </div>
           </div>
         </div>

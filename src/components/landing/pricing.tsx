@@ -10,12 +10,15 @@ import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import type { Plan } from '@/types';
 import { Skeleton } from '../ui/skeleton';
+import { useSearchParams } from 'next/navigation';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const searchParams = useSearchParams();
+  const emailFromUrl = searchParams.get('email');
 
   useEffect(() => {
     const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
@@ -74,42 +77,47 @@ export function Pricing() {
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {plans.map((plan, index) => (
-            <Card key={plan.id} className={`flex flex-col h-full`}>
-              <CardHeader className="text-center">
-                <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
-                <CardDescription className="font-body">{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col">
-                <div className="text-center mb-6">
-                  <span className="text-4xl font-bold font-headline">{formatCurrency(plan.monthlyPrice)}</span>
-                  <span className="text-muted-foreground font-body">/mês</span>
-                   {plan.yearlyPrice > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">ou {formatCurrency(plan.yearlyPrice)}/ano</p>
+          {plans.map((plan, index) => {
+            const monthlyLink = `/signup?planId=${plan.id}&interval=month${emailFromUrl ? `&email=${encodeURIComponent(emailFromUrl)}` : ''}`;
+            const yearlyLink = `/signup?planId=${plan.id}&interval=year${emailFromUrl ? `&email=${encodeURIComponent(emailFromUrl)}` : ''}`;
+
+            return (
+                <Card key={plan.id} className={`flex flex-col h-full`}>
+                <CardHeader className="text-center">
+                    <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+                    <CardDescription className="font-body">{plan.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow flex flex-col">
+                    <div className="text-center mb-6">
+                    <span className="text-4xl font-bold font-headline">{formatCurrency(plan.monthlyPrice)}</span>
+                    <span className="text-muted-foreground font-body">/mês</span>
+                    {plan.yearlyPrice > 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">ou {formatCurrency(plan.yearlyPrice)}/ano</p>
+                        )}
+                    </div>
+                    <ul className="space-y-4 font-body flex-grow">
+                    {Object.entries(plan.features).map(([feature, enabled]) => (
+                        enabled &&
+                        <li key={feature} className="flex items-center gap-2">
+                        <Check className="w-5 h-5 text-green-500" />
+                        <span className='capitalize'>{feature}</span>
+                        </li>
+                    ))}
+                    </ul>
+                </CardContent>
+                <CardFooter className='flex-col gap-2'>
+                    <Button asChild className={`w-full`}>
+                    <Link href={monthlyLink}>Contratar Plano Mensal</Link>
+                    </Button>
+                    {plan.yearlyPrice > 0 && (
+                    <Button asChild variant="outline" className={`w-full`}>
+                        <Link href={yearlyLink}>Contratar Plano Anual</Link>
+                    </Button>
                     )}
-                </div>
-                <ul className="space-y-4 font-body flex-grow">
-                  {Object.entries(plan.features).map(([feature, enabled]) => (
-                    enabled &&
-                    <li key={feature} className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500" />
-                      <span className='capitalize'>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter className='flex-col gap-2'>
-                <Button asChild className={`w-full`}>
-                  <Link href={`/signup?planId=${plan.id}&interval=month`}>Contratar Plano Mensal</Link>
-                </Button>
-                 {plan.yearlyPrice > 0 && (
-                  <Button asChild variant="outline" className={`w-full`}>
-                    <Link href={`/signup?planId=${plan.id}&interval=year`}>Contratar Plano Anual</Link>
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
+                </CardFooter>
+                </Card>
+            )
+          })}
         </div>
       </div>
     </section>
