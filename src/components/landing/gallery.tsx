@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 
 const galleryImages = [
@@ -52,6 +52,10 @@ export function Gallery() {
                             </Card>
                         </DialogTrigger>
                         <DialogContent className="max-w-4xl h-auto p-0 border-0 bg-transparent shadow-none">
+                             <DialogHeader className="sr-only">
+                                <DialogTitle>Visualização da Imagem: {image.alt}</DialogTitle>
+                                <DialogDescription>Imagem ampliada da galeria. {image.alt}.</DialogDescription>
+                            </DialogHeader>
                              <Image
                                 src={image.src}
                                 alt={image.alt}
@@ -88,6 +92,10 @@ export function Gallery() {
                     </Card>
                 </DialogTrigger>
                 <DialogContent className="max-w-4xl h-auto p-0 border-0 bg-transparent shadow-none">
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Visualização da Imagem: {image.alt}</DialogTitle>
+                        <DialogDescription>Imagem ampliada da galeria. {image.alt}.</DialogDescription>
+                    </DialogHeader>
                      <Image
                         src={image.src}
                         alt={image.alt}
