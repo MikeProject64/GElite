@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,11 +7,17 @@ import { Button } from './ui/button';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import { useSettings } from './settings-provider';
+import { availableIcons } from './icon-map';
 import { Wrench } from 'lucide-react';
 
 export function Header() {
   const { user } = useAuth();
   const router = useRouter();
+  const { settings } = useSettings();
+  
+  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
+  const siteName = settings.siteName || 'ServiceWise';
 
   const handleLogout = async () => {
     await signOut(auth);
@@ -22,8 +29,8 @@ export function Header() {
       <div className="container flex h-14 items-center">
         <div className="mr-4 flex items-center">
           <Link href="/" className="flex items-center space-x-2">
-            <Wrench className="h-6 w-6 text-primary" />
-            <span className="font-bold font-headline">ServiceWise</span>
+            <Icon className="h-6 w-6 text-primary" />
+            <span className="font-bold font-headline">{siteName}</span>
           </Link>
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">

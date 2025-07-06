@@ -479,7 +479,7 @@ export default function ConfiguracoesPage() {
             <CardHeader>
               <CardTitle>Aparência</CardTitle>
               <CardDescription>
-                Personalize a aparência do seu site. As alterações serão salvas apenas para você.
+                Personalize a aparência do seu site para a sua visualização. Estas configurações irão sobrepor as configurações globais.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -500,12 +500,12 @@ export default function ConfiguracoesPage() {
                       name="siteName"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Nome do Site</FormLabel>
+                          <FormLabel>Nome do Site (Sua Visualização)</FormLabel>
                           <FormControl>
                             <Input placeholder="Ex: Minha Empresa" {...field} />
                           </FormControl>
                           <FormDescription>
-                            Este nome aparecerá no menu e no título da página.
+                            Este nome aparecerá no seu menu e no título da página.
                           </FormDescription>
                           <FormMessage />
                         </FormItem>
@@ -519,7 +519,7 @@ export default function ConfiguracoesPage() {
                         const SelectedIcon = availableIcons[field.value as keyof typeof availableIcons] || Wrench;
                         return (
                           <FormItem>
-                            <FormLabel>Ícone do Site</FormLabel>
+                            <FormLabel>Ícone do Site (Sua Visualização)</FormLabel>
                             <div className="flex items-center gap-4 pt-2">
                               <div className="w-16 h-16 rounded-lg border flex items-center justify-center bg-muted">
                                 <SelectedIcon className="h-8 w-8 text-muted-foreground" />
@@ -528,7 +528,7 @@ export default function ConfiguracoesPage() {
                                 <Pencil className="mr-2 h-4 w-4" /> Alterar Ícone
                               </Button>
                             </div>
-                            <FormDescription>Este ícone aparecerá no menu lateral.</FormDescription>
+                            <FormDescription>Este ícone aparecerá no seu menu lateral.</FormDescription>
                             <FormMessage />
 
                             <Dialog open={isIconModalOpen} onOpenChange={setIsIconModalOpen}>
@@ -590,7 +590,7 @@ export default function ConfiguracoesPage() {
                         );
                         return (
                           <FormItem>
-                            <FormLabel>Cor da Marca</FormLabel>
+                            <FormLabel>Cor da Marca (Sua Visualização)</FormLabel>
                              <div className="flex items-center gap-4 pt-2">
                                 <div className="w-16 h-16 rounded-lg border flex items-center justify-center" style={{ backgroundColor: selectedColor ? `hsl(${selectedColor.hsl.h}, ${selectedColor.hsl.s}%, ${selectedColor.hsl.l}%)` : 'hsl(var(--primary))' }}>
                                     <span className="text-white mix-blend-difference font-semibold text-xs text-center p-1">{selectedColor?.name || 'Padrão'}</span>
@@ -600,7 +600,7 @@ export default function ConfiguracoesPage() {
                                 </Button>
                             </div>
                             <FormDescription>
-                              Selecione uma cor para personalizar a aparência do sistema.
+                              Selecione uma cor para personalizar a sua aparência do sistema.
                             </FormDescription>
                             <FormMessage />
 

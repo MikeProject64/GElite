@@ -55,83 +55,74 @@ const SettingsContext = createContext<SettingsContextType>({
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
-  const [settings, setSettings] = useState<UserSettings>(defaultSettings);
+  
+  const [globalSettings, setGlobalSettings] = useState<UserSettings>(defaultSettings);
+  const [userSettings, setUserSettings] = useState<Partial<UserSettings>>({});
+  const [mergedSettings, setMergedSettings] = useState<UserSettings>(defaultSettings);
   const [loadingSettings, setLoadingSettings] = useState(true);
 
-  // This effect handles loading settings from localStorage on initial mount
-  // and then fetching from Firestore, updating both state and localStorage.
+  // Effect to fetch global settings
+  useEffect(() => {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+      const newGlobalSettings = docSnap.exists()
+        ? { ...defaultSettings, ...docSnap.data() }
+        : defaultSettings;
+      setGlobalSettings(newGlobalSettings);
+      setLoadingSettings(false);
+    }, (error) => {
+      console.error("Error fetching global settings:", error);
+      setGlobalSettings(defaultSettings);
+      setLoadingSettings(false);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Effect to fetch user-specific settings
   useEffect(() => {
     if (user) {
-      setLoadingSettings(true);
       const storageKey = `servicewise-settings-${user.uid}`;
-
-      // 1. Try to load from localStorage first for a faster UI update.
       try {
         const storedSettings = localStorage.getItem(storageKey);
         if (storedSettings) {
-          setSettings(JSON.parse(storedSettings));
+          setUserSettings(JSON.parse(storedSettings));
         }
       } catch (e) {
-        console.error("Could not read settings from localStorage", e);
+        console.error("Could not read user settings from localStorage", e);
       }
 
-      // 2. Set up Firestore listener to get live updates.
-      const settingsRef = doc(db, 'userSettings', user.uid);
-      const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-        const newSettings = docSnap.exists()
-          ? { ...defaultSettings, ...docSnap.data() } as UserSettings
-          : defaultSettings;
-        
-        // Ensure essential default arrays exist if they are missing from Firestore
-        if (!newSettings.serviceStatuses) {
-            newSettings.serviceStatuses = defaultSettings.serviceStatuses;
-        }
-        if (!newSettings.customerCustomFields) {
-            newSettings.customerCustomFields = defaultSettings.customerCustomFields;
-        }
-        if (!newSettings.serviceOrderCustomFields) {
-            newSettings.serviceOrderCustomFields = defaultSettings.serviceOrderCustomFields;
-        }
-        if (!newSettings.quoteCustomFields) {
-            newSettings.quoteCustomFields = defaultSettings.quoteCustomFields;
-        }
-        if (!newSettings.tags) {
-            newSettings.tags = defaultSettings.tags;
-        }
-        if (!newSettings.primaryColorHsl) {
-            newSettings.primaryColorHsl = defaultSettings.primaryColorHsl;
-        }
-
-        setSettings(newSettings); // Update React state
-        
-        // 3. Persist the latest settings to localStorage.
+      const userSettingsRef = doc(db, 'userSettings', user.uid);
+      const unsubscribe = onSnapshot(userSettingsRef, (docSnap) => {
+        const newUserSettings = docSnap.exists() ? docSnap.data() : {};
+        setUserSettings(newUserSettings);
         try {
-          localStorage.setItem(storageKey, JSON.stringify(newSettings));
+          localStorage.setItem(storageKey, JSON.stringify(newUserSettings));
         } catch (e) {
-          console.error("Could not save settings to localStorage", e);
+          console.error("Could not save user settings to localStorage", e);
         }
-        
-        setLoadingSettings(false);
-      }, (error) => {
-        console.error("Error fetching settings:", error);
-        setSettings(defaultSettings);
-        setLoadingSettings(false);
       });
-
       return () => unsubscribe();
     } else {
-      // If there's no user, reset to default and finish loading.
-      setSettings(defaultSettings);
-      setLoadingSettings(false);
+      setUserSettings({}); // Clear user settings on logout
     }
   }, [user]);
+
+  // Effect to merge global and user settings
+  useEffect(() => {
+    // A simple merge where userSettings override globalSettings
+    const finalSettings = {
+      ...globalSettings,
+      ...userSettings,
+    };
+    setMergedSettings(finalSettings);
+  }, [globalSettings, userSettings]);
+
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
     if (!user) throw new Error("User not authenticated to update settings.");
     
-    // Optimistically update local state for faster UI response
-    const updatedSettings = { ...settings, ...newSettings };
-    setSettings(updatedSettings);
+    const updatedSettings = { ...userSettings, ...newSettings };
+    setUserSettings(updatedSettings);
 
     const storageKey = `servicewise-settings-${user.uid}`;
     try {
@@ -140,17 +131,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         console.error("Could not save optimistic update to localStorage", e);
     }
     
-    // Then, persist to Firestore
     const settingsRef = doc(db, 'userSettings', user.uid);
     try {
         await setDoc(settingsRef, newSettings, { merge: true });
     } catch(error) {
-        console.error("Failed to update settings in Firestore", error);
-        // Optionally revert optimistic update on failure
+        console.error("Failed to update user settings in Firestore", error);
     }
-  }, [user, settings]);
+  }, [user, userSettings]);
 
-  const value = { settings, updateSettings, loadingSettings };
+  const value = { settings: mergedSettings, updateSettings, loadingSettings };
 
   return (
     <SettingsContext.Provider value={value}>
