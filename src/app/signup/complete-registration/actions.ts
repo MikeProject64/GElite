@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
@@ -47,9 +47,11 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, password: s
             throw new Error('ID do plano não encontrado nos metadados da assinatura.');
         }
 
-        // Check if user already exists
-        const userQuery = await db.collection('users').where('email', '==', email).limit(1).get();
-        if (!userQuery.empty) {
+        // Check if user already exists in Firestore
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where('email', '==', email), limit(1));
+        const userQuerySnapshot = await getDocs(q);
+        if (!userQuerySnapshot.empty) {
             throw new Error('Um usuário com este e-mail já existe.');
         }
 
