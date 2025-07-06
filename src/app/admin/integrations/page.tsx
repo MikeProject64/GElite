@@ -40,7 +40,11 @@ function StripeSettingsForm() {
         const settingsRef = doc(db, 'siteConfig', 'main');
         const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
             if (docSnap.exists()) {
-                form.reset(docSnap.data());
+                const data = docSnap.data();
+                form.reset({
+                    stripePublishableKey: data.stripePublishableKey || '',
+                    stripeSecretKey: data.stripeSecretKey || '',
+                });
             }
             setIsLoading(false);
         });
