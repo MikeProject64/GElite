@@ -1,9 +1,7 @@
 import type { Metadata } from 'next';
 import { Poppins, PT_Sans } from 'next/font/google';
-import { Toaster } from "@/components/ui/toaster"
 import './globals.css';
-import { AuthProvider } from '@/components/auth-provider';
-import { SettingsProvider } from '@/components/settings-provider';
+import { Providers } from '@/components/providers';
 import { cn } from '@/lib/utils';
 
 const fontSans = PT_Sans({
@@ -35,12 +33,9 @@ export default function RootLayout({
         fontSans.variable,
         fontHeading.variable
       )}>
-        <AuthProvider>
-          <SettingsProvider>
-            {children}
-            <Toaster />
-          </SettingsProvider>
-        </AuthProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
