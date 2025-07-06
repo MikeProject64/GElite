@@ -1,10 +1,10 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import type { UserSettings } from '@/types';
+import NetworkAnimation from './network-animation';
 
 interface HeroProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -14,8 +14,9 @@ export function Hero({ landingPageImages }: HeroProps) {
   const heroImage = landingPageImages?.heroImage || "https://placehold.co/600x550.png";
 
   return (
-    <section className="w-full py-20 md:py-32 lg:py-40 bg-card">
-      <div className="container px-4 md:px-6 lg:px-24 mx-auto">
+    <section className="w-full py-20 md:py-32 lg:py-40 relative overflow-hidden">
+      <NetworkAnimation />
+      <div className="container px-4 md:px-6 lg:px-24 mx-auto relative z-10">
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-x-16 items-center">
           <div className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
