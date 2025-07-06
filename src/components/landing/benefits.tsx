@@ -30,36 +30,34 @@ export function Benefits() {
     <section id="benefits" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Desbloqueie o Potencial do Seu Negócio
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             O ServiceWise é mais do que uma ferramenta—é um parceiro de crescimento.
           </p>
         </div>
         
         {/* Mobile Carousel View */}
         <div className="md:hidden">
-          <Carousel opts={{ align: "start" }} className="w-full max-w-sm mx-auto">
-            <CarouselContent>
+          <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
+            <CarouselContent className="-ml-2">
               {benefits.map((benefit, index) => (
-                <CarouselItem key={index}>
+                <CarouselItem key={index} className="basis-11/12 pl-2">
                   <div className="p-1 h-full flex">
                     <Card className="flex flex-col text-center p-4 shadow-sm h-full">
                       <CardContent className="flex flex-col items-center flex-grow pt-6">
                         <div className="p-4 bg-primary/10 rounded-full mb-4">
                           {benefit.icon}
                         </div>
-                        <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
-                        <p className="text-muted-foreground flex-grow">{benefit.description}</p>
+                        <h3 className="text-xl font-bold mb-2 font-headline">{benefit.title}</h3>
+                        <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
                       </CardContent>
                     </Card>
                   </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
-            <CarouselPrevious />
-            <CarouselNext />
           </Carousel>
         </div>
 
@@ -71,8 +69,8 @@ export function Benefits() {
                 <div className="p-4 bg-primary/10 rounded-full mb-4">
                   {benefit.icon}
                 </div>
-                <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
-                <p className="text-muted-foreground flex-grow">{benefit.description}</p>
+                <h3 className="text-xl font-bold mb-2 font-headline">{benefit.title}</h3>
+                <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
               </CardContent>
             </Card>
           ))}

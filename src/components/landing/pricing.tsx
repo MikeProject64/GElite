@@ -51,10 +51,10 @@ export function Pricing() {
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
         <div className="container px-4 md:px-6 lg:px-24 mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
               Preços Simples e Transparentes
             </h2>
-            <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
+            <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
               Escolha o plano certo para o seu negócio.
             </p>
           </div>
@@ -82,15 +82,15 @@ export function Pricing() {
     <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Preços Simples e Transparentes
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Escolha o plano certo para o seu negócio.
           </p>
         </div>
         
-        <div className="flex justify-center items-center gap-4 mb-12">
+        <div className="flex justify-center items-center gap-4 mb-12 font-body">
             <Label htmlFor="interval-switch" className={interval === 'month' ? 'text-primary font-bold' : 'text-muted-foreground'}>
                 Cobrança Mensal
             </Label>
@@ -107,25 +107,25 @@ export function Pricing() {
 
         {/* Mobile Carousel View */}
         <div className="md:hidden">
-            <Carousel opts={{ align: "start" }} className="w-full max-w-sm mx-auto">
-              <CarouselContent>
+            <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
+              <CarouselContent className="-ml-2">
                 {plans.map((plan, index) => {
                   const price = interval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
                   const priceDescription = interval === 'year' && plan.yearlyPrice > 0 ? '/ano' : '/mês';
                   const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
                   
                   return (
-                    <CarouselItem key={plan.id} className="basis-full">
+                    <CarouselItem key={plan.id} className="basis-11/12 pl-2">
                       <div className="p-1 h-full flex">
                         <Card className={`flex flex-col h-full shadow-sm w-full ${index === 1 ? 'border-primary' : ''}`}>
                           <CardHeader className="text-center">
-                              <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                              <CardDescription>{plan.description}</CardDescription>
+                              <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+                              <CardDescription className="font-body">{plan.description}</CardDescription>
                           </CardHeader>
                           <CardContent className="flex-grow flex flex-col">
                               <div className="text-center mb-6">
-                              <span className="text-4xl font-bold">{formatCurrency(price)}</span>
-                              <span className="text-muted-foreground">{priceDescription}</span>
+                              <span className="text-4xl font-bold font-headline">{formatCurrency(price)}</span>
+                              <span className="text-muted-foreground font-body">{priceDescription}</span>
                               {interval === 'year' && plan.yearlyPrice > 0 && (
                                 <div className='mt-2'>
                                   <p className="text-sm text-muted-foreground">Equivalente a {formatCurrency(plan.yearlyPrice / 12)}/mês</p>
@@ -133,7 +133,7 @@ export function Pricing() {
                                 </div>
                               )}
                               </div>
-                              <ul className="space-y-4 flex-grow">
+                              <ul className="space-y-4 font-body flex-grow">
                               {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
                                   enabled &&
                                   <li key={featureKey} className="flex items-center gap-2">
@@ -154,8 +154,6 @@ export function Pricing() {
                   )
                 })}
               </CarouselContent>
-              <CarouselPrevious />
-              <CarouselNext />
             </Carousel>
         </div>
 
@@ -169,13 +167,13 @@ export function Pricing() {
             return (
                 <Card key={plan.id} className={`flex flex-col h-full shadow-sm ${index === 1 ? 'border-primary' : ''}`}>
                 <CardHeader className="text-center">
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                    <CardDescription>{plan.description}</CardDescription>
+                    <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+                    <CardDescription className="font-body">{plan.description}</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow flex flex-col">
                     <div className="text-center mb-6">
-                    <span className="text-4xl font-bold">{formatCurrency(price)}</span>
-                    <span className="text-muted-foreground">{priceDescription}</span>
+                    <span className="text-4xl font-bold font-headline">{formatCurrency(price)}</span>
+                    <span className="text-muted-foreground font-body">{priceDescription}</span>
                     {interval === 'year' && plan.yearlyPrice > 0 && (
                       <div className='mt-2'>
                         <p className="text-sm text-muted-foreground">Equivalente a {formatCurrency(plan.yearlyPrice / 12)}/mês</p>
@@ -183,7 +181,7 @@ export function Pricing() {
                       </div>
                     )}
                     </div>
-                    <ul className="space-y-4 flex-grow">
+                    <ul className="space-y-4 font-body flex-grow">
                     {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
                         enabled &&
                         <li key={featureKey} className="flex items-center gap-2">
