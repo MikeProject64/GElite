@@ -5,10 +5,15 @@ import { Button } from '@/components/ui/button';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSettings } from '@/components/settings-provider';
+import type { UserSettings } from '@/types';
 
-export function Hero() {
+interface HeroProps {
+  landingPageImages?: UserSettings['landingPageImages'];
+}
+
+export function Hero({ landingPageImages }: HeroProps) {
   const { settings } = useSettings();
-  const heroImage = settings.landingPageImages?.heroImage || "https://placehold.co/600x550.png";
+  const heroImage = landingPageImages?.heroImage || settings.landingPageImages?.heroImage || "https://placehold.co/600x550.png";
 
   return (
     <section className="w-full py-20 md:py-32 lg:py-40 bg-card">

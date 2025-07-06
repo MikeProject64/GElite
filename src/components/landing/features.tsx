@@ -5,8 +5,13 @@ import Image from 'next/image';
 import { ClipboardList, Users, Wrench } from 'lucide-react';
 import React from 'react';
 import { useSettings } from '@/components/settings-provider';
+import type { UserSettings } from '@/types';
 
-export function Features() {
+interface FeaturesProps {
+  landingPageImages?: UserSettings['landingPageImages'];
+}
+
+export function Features({ landingPageImages }: FeaturesProps) {
   const { settings } = useSettings();
 
   const features = [
@@ -14,21 +19,21 @@ export function Features() {
       icon: <Wrench className="w-6 h-6 text-primary" />,
       title: 'Criação de Ordem de Serviço Simplificada',
       description: 'Crie e atribua rapidamente ordens de serviço detalhadas. Acompanhe cada trabalho do início à conclusão com campos e modelos personalizáveis que se adaptam ao seu fluxo de trabalho.',
-      image: settings.landingPageImages?.feature1Image || "https://placehold.co/550x450.png",
+      image: landingPageImages?.feature1Image || settings.landingPageImages?.feature1Image || "https://placehold.co/550x450.png",
       imageHint: "interface service order"
     },
     {
       icon: <ClipboardList className="w-6 h-6 text-primary" />,
       title: 'Visão Completa e Controle Total',
       description: 'Acompanhe tudo em um só lugar. Do status das ordens de serviço aos níveis de inventário e prazos de entrega, nosso painel centralizado oferece a clareza que você precisa para tomar as melhores decisões.',
-      image: settings.landingPageImages?.feature2Image || "https://placehold.co/550x450.png",
+      image: landingPageImages?.feature2Image || settings.landingPageImages?.feature2Image || "https://placehold.co/550x450.png",
       imageHint: "dashboard analytics"
     },
     {
       icon: <Users className="w-6 h-6 text-primary" />,
       title: 'CRM Integrado para Relacionamentos Fortes',
       description: 'Construa relacionamentos duradouros com os clientes com um CRM integrado. Acesse o histórico completo do cliente, preferências e registros de comunicação instantaneamente.',
-      image: settings.landingPageImages?.feature3Image || "https://placehold.co/550x450.png",
+      image: landingPageImages?.feature3Image || settings.landingPageImages?.feature3Image || "https://placehold.co/550x450.png",
       imageHint: "customer relationship chart"
     },
   ];

@@ -1,9 +1,3 @@
-'use client';
-
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/components/auth-provider';
-import { Loader2 } from 'lucide-react';
 import { Hero } from '@/components/landing/hero';
 import { KeyFeatures } from '@/components/landing/key-features';
 import { Features } from '@/components/landing/features';
@@ -13,36 +7,38 @@ import { Guarantee } from '@/components/landing/guarantee';
 import { Gallery } from '@/components/landing/gallery';
 import { Footer } from '@/components/landing/footer';
 import { Header } from '@/components/header';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { UserSettings } from '@/types';
 
-export default function Home() {
-  const { user, loading } = useAuth();
-  const router = useRouter();
+// This is now an async server component.
+export default async function Home() {
+  
+  // Fetch settings on the server to prevent image flashing on the client.
+  let landingPageImages: UserSettings['landingPageImages'] = {};
+  try {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const settingsSnap = await getDoc(settingsRef);
 
-  useEffect(() => {
-    if (!loading && user) {
-      router.push('/dashboard');
+    if (settingsSnap.exists()) {
+      landingPageImages = settingsSnap.data().landingPageImages || {};
     }
-  }, [user, loading, router]);
-
-  if (loading || user) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+  } catch (error) {
+    console.error("Failed to fetch landing page settings on server:", error);
+    // Continue with default images if fetch fails
   }
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
       <Header />
       <main className="flex-grow">
-        <Hero />
+        <Hero landingPageImages={landingPageImages} />
         <KeyFeatures />
-        <Features />
+        <Features landingPageImages={landingPageImages} />
         <Benefits />
         <Pricing />
         <Guarantee />
-        <Gallery />
+        <Gallery landingPageImages={landingPageImages} />
       </main>
       <Footer />
     </div>

@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import { useSettings } from '@/components/settings-provider';
+import type { UserSettings } from '@/types';
 
 const defaultImageHints = [
   'dashboard analytics', 'technician repair', 'customer management',
@@ -13,15 +14,26 @@ const defaultImageHints = [
   'productivity chart', 'team meeting', 'scheduling calendar'
 ];
 
-export function Gallery() {
+interface GalleryProps {
+  landingPageImages?: UserSettings['landingPageImages'];
+}
+
+export function Gallery({ landingPageImages }: GalleryProps) {
   const { settings } = useSettings();
   
-  const galleryImages = settings.landingPageImages?.galleryImages?.map((url, index) => ({
+  const serverImages = landingPageImages?.galleryImages;
+  const clientImages = settings.landingPageImages?.galleryImages;
+
+  // Always create a 9-item array, filling with available URLs or placeholders
+  const imageList = Array.from({ length: 9 }).map((_, index) => {
+    return serverImages?.[index] || clientImages?.[index] || 'https://placehold.co/600x400.png';
+  });
+  
+  const galleryItems = imageList.map((url, index) => ({
     src: url,
     alt: `Visualização da galeria ${index + 1}`,
     hint: defaultImageHints[index] || 'software interface',
-  })) || [];
-
+  }));
 
   return (
     <section id="gallery" className="w-full py-12 md:py-24 lg:py-32">
@@ -39,7 +51,7 @@ export function Gallery() {
         <div className="md:hidden">
           <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
             <CarouselContent className="-ml-2">
-              {galleryImages.map((image, index) => (
+              {galleryItems.map((image, index) => (
                 <CarouselItem key={index} className="basis-11/12 pl-2">
                     <Dialog>
                         <DialogTrigger asChild>
@@ -79,7 +91,7 @@ export function Gallery() {
 
         {/* Desktop Grid View */}
         <div className="hidden md:grid grid-cols-3 gap-4">
-          {galleryImages.map((image, index) => (
+          {galleryItems.map((image, index) => (
             <Dialog key={index}>
                 <DialogTrigger asChild>
                     <Card className="overflow-hidden cursor-pointer group">
