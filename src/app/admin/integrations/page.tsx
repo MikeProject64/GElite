@@ -17,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, KeyRound, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
+import { addTestCreditAction } from './actions';
 
 const stripeFormSchema = z.object({
   stripePublishableKey: z.string().startsWith('pk_').optional().or(z.literal('')),
@@ -89,15 +90,22 @@ function StripeSettingsForm() {
             setIsSaving(false);
         }
     };
-    
-    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
     const onTestCreditSubmit = async (data: TestCreditFormValues) => {
-        toast({
-            title: 'Ação de Teste',
-            description: `Crédito de teste de ${formatCurrency(data.amount)} solicitado. (Funcionalidade em desenvolvimento)`,
-        });
-        testCreditForm.reset();
+        const result = await addTestCreditAction(data.amount);
+        if (result.success) {
+            toast({
+                title: 'Ação de Teste Realizada!',
+                description: result.message,
+            });
+             testCreditForm.reset();
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Erro na Ação de Teste',
+                description: result.message,
+            });
+        }
     };
 
     if (isLoading) {
