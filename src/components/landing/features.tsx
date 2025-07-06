@@ -19,8 +19,8 @@ export function Features() {
     },
     {
       icon: <ClipboardList className="w-6 h-6 text-primary" />,
-      title: 'Gerenciamento e Agendamento Centralizado',
-      description: 'Gerencie seus técnicos, agendas e inventário a partir de um único painel intuitivo. Otimize rotas, aloque recursos de forma eficiente e tenha uma visão clara de todos os prazos.',
+      title: 'Visão Completa e Controle Total',
+      description: 'Acompanhe tudo em um só lugar. Do status das ordens de serviço aos níveis de inventário e prazos de entrega, nosso painel centralizado oferece a clareza que você precisa para tomar as melhores decisões.',
       image: settings.landingPageImages?.feature2Image || "https://placehold.co/550x450.png",
       imageHint: "dashboard analytics"
     },
