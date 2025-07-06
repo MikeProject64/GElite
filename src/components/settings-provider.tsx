@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useAuth } from './auth-provider';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import type { Plan } from '@/types';
 
 export interface Tag {
   id: string;
@@ -72,31 +73,35 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+  const { user, systemUser } = useAuth();
   
   const [globalSettings, setGlobalSettings] = useState<UserSettings>(defaultSettings);
   const [userSettings, setUserSettings] = useState<Partial<UserSettings>>({});
+  const [activePlan, setActivePlan] = useState<Plan | null>(null);
   const [mergedSettings, setMergedSettings] = useState<UserSettings>(defaultSettings);
-  const [loadingSettings, setLoadingSettings] = useState(true);
+  
+  const [loadingGlobal, setLoadingGlobal] = useState(true);
+  const [loadingPlan, setLoadingPlan] = useState(true);
 
   // Effect to fetch global settings
   useEffect(() => {
+    setLoadingGlobal(true);
     const settingsRef = doc(db, 'siteConfig', 'main');
     const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
       const newGlobalSettings = docSnap.exists()
         ? { ...defaultSettings, ...docSnap.data() }
         : defaultSettings;
       setGlobalSettings(newGlobalSettings);
-      setLoadingSettings(false);
+      setLoadingGlobal(false);
     }, (error) => {
       console.error("Error fetching global settings:", error);
       setGlobalSettings(defaultSettings);
-      setLoadingSettings(false);
+      setLoadingGlobal(false);
     });
     return () => unsubscribe();
   }, []);
 
-  // Effect to fetch user-specific settings
+  // Effect to fetch user-specific settings (for appearance)
   useEffect(() => {
     if (user) {
       const storageKey = `servicewise-settings-${user.uid}`;
@@ -125,15 +130,50 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user]);
 
-  // Effect to merge global and user settings
+  // Effect to fetch the user's active plan
   useEffect(() => {
-    // A simple merge where userSettings override globalSettings
-    const finalSettings = {
+    if (!systemUser?.planId) {
+        setActivePlan(null);
+        setLoadingPlan(false);
+        return;
+    }
+    setLoadingPlan(true);
+    const planRef = doc(db, 'plans', systemUser.planId);
+    const unsubscribe = onSnapshot(planRef, (docSnap) => {
+        if (docSnap.exists()) {
+            setActivePlan({ id: docSnap.id, ...docSnap.data() } as Plan);
+        } else {
+            console.warn("User's plan not found in database:", systemUser.planId);
+            setActivePlan(null);
+        }
+        setLoadingPlan(false);
+    }, (error) => {
+        console.error("Error fetching user's plan:", error);
+        setActivePlan(null);
+        setLoadingPlan(false);
+    });
+    return () => unsubscribe();
+  }, [systemUser?.planId]);
+
+  // Effect to merge all settings
+  useEffect(() => {
+    const finalSettings: UserSettings = {
       ...globalSettings,
       ...userSettings,
     };
+
+    const finalFeatureFlags: UserSettings['featureFlags'] = { ...defaultSettings.featureFlags };
+    const globalFlags = globalSettings.featureFlags || {};
+    const planFeatures = activePlan?.features || {};
+
+    for (const key in finalFeatureFlags) {
+        const flagKey = key as keyof typeof finalFeatureFlags;
+        finalFeatureFlags[flagKey] = !!(globalFlags[flagKey] && planFeatures[flagKey]);
+    }
+    finalSettings.featureFlags = finalFeatureFlags;
+
     setMergedSettings(finalSettings);
-  }, [globalSettings, userSettings]);
+  }, [globalSettings, userSettings, activePlan]);
 
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
@@ -157,6 +197,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [user, userSettings]);
 
+  const loadingSettings = loadingGlobal || loadingPlan;
   const value = { settings: mergedSettings, updateSettings, loadingSettings };
 
   return (
