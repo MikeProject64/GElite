@@ -14,22 +14,26 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound, DollarSign } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { addTestCreditAction } from './actions';
+import { createTestChargeAction, createTestSubscriptionAction } from './actions';
 
 const stripeFormSchema = z.object({
   stripePublishableKey: z.string().startsWith('pk_').optional().or(z.literal('')),
   stripeSecretKey: z.string().startsWith('sk_').optional().or(z.literal('')),
 });
-
 type StripeFormValues = z.infer<typeof stripeFormSchema>;
 
-const testCreditFormSchema = z.object({
+const testChargeFormSchema = z.object({
   amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
 });
-type TestCreditFormValues = z.infer<typeof testCreditFormSchema>;
+type TestChargeFormValues = z.infer<typeof testChargeFormSchema>;
+
+const testSubscriptionFormSchema = z.object({
+  amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
+});
+type TestSubscriptionFormValues = z.infer<typeof testSubscriptionFormSchema>;
 
 
 function StripeSettingsForm() {
@@ -45,11 +49,14 @@ function StripeSettingsForm() {
         },
     });
 
-    const testCreditForm = useForm<TestCreditFormValues>({
-        resolver: zodResolver(testCreditFormSchema),
-        defaultValues: {
-            amount: 100.00,
-        },
+    const testChargeForm = useForm<TestChargeFormValues>({
+        resolver: zodResolver(testChargeFormSchema),
+        defaultValues: { amount: 50.00 },
+    });
+
+    const testSubscriptionForm = useForm<TestSubscriptionFormValues>({
+        resolver: zodResolver(testSubscriptionFormSchema),
+        defaultValues: { amount: 29.99 },
     });
 
     const watchedStripeKey = form.watch('stripePublishableKey');
@@ -91,20 +98,21 @@ function StripeSettingsForm() {
         }
     };
 
-    const onTestCreditSubmit = async (data: TestCreditFormValues) => {
-        const result = await addTestCreditAction(data.amount);
+    const onTestChargeSubmit = async (data: TestChargeFormValues) => {
+        const result = await createTestChargeAction(data.amount);
         if (result.success) {
-            toast({
-                title: 'Ação de Teste Realizada!',
-                description: result.message,
-            });
-             testCreditForm.reset();
+            toast({ title: 'Ação de Teste Realizada!', description: result.message });
         } else {
-             toast({
-                variant: 'destructive',
-                title: 'Erro na Ação de Teste',
-                description: result.message,
-            });
+             toast({ variant: 'destructive', title: 'Erro na Ação de Teste', description: result.message });
+        }
+    };
+    
+    const onTestSubscriptionSubmit = async (data: TestSubscriptionFormValues) => {
+        const result = await createTestSubscriptionAction(data.amount);
+         if (result.success) {
+            toast({ title: 'Ação de Teste Realizada!', description: result.message });
+        } else {
+             toast({ variant: 'destructive', title: 'Erro na Ação de Teste', description: result.message });
         }
     };
 
@@ -161,40 +169,75 @@ function StripeSettingsForm() {
                     <div className="space-y-4">
                         <h3 className="text-lg font-medium">Modo de Teste Ativado</h3>
                         <p className="text-sm text-muted-foreground">
-                            Você está usando uma chave de teste. As ações abaixo são para fins de desenvolvimento e não afetarão seus dados reais.
+                            Você está usando chaves de teste. As ações abaixo são para fins de desenvolvimento e não afetarão seus dados reais.
                         </p>
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">Adicionar Crédito de Teste</CardTitle>
-                                <CardDescription>Simule a adição de fundos a uma conta de teste para fins de desenvolvimento.</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                                <Form {...testCreditForm}>
-                                    <form onSubmit={testCreditForm.handleSubmit(onTestCreditSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
-                                        <FormField
-                                            control={testCreditForm.control}
-                                            name="amount"
-                                            render={({ field }) => (
-                                                <FormItem className="flex-grow">
-                                                    <FormLabel>Valor (R$)</FormLabel>
-                                                    <FormControl>
-                                                        <div className="relative">
-                                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                            <Input type="number" step="0.01" placeholder="100.00" className="pl-10" {...field} />
-                                                        </div>
-                                                    </FormControl>
-                                                    <FormMessage />
-                                                </FormItem>
-                                            )}
-                                        />
-                                        <Button type="submit" disabled={testCreditForm.formState.isSubmitting} className="w-full sm:w-auto">
-                                            {testCreditForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                            Creditar Valor
-                                        </Button>
-                                    </form>
-                                </Form>
-                            </CardContent>
-                        </Card>
+                        <div className="grid md:grid-cols-2 gap-6">
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2"><CreditCard />Testar Pagamento Único</CardTitle>
+                                    <CardDescription>Cria uma cobrança de teste para um cliente fictício.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Form {...testChargeForm}>
+                                        <form onSubmit={testChargeForm.handleSubmit(onTestChargeSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                            <FormField
+                                                control={testChargeForm.control}
+                                                name="amount"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-grow">
+                                                        <FormLabel>Valor (R$)</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                                <Input type="number" step="0.01" placeholder="50.00" className="pl-10" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button type="submit" disabled={testChargeForm.formState.isSubmitting} className="w-full sm:w-auto">
+                                                {testChargeForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Testar Cobrança
+                                            </Button>
+                                        </form>
+                                    </Form>
+                                </CardContent>
+                            </Card>
+
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle className="text-base flex items-center gap-2"><Repeat /> Testar Assinatura</CardTitle>
+                                    <CardDescription>Cria uma assinatura mensal de teste para um cliente fictício.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Form {...testSubscriptionForm}>
+                                        <form onSubmit={testSubscriptionForm.handleSubmit(onTestSubscriptionSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                            <FormField
+                                                control={testSubscriptionForm.control}
+                                                name="amount"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex-grow">
+                                                        <FormLabel>Valor Mensal (R$)</FormLabel>
+                                                        <FormControl>
+                                                            <div className="relative">
+                                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                                <Input type="number" step="0.01" placeholder="29.99" className="pl-10" {...field} />
+                                                            </div>
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <Button type="submit" disabled={testSubscriptionForm.formState.isSubmitting} className="w-full sm:w-auto">
+                                                {testSubscriptionForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                                Testar Assinatura
+                                            </Button>
+                                        </form>
+                                    </Form>
+                                </CardContent>
+                            </Card>
+                        </div>
                     </div>
                 </>
             )}
