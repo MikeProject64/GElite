@@ -1,8 +1,8 @@
+
 'use client';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
-import { useSettings } from '../settings-provider';
 import type { UserSettings } from '@/types';
 
 interface TestimonialsProps {
@@ -10,7 +10,6 @@ interface TestimonialsProps {
 }
 
 export function Testimonials({ landingPageImages }: TestimonialsProps) {
-  const { settings } = useSettings();
 
   const testimonials = [
     {
@@ -18,21 +17,21 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
       name: "Carlos Silva",
       title: "Sócio-Diretor, Ar Frio Refrigeração",
       avatar: "CS",
-      image: landingPageImages?.testimonial1Image || settings.landingPageImages?.testimonial1Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial1Image || "https://placehold.co/100x100.png"
     },
     {
       quote: "Como autônomo, organização é tudo. Este software me deu o controle que eu precisava para gerenciar meus serviços e clientes sem dor de cabeça. Recomendo!",
       name: "Fernanda Lima",
       title: "Técnica de Eletrônicos",
       avatar: "FL",
-      image: landingPageImages?.testimonial2Image || settings.landingPageImages?.testimonial2Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial2Image || "https://placehold.co/100x100.png"
     },
     {
       quote: "Finalmente encontramos um sistema que entende as necessidades de uma assistência técnica. O controle de inventário e o histórico de clientes são fantásticos.",
       name: "Roberto Nunes",
       title: "Gerente, ConsertaTudo Celulares",
       avatar: "RN",
-      image: landingPageImages?.testimonial3Image || settings.landingPageImages?.testimonial3Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial3Image || "https://placehold.co/100x100.png"
     }
   ];
 

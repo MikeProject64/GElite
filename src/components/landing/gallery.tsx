@@ -5,7 +5,6 @@ import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
-import { useSettings } from '@/components/settings-provider';
 import type { UserSettings } from '@/types';
 
 const defaultImageHints = [
@@ -19,14 +18,12 @@ interface GalleryProps {
 }
 
 export function Gallery({ landingPageImages }: GalleryProps) {
-  const { settings } = useSettings();
   
-  const serverImages = landingPageImages?.galleryImages;
-  const clientImages = settings.landingPageImages?.galleryImages;
+  const galleryImageUrls = landingPageImages?.galleryImages;
 
   // Always create a 9-item array, filling with available URLs or placeholders
   const imageList = Array.from({ length: 9 }).map((_, index) => {
-    return serverImages?.[index] || clientImages?.[index] || 'https://placehold.co/600x400.png';
+    return galleryImageUrls?.[index] || 'https://placehold.co/600x400.png';
   });
   
   const galleryItems = imageList.map((url, index) => ({
@@ -36,7 +33,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
   }));
 
   return (
-    <section id="gallery" className="w-full py-12 md:py-24 lg:py-32">
+    <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">

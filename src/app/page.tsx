@@ -14,6 +14,9 @@ import { TargetAudience } from '@/components/landing/target-audience';
 import { Testimonials } from '@/components/landing/testimonials';
 import { Comparison } from '@/components/landing/comparison';
 
+// Force dynamic rendering to ensure fresh data on every request.
+export const revalidate = 0;
+
 // This is now an async server component.
 export default async function Home() {
   
