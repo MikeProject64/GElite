@@ -41,6 +41,25 @@ export interface SystemUser {
   createdAt: Timestamp;
 }
 
+export interface Plan {
+  id: string;
+  name: string;
+  description?: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  isPublic: boolean;
+  features: {
+    servicos: boolean;
+    orcamentos: boolean;
+    prazos: boolean;
+    atividades: boolean;
+    clientes: boolean;
+    colaboradores: boolean;
+    inventario: boolean;
+  };
+  createdAt: Timestamp;
+}
+
 export interface Collaborator {
   id: string;
   userId: string;
