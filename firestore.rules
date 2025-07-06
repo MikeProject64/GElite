@@ -2,30 +2,68 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ======= HELPER FUNCTIONS =======
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isUser(userId) {
+      return isAuth() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check the 'role' field in the user's own document
+      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
     
-    // Global site configuration, readable by all, writable only by admins.
+    // ======= GLOBAL CONFIGURATION =======
+    // Accessible by anyone to read, only by admins to write.
+    // This allows the landing page and all users to get site appearance settings.
     match /siteConfig/{docId} {
-      allow read: if true; // Publicly readable for feature flags, site name, etc.
-      allow write: if request.auth.token.role == 'admin';
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
-    // User-specific settings, only accessible by the user themselves.
-    match /userSettings/{userId} {
-      allow read, write: if request.auth.uid == userId;
+    // ======= USER MANAGEMENT =======
+    match /users/{userId} {
+      // An admin can read and update any user's data (e.g., to change their role).
+      allow read, update: if isAdmin();
+      
+      // A user can read their own data and create their own user document on signup.
+      allow read, create: if isUser(userId);
     }
     
-    // User collection:
-    // Regular users can read/update their own data.
-    // Admins can read/update any user's data.
-    match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      allow read, update: if request.auth.token.role == 'admin';
+    // User-specific settings are private to that user.
+    match /userSettings/{userId} {
+      // Admins can also read/write to user settings for support purposes.
+      allow read, write: if isUser(userId) || isAdmin();
     }
 
-    // Default security for all other collections:
-    // Users can only access documents where their UID matches the 'userId' field.
+    // ======= APPLICATION DATA COLLECTIONS =======
+    // These collections contain user-generated content. A user can only access
+    // documents they own (where their UID is in the 'userId' field).
+    // An admin can access any document for management purposes.
+    function isOwner(doc) {
+      return isAuth() && doc.userId == request.auth.uid;
+    }
+    
+    function isCreatingOwner() {
+      return isAuth() && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // This is a broad rule for all user-owned data collections.
+    // Collections covered: customers, serviceOrders, quotes, collaborators, 
+    // inventory, inventoryMovements, timelineNotes.
     match /{collection}/{docId} {
-      allow read, write: if request.auth.uid == resource.data.userId;
+      // Admins have full access to manage data.
+      allow read, write, delete: if isAdmin();
+
+      // Owners can create their own documents.
+      allow create: if isCreatingOwner();
+
+      // Owners can read, update, and delete their own documents.
+      allow read, update, delete: if isAuth() && isOwner(get(/databases/$(database)/documents/$(collection)/$(docId)).data);
     }
   }
 }
