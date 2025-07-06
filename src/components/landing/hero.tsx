@@ -22,13 +22,13 @@ export function Hero({ landingPageImages }: HeroProps) {
           <div className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-wider text-primary font-body">
-                GESTÃO DE SERVIÇOS
+                GESTÃO DE SERVIÇOS SIMPLIFICADA
               </p>
               <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                Software de gestão de serviços 100% integrado.
+                A plataforma completa para gestão de serviços
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
-                O Gestor Elite oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
+                Centralize ordens de serviço, clientes e inventário em um só lugar. Aumente a eficiência e a satisfação do cliente com o Gestor Elite.
               </p>
             </div>
             <div className="flex flex-col sm:flex-row gap-4">

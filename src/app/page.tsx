@@ -10,6 +10,9 @@ import { Header } from '@/components/header';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { UserSettings } from '@/types';
+import { TargetAudience } from '@/components/landing/target-audience';
+import { Testimonials } from '@/components/landing/testimonials';
+import { Comparison } from '@/components/landing/comparison';
 
 // This is now an async server component.
 export default async function Home() {
@@ -34,8 +37,11 @@ export default async function Home() {
       <main className="flex-grow">
         <Hero landingPageImages={landingPageImages} />
         <KeyFeatures />
+        <TargetAudience />
         <Features landingPageImages={landingPageImages} />
         <Benefits />
+        <Testimonials />
+        <Comparison />
         <Pricing />
         <Guarantee />
         <Gallery landingPageImages={landingPageImages} />

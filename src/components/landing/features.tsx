@@ -2,7 +2,7 @@
 'use client';
 
 import Image from 'next/image';
-import { ClipboardList, Users, Wrench } from 'lucide-react';
+import { ClipboardList, Users, Wrench, CheckCircle } from 'lucide-react';
 import React from 'react';
 import { useSettings } from '@/components/settings-provider';
 import type { UserSettings } from '@/types';
@@ -18,21 +18,24 @@ export function Features({ landingPageImages }: FeaturesProps) {
     {
       icon: <Wrench className="w-6 h-6 text-primary" />,
       title: 'Criação de Ordem de Serviço Simplificada',
-      description: 'Crie e atribua rapidamente ordens de serviço detalhadas. Acompanhe cada trabalho do início à conclusão com campos e modelos personalizáveis que se adaptam ao seu fluxo de trabalho.',
+      description: 'Crie e atribua rapidamente ordens de serviço detalhadas com campos e modelos personalizáveis que se adaptam ao seu fluxo de trabalho.',
+      benefits: ['Reduza o tempo gasto em cada OS', 'Padronize seus serviços', 'Anexe fotos e documentos facilmente'],
       image: landingPageImages?.feature1Image || settings.landingPageImages?.feature1Image || "https://placehold.co/550x450.png",
       imageHint: "interface service order"
     },
     {
       icon: <ClipboardList className="w-6 h-6 text-primary" />,
       title: 'Visão Completa e Controle Total',
-      description: 'Acompanhe tudo em um só lugar. Do status das ordens de serviço aos níveis de inventário e prazos de entrega, nosso painel centralizado oferece a clareza que você precisa para tomar as melhores decisões.',
+      description: 'Acompanhe tudo em um só lugar. Do status das ordens de serviço aos níveis de inventário e prazos, nosso painel centralizado oferece a clareza que você precisa.',
+      benefits: ['Monitore o progresso em tempo real', 'Tome decisões baseadas em dados', 'Identifique gargalos rapidamente'],
       image: landingPageImages?.feature2Image || settings.landingPageImages?.feature2Image || "https://placehold.co/550x450.png",
       imageHint: "dashboard analytics"
     },
     {
       icon: <Users className="w-6 h-6 text-primary" />,
       title: 'CRM Integrado para Relacionamentos Fortes',
-      description: 'Construa relacionamentos duradouros com os clientes com um CRM integrado. Acesse o histórico completo do cliente, preferências e registros de comunicação instantaneamente.',
+      description: 'Construa relacionamentos duradouros com os clientes com um CRM integrado. Acesse o histórico completo do cliente, preferências e registros de comunicação.',
+      benefits: ['Acesse o histórico de cada cliente', 'Personalize o atendimento', 'Aumente a retenção e a fidelidade'],
       image: landingPageImages?.feature3Image || settings.landingPageImages?.feature3Image || "https://placehold.co/550x450.png",
       imageHint: "customer relationship chart"
     },
@@ -62,6 +65,14 @@ export function Features({ landingPageImages }: FeaturesProps) {
                 <p className="text-muted-foreground font-body">
                   {feature.description}
                 </p>
+                 <ul className="space-y-2 font-body">
+                  {feature.benefits.map((benefit, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
               <div className="flex justify-center">
                  <Image

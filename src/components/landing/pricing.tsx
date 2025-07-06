@@ -14,6 +14,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
+import { cn } from '@/lib/utils';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -117,7 +118,8 @@ export function Pricing() {
                   return (
                     <CarouselItem key={plan.id} className="basis-11/12 pl-2">
                       <div className="p-1 h-full flex">
-                        <Card className={`flex flex-col h-full shadow-sm w-full ${index === 1 ? 'border-primary' : ''}`}>
+                        <Card className={cn('relative flex flex-col h-full shadow-sm w-full', index === 1 && 'border-primary')}>
+                          {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
                           <CardHeader className="text-center">
                               <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
                               <CardDescription className="font-body">{plan.description}</CardDescription>
@@ -165,7 +167,8 @@ export function Pricing() {
             const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
             
             return (
-                <Card key={plan.id} className={`flex flex-col h-full shadow-sm ${index === 1 ? 'border-primary' : ''}`}>
+                <Card key={plan.id} className={cn('relative flex flex-col h-full shadow-sm', index === 1 && 'border-primary ring-2 ring-primary shadow-lg')}>
+                {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
                 <CardHeader className="text-center">
                     <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
                     <CardDescription className="font-body">{plan.description}</CardDescription>
