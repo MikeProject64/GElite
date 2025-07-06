@@ -1,34 +1,48 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Default-deny all access to prevent unintentional data exposure.
-    match /{path=**} {
-      allow read, write: if false;
+    // Helper function to check if the user is authenticated
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Allow a user to manage their own 'users' and 'userSettings' document.
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Publicly readable global site configuration, writable only by admins.
+    match /siteConfig/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Users collection rules
     match /users/{userId} {
-      allow read, create: if request.auth.uid == userId;
+      // A user can create their own user document (on signup)
+      allow create: if isSignedIn();
+      // A user can read and update their own document
+      allow read, update: if isSignedIn() && request.auth.uid == userId;
     }
+
+    // User-specific settings are private to the user.
     match /userSettings/{userId} {
-      allow read, write: if request.auth.uid == userId;
+      allow read, write: if isSignedIn() && request.auth.uid == userId;
     }
-
-    // This single rule applies to all data collections where documents are owned by a user.
-    // This includes: customers, serviceOrders, quotes, collaborators, inventory, etc.
-    // The security model relies on a `userId` field in each document.
+    
+    // Generic rules for all other user-specific data collections.
+    // This applies to customers, serviceOrders, quotes, collaborators, etc.
     match /{collection}/{docId} {
+      // Users can read their own documents.
+      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
       
-      // A user can read, update, or delete a document if their ID matches the `userId` in that document.
-      // This rule also covers `list` (query) operations. Firestore security rules ensure that
-      // any query on a collection is only allowed if it includes a `where('userId', '==', request.auth.uid)` clause.
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
-
-      // A user can create a document if they are setting their own ID as the `userId`.
-      allow create: if request.auth.uid == request.resource.data.userId;
+      // Users can update and delete their own documents.
+      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
+      
+      // Users can create documents and must set themselves as the owner.
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
     }
   }
 }
