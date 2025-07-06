@@ -8,6 +8,7 @@ import * as z from 'zod';
 import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { syncPlanWithStripe } from './actions';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -15,7 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
@@ -155,13 +156,33 @@ export default function AdminPlansPage() {
     if (!user) return;
     
     try {
+      const syncResult = await syncPlanWithStripe({
+          name: data.name,
+          description: data.description,
+          monthlyPrice: data.monthlyPrice,
+          yearlyPrice: data.yearlyPrice,
+          stripeProductId: editingPlan?.stripeProductId,
+      });
+
+      if (!syncResult.success) {
+        toast({ variant: "destructive", title: "Erro de Sincronização", description: syncResult.message });
+        return;
+      }
+      
+      const payload = {
+          ...data,
+          stripeProductId: syncResult.stripeProductId,
+          stripeMonthlyPriceId: syncResult.stripeMonthlyPriceId,
+          stripeYearlyPriceId: syncResult.stripeYearlyPriceId,
+      };
+
       if (editingPlan) {
         const planRef = doc(db, 'plans', editingPlan.id);
-        await updateDoc(planRef, data);
+        await updateDoc(planRef, payload);
         toast({ title: "Sucesso!", description: "Plano atualizado." });
       } else {
         await addDoc(collection(db, 'plans'), {
-          ...data,
+          ...payload,
           createdAt: Timestamp.now(),
         });
         toast({ title: "Sucesso!", description: "Plano criado." });
@@ -235,25 +256,6 @@ export default function AdminPlansPage() {
                     ))}
                   </div>
                 </div>
-
-                <Separator />
-
-                <div className="space-y-4">
-                    <h3 className="text-lg font-medium">Configuração do Stripe (Opcional)</h3>
-                    <p className="text-sm text-muted-foreground -mt-4">
-                    Crie um produto e seus preços no painel do Stripe e cole os IDs aqui para habilitar o checkout.
-                    </p>
-                    <FormField control={form.control} name="stripeProductId" render={({ field }) => (
-                        <FormItem><FormLabel>ID do Produto (Stripe)</FormLabel><FormControl><Input placeholder="prod_..." {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="stripeMonthlyPriceId" render={({ field }) => (
-                        <FormItem><FormLabel>ID do Preço Mensal (Stripe)</FormLabel><FormControl><Input placeholder="price_..." {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                    <FormField control={form.control} name="stripeYearlyPriceId" render={({ field }) => (
-                        <FormItem><FormLabel>ID do Preço Anual (Stripe)</FormLabel><FormControl><Input placeholder="price_..." {...field} /></FormControl><FormMessage /></FormItem>
-                    )}/>
-                </div>
-
 
                 <DialogFooter className='pt-4 sticky bottom-0 bg-background py-3'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
