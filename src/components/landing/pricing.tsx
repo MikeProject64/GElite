@@ -4,12 +4,15 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, CheckCircle, Loader2 } from 'lucide-react';
+import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Plan } from '@/types';
 import { Skeleton } from '../ui/skeleton';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
+import { Badge } from '../ui/badge';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -27,6 +30,7 @@ const featureMap: Record<string, string> = {
 export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [interval, setInterval] = useState<'month' | 'year'>('month');
 
   useEffect(() => {
     const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
@@ -84,43 +88,64 @@ export function Pricing() {
             Escolha o plano certo para o seu negócio.
           </p>
         </div>
+        
+        <div className="flex justify-center items-center gap-4 mb-12">
+            <Label htmlFor="interval-switch" className={interval === 'month' ? 'text-primary font-bold' : 'text-muted-foreground'}>
+                Cobrança Mensal
+            </Label>
+            <Switch
+                id="interval-switch"
+                checked={interval === 'year'}
+                onCheckedChange={(checked) => setInterval(checked ? 'year' : 'month')}
+                aria-label="Alternar entre cobrança mensal e anual"
+            />
+            <Label htmlFor="interval-switch" className={interval === 'year' ? 'text-primary font-bold' : 'text-muted-foreground'}>
+                Cobrança Anual
+            </Label>
+        </div>
+
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {plans.map((plan, index) => (
-            <Card key={plan.id} className={`flex flex-col h-full shadow-sm ${index === 1 ? 'border-primary' : ''}`}>
-              <CardHeader className="text-center">
-                <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                <CardDescription>{plan.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-grow flex flex-col">
-                <div className="text-center mb-6">
-                  <span className="text-4xl font-bold">{formatCurrency(plan.monthlyPrice)}</span>
-                  <span className="text-muted-foreground">/mês</span>
-                   {plan.yearlyPrice > 0 && (
-                      <p className="text-xs text-muted-foreground mt-1">ou {formatCurrency(plan.yearlyPrice)}/ano</p>
+          {plans.map((plan, index) => {
+            const price = interval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
+            const priceDescription = interval === 'year' && plan.yearlyPrice > 0 ? '/ano' : '/mês';
+            const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
+            
+            return (
+                <Card key={plan.id} className={`flex flex-col h-full shadow-sm ${index === 1 ? 'border-primary' : ''}`}>
+                <CardHeader className="text-center">
+                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                    <CardDescription>{plan.description}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow flex flex-col">
+                    <div className="text-center mb-6">
+                    <span className="text-4xl font-bold">{formatCurrency(price)}</span>
+                    <span className="text-muted-foreground">{priceDescription}</span>
+                    {interval === 'year' && plan.yearlyPrice > 0 && (
+                      <div className='mt-2'>
+                        <p className="text-sm text-muted-foreground">Equivalente a {formatCurrency(plan.yearlyPrice / 12)}/mês</p>
+                        {savings > 0 && <Badge variant="secondary" className="mt-1 text-green-600 border-green-600">Economize {formatCurrency(savings)}!</Badge>}
+                      </div>
                     )}
-                </div>
-                <ul className="space-y-4 flex-grow">
-                  {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
-                    enabled &&
-                    <li key={featureKey} className="flex items-center gap-2">
-                      <CheckCircle className="w-5 h-5 text-green-500" />
-                      <span>{featureMap[featureKey] || featureKey}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-              <CardFooter className='flex-col gap-2'>
-                <Button asChild className={`w-full`}>
-                  <Link href={`/signup?planId=${plan.id}&interval=month`}>Contratar Plano Mensal</Link>
-                </Button>
-                 {plan.yearlyPrice > 0 && (
-                  <Button asChild variant="outline" className={`w-full`}>
-                    <Link href={`/signup?planId=${plan.id}&interval=year`}>Contratar Plano Anual</Link>
-                  </Button>
-                )}
-              </CardFooter>
-            </Card>
-          ))}
+                    </div>
+                    <ul className="space-y-4 flex-grow">
+                    {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
+                        enabled &&
+                        <li key={featureKey} className="flex items-center gap-2">
+                        <CheckCircle className="w-5 h-5 text-green-500" />
+                        <span>{featureMap[featureKey] || featureKey}</span>
+                        </li>
+                    ))}
+                    </ul>
+                </CardContent>
+                <CardFooter className='flex-col gap-2'>
+                    <Button asChild className={`w-full`}>
+                    <Link href={`/signup?planId=${plan.id}&interval=${interval}`}>Contratar Plano</Link>
+                    </Button>
+                </CardFooter>
+                </Card>
+            )
+          })}
         </div>
       </div>
     </section>
