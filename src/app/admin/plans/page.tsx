@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
@@ -277,11 +277,39 @@ export default function AdminPlansPage() {
                         </div>
                     </CardHeader>
                     <CardContent className="flex-grow">
-                        <div className="mb-6">
-                            <p className="text-3xl font-bold">{formatCurrency(plan.monthlyPrice)}<span className="text-lg font-normal text-muted-foreground">/mês</span></p>
-                            <p className="text-md text-muted-foreground">{formatCurrency(plan.yearlyPrice)}/ano</p>
-                            <Badge variant={plan.isPublic ? 'secondary' : 'outline'} className="mt-2">{plan.isPublic ? "Público" : "Privado"}</Badge>
+                        <div className="mb-6 space-y-4">
+                            <div>
+                                <p className="text-3xl font-bold">{formatCurrency(plan.monthlyPrice)}
+                                    <span className="text-lg font-normal text-muted-foreground">/mês</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground">Cobrança recorrente, sem fidelidade.</p>
+                            </div>
+
+                            {plan.yearlyPrice > 0 && (
+                                <>
+                                    <Separator />
+                                    <div>
+                                        <p className="text-xl font-bold">
+                                            {formatCurrency(plan.yearlyPrice / 12)}
+                                            <span className="text-base font-normal text-muted-foreground"> p/ mês no plano anual</span>
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            Valor total por ano: {formatCurrency(plan.yearlyPrice)}.
+                                         {plan.monthlyPrice > 0 && (plan.monthlyPrice * 12) > plan.yearlyPrice && (
+                                            <span className="font-semibold text-foreground ml-1">
+                                                (Economize {formatCurrency((plan.monthlyPrice * 12) - plan.yearlyPrice)}!)
+                                            </span>
+                                        )}
+                                        </p>
+                                    </div>
+                                </>
+                            )}
                         </div>
+                        
+                        <div className="mb-4">
+                            <Badge variant={plan.isPublic ? 'secondary' : 'outline'} className="">{plan.isPublic ? "Público" : "Privado"}</Badge>
+                        </div>
+
                         <Separator className="my-4"/>
                         <h4 className="font-semibold mb-2">Funções Inclusas:</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
