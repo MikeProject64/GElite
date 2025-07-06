@@ -79,7 +79,7 @@ export default function OrcamentoDetailPage() {
   });
 
   useEffect(() => {
-    if (!quoteId) return;
+    if (!quoteId || !user) return;
     setIsLoading(true);
     const quoteRef = doc(db, 'quotes', quoteId);
     const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
@@ -95,6 +95,7 @@ export default function OrcamentoDetailPage() {
         const originalId = quoteData.originalQuoteId || quoteData.id;
         const versionsQuery = query(
             collection(db, 'quotes'),
+            where('userId', '==', user.uid),
             where('originalQuoteId', '==', originalId),
             orderBy('version', 'desc')
         );
@@ -110,7 +111,7 @@ export default function OrcamentoDetailPage() {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [quoteId, router, toast]);
+  }, [quoteId, router, toast, user]);
 
   useEffect(() => {
     if (quote?.clientId) {

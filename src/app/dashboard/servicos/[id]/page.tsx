@@ -86,7 +86,7 @@ export default function ServicoDetailPage() {
   });
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId || !user) return;
     
     setIsLoading(true);
     const orderRef = doc(db, 'serviceOrders', orderId);
@@ -104,6 +104,7 @@ export default function ServicoDetailPage() {
         const originalId = orderData.originalServiceOrderId || orderData.id;
         const versionsQuery = query(
             collection(db, 'serviceOrders'),
+            where('userId', '==', user.uid),
             where('originalServiceOrderId', '==', originalId),
             orderBy('version', 'desc')
         );
@@ -120,7 +121,7 @@ export default function ServicoDetailPage() {
     });
 
     return () => unsubscribe();
-  }, [orderId, router, toast]);
+  }, [orderId, router, toast, user]);
 
   useEffect(() => {
     if (order?.clientId) {
