@@ -65,8 +65,8 @@ const NetworkAnimation: React.FC = () => {
 
         function init() {
             particles = [];
-            // Reduced particle count for a more subtle effect
-            const numberOfParticles = Math.floor((canvas.width * canvas.height) / 18000);
+            // Adjust particle density by changing the divisor. Lower number = more particles.
+            const numberOfParticles = Math.floor((canvas.width * canvas.height) / 12000);
             for (let i = 0; i < numberOfParticles; i++) {
                 particles.push(new Particle());
             }
