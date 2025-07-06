@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, ChangeEvent, useRef, useMemo } from 'react';
@@ -59,7 +58,6 @@ export default function InventarioItemDetailPage() {
 
     const [isOrderDropdownOpen, setIsOrderDropdownOpen] = useState(false);
     const [orderSearchTerm, setOrderSearchTerm] = useState('');
-    const orderDropdownRef = useRef<HTMLDivElement>(null);
     
     const itemId = Array.isArray(id) ? id[0] : id;
 
@@ -81,17 +79,39 @@ export default function InventarioItemDetailPage() {
             }
         });
 
-        const movementsQuery = query(collection(db, 'inventoryMovements'), where('itemId', '==', itemId));
+        // Corrected query for movements: added userId filter and orderBy
+        const movementsQuery = query(
+            collection(db, 'inventoryMovements'), 
+            where('userId', '==', user.uid),
+            where('itemId', '==', itemId),
+            orderBy('createdAt', 'desc')
+        );
         const unsubMovements = onSnapshot(movementsQuery, (snapshot) => {
             const fetchedMovements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryMovement));
-            setMovements(fetchedMovements.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()));
+            setMovements(fetchedMovements);
             setIsLoading(false);
-        }, () => setIsLoading(false));
+        }, (error) => {
+            console.error("Error fetching inventory movements:", error);
+            // This might require a composite index. The error will guide the user.
+            toast({ variant: 'destructive', title: 'Erro ao buscar histórico', description: 'Falha ao carregar as movimentações. Um índice pode ser necessário no Firestore.' });
+            setIsLoading(false);
+        });
 
-        const ordersQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('isTemplate', '==', false));
+        // More robust query for service orders to avoid index issues.
+        const ordersQuery = query(
+            collection(db, 'serviceOrders'), 
+            where('userId', '==', user.uid),
+            orderBy('createdAt', 'desc')
+        );
         const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
-            const fetchedOrders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder));
-            setServiceOrders(fetchedOrders.sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()));
+            // Filter out templates on the client side
+            const fetchedOrders = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
+                .filter(order => !order.isTemplate);
+            setServiceOrders(fetchedOrders);
+        }, (error) => {
+            console.error("Error fetching service orders:", error);
+            toast({ variant: 'destructive', title: 'Erro ao buscar OS', description: 'Falha ao carregar as Ordens de Serviço.' });
         });
         
         return () => {
@@ -99,23 +119,13 @@ export default function InventarioItemDetailPage() {
             unsubMovements();
             unsubOrders();
         };
-    }, [user, itemId, notFound]);
-
-     useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-          if (orderDropdownRef.current && !orderDropdownRef.current.contains(event.target as Node)) {
-            setIsOrderDropdownOpen(false);
-          }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-      }, [orderDropdownRef]);
+    }, [user, itemId, notFound, toast]);
 
     const filteredServiceOrders = useMemo(() => 
         serviceOrders.filter(order => 
-            order.serviceType.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-            order.clientName.toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
-            order.id.toLowerCase().includes(orderSearchTerm.toLowerCase())
+            (order.serviceType || '').toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+            (order.clientName || '').toLowerCase().includes(orderSearchTerm.toLowerCase()) ||
+            (order.id || '').toLowerCase().includes(orderSearchTerm.toLowerCase())
         ), [serviceOrders, orderSearchTerm]);
     
     const handleOpenDialog = (type: 'entrada' | 'saída') => {
@@ -306,42 +316,44 @@ export default function InventarioItemDetailPage() {
                                 <FormField control={form.control} name="serviceOrderId" render={({ field }) => (
                                     <FormItem className="flex flex-col">
                                         <FormLabel>Associar à Ordem de Serviço (Opcional)</FormLabel>
-                                        <div className="relative" ref={orderDropdownRef}>
-                                            <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsOrderDropdownOpen(prev => !prev)}>
-                                                <span className='truncate'>
-                                                    {field.value ? serviceOrders.find(o => o.id === field.value)?.serviceType : "Selecione uma O.S."}
-                                                </span>
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                            {isOrderDropdownOpen && (
-                                            <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
-                                                <div className="p-2">
-                                                    <Input placeholder="Buscar O.S..." value={orderSearchTerm} onChange={(e) => setOrderSearchTerm(e.target.value)} autoFocus />
-                                                </div>
-                                                <ScrollArea className="h-48">
-                                                {filteredServiceOrders.length > 0 ? (
-                                                    filteredServiceOrders.map((order) => (
-                                                    <button type="button" key={order.id} className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
-                                                        onClick={() => {
-                                                            field.onChange(order.id);
-                                                            setIsOrderDropdownOpen(false);
-                                                            setOrderSearchTerm('');
-                                                        }}
-                                                    >
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value === order.id ? "opacity-100" : "opacity-0")} />
-                                                        <div>
-                                                            <p className="font-medium">{order.serviceType}</p>
-                                                            <p className="text-xs text-muted-foreground">{order.clientName} / #{order.id.substring(0, 6).toUpperCase()}</p>
-                                                        </div>
-                                                    </button>
-                                                    ))
-                                                ) : (
-                                                    <p className="p-2 text-center text-sm text-muted-foreground">Nenhuma O.S. encontrada.</p>
-                                                )}
-                                                </ScrollArea>
-                                            </div>
-                                            )}
-                                        </div>
+                                        <Popover open={isOrderDropdownOpen} onOpenChange={setIsOrderDropdownOpen}>
+                                            <PopoverTrigger asChild>
+                                                <Button type="button" variant="outline" role="combobox" aria-expanded={isOrderDropdownOpen} className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                                    <span className='truncate'>
+                                                        {field.value ? serviceOrders.find(o => o.id === field.value)?.serviceType : "Selecione uma O.S."}
+                                                    </span>
+                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                                <Command>
+                                                    <CommandInput placeholder="Buscar O.S..." value={orderSearchTerm} onValueChange={setOrderSearchTerm}/>
+                                                    <CommandList>
+                                                        <CommandEmpty>Nenhuma O.S. encontrada.</CommandEmpty>
+                                                        <CommandGroup>
+                                                        <ScrollArea className="h-48">
+                                                            {filteredServiceOrders.map((order) => (
+                                                                <CommandItem
+                                                                    key={order.id}
+                                                                    value={`${order.serviceType} ${order.clientName} ${order.id}`}
+                                                                    onSelect={() => {
+                                                                        field.onChange(order.id);
+                                                                        setIsOrderDropdownOpen(false);
+                                                                    }}
+                                                                >
+                                                                    <Check className={cn("mr-2 h-4 w-4", field.value === order.id ? "opacity-100" : "opacity-0")} />
+                                                                    <div>
+                                                                        <p className="font-medium">{order.serviceType}</p>
+                                                                        <p className="text-xs text-muted-foreground">{order.clientName} / #{order.id.substring(0, 6).toUpperCase()}</p>
+                                                                    </div>
+                                                                </CommandItem>
+                                                            ))}
+                                                        </ScrollArea>
+                                                        </CommandGroup>
+                                                    </CommandList>
+                                                </Command>
+                                            </PopoverContent>
+                                        </Popover>
                                         <FormMessage />
                                     </FormItem>
                                 )}/>
@@ -371,4 +383,3 @@ export default function InventarioItemDetailPage() {
         </div>
     );
 }
-
