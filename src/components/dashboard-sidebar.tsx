@@ -137,13 +137,13 @@ function NavContent() {
 
   const navItems = [
     { href: '/dashboard', label: 'Painel', icon: Home },
-    { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList },
-    { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText },
-    { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock },
-    { href: '/dashboard/atividades', label: 'Atividades', icon: Bell },
-    { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users },
-    { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase },
-    { href: '/dashboard/inventario', label: 'Inventário', icon: Package },
+    { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList, flag: 'servicos' },
+    { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText, flag: 'orcamentos' },
+    { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
+    { href: '/dashboard/atividades', label: 'Atividades', icon: Bell, flag: 'atividades' },
+    { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
+    { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase, flag: 'colaboradores' },
+    { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
@@ -174,7 +174,13 @@ function NavContent() {
       </div>
       <div className="flex-1 overflow-y-auto">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon, flag }) => {
+            const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+
+            if (!showFeature) {
+                return null;
+            }
+
             const isActive = (href.length > '/dashboard'.length && pathname.startsWith(href)) || pathname === href;
             return (
                 <Link

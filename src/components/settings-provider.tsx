@@ -28,6 +28,15 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
   tags?: Tag[];
+  featureFlags?: {
+    servicos?: boolean;
+    orcamentos?: boolean;
+    prazos?: boolean;
+    atividades?: boolean;
+    clientes?: boolean;
+    colaboradores?: boolean;
+    inventario?: boolean;
+  };
 }
 
 interface SettingsContextType {
@@ -45,6 +54,15 @@ const defaultSettings: UserSettings = {
   quoteCustomFields: [],
   serviceStatuses: ['Pendente', 'Em Andamento', 'Concluída', 'Cancelada'],
   tags: [],
+  featureFlags: {
+    servicos: true,
+    orcamentos: true,
+    prazos: true,
+    atividades: true,
+    clientes: true,
+    colaboradores: true,
+    inventario: true,
+  },
 };
 
 const SettingsContext = createContext<SettingsContextType>({

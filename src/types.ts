@@ -23,6 +23,15 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: string[];
   tags?: Tag[];
+  featureFlags?: {
+    servicos?: boolean;
+    orcamentos?: boolean;
+    prazos?: boolean;
+    atividades?: boolean;
+    clientes?: boolean;
+    colaboradores?: boolean;
+    inventario?: boolean;
+  };
 }
 
 export interface SystemUser {

@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Switch } from '@/components/ui/switch';
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
 const iconTranslations: Record<string, string> = {
@@ -62,6 +63,29 @@ const globalSettingsFormSchema = z.object({
 });
 type GlobalSettingsFormValues = z.infer<typeof globalSettingsFormSchema>;
 
+
+const featureFlagsFormSchema = z.object({
+  featureFlags: z.object({
+    servicos: z.boolean().default(true),
+    orcamentos: z.boolean().default(true),
+    prazos: z.boolean().default(true),
+    atividades: z.boolean().default(true),
+    clientes: z.boolean().default(true),
+    colaboradores: z.boolean().default(true),
+    inventario: z.boolean().default(true),
+  }).default({}),
+});
+type FeatureFlagsFormValues = z.infer<typeof featureFlagsFormSchema>;
+
+const featureList = [
+    { id: 'servicos', label: 'Serviços', description: 'Gerenciamento de Ordens de Serviço.' },
+    { id: 'orcamentos', label: 'Orçamentos', description: 'Criação e gestão de propostas.' },
+    { id: 'prazos', label: 'Prazos', description: 'Visualização de prazos em lista e calendário.' },
+    { id: 'atividades', label: 'Atividades', description: 'Histórico de atividades do sistema.' },
+    { id: 'clientes', label: 'Clientes', description: 'Base de clientes (CRM).' },
+    { id: 'colaboradores', label: 'Colaboradores', description: 'Gerenciamento de técnicos e setores.' },
+    { id: 'inventario', label: 'Inventário', description: 'Controle de estoque de peças e produtos.' },
+] as const;
 
 function GlobalSettingsForm() {
     const { toast } = useToast();
@@ -226,6 +250,100 @@ function GlobalSettingsForm() {
     );
 }
 
+function FeatureFlagsForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<FeatureFlagsFormValues>({
+        resolver: zodResolver(featureFlagsFormSchema),
+        defaultValues: {
+            featureFlags: {
+                servicos: true, orcamentos: true, prazos: true,
+                atividades: true, clientes: true, colaboradores: true, inventario: true
+            }
+        },
+    });
+
+    useEffect(() => {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const featureFlags = data.featureFlags || {};
+                form.reset({ featureFlags });
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [form]);
+
+    const onSubmit = async (data: FeatureFlagsFormValues) => {
+        setIsSaving(true);
+        try {
+            const settingsRef = doc(db, 'siteConfig', 'main');
+            await setDoc(settingsRef, data, { merge: true });
+            toast({
+                title: 'Sucesso!',
+                description: 'As funções do site foram atualizadas.',
+            });
+        } catch (error) {
+            console.error('Error updating feature flags:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Não foi possível salvar as configurações de funções.',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-6">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
+          <Skeleton className="h-10 w-32 mt-4" />
+        </div>
+      )
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <div className="space-y-4">
+                    {featureList.map((feature) => (
+                        <FormField
+                            key={feature.id}
+                            control={form.control}
+                            name={`featureFlags.${feature.id}`}
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                    <div className="space-y-0.5">
+                                        <FormLabel className="text-base">{feature.label}</FormLabel>
+                                        <FormDescription>{feature.description}</FormDescription>
+                                    </div>
+                                    <FormControl>
+                                        <Switch
+                                            checked={field.value}
+                                            onCheckedChange={field.onChange}
+                                        />
+                                    </FormControl>
+                                </FormItem>
+                            )}
+                        />
+                    ))}
+                </div>
+
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                    Salvar Funções
+                </Button>
+            </form>
+        </Form>
+    );
+}
+
 
 export default function AdminSettingsPage() {
   return (
@@ -234,6 +352,7 @@ export default function AdminSettingsPage() {
       <Tabs defaultValue="geral" className="w-full">
         <TabsList>
           <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="funcoes">Funções</TabsTrigger>
         </TabsList>
         <TabsContent value="geral">
           <Card>
@@ -243,6 +362,20 @@ export default function AdminSettingsPage() {
             </CardHeader>
             <CardContent>
               <GlobalSettingsForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="funcoes">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ativação de Funções</CardTitle>
+              <CardDescription>
+                Ative ou desative módulos para todos os usuários comuns.
+                Isso ocultará a página e o link do menu correspondente.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <FeatureFlagsForm />
             </CardContent>
           </Card>
         </TabsContent>
