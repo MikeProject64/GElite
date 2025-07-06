@@ -29,23 +29,35 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
         if (!planSnap.exists()) throw new Error('Plano selecionado não foi encontrado no banco de dados.');
         const plan = { id: planSnap.id, ...planSnap.data() } as Plan;
 
-        // 2. Get or Create Stripe Price ID
+        // 2. Get or Create Stripe Product & Price IDs
         const isYearly = interval === 'year';
         let priceId = isYearly ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
         
         if (!priceId) {
-            let product;
-            const existingProducts = await stripe.products.list({ query: `metadata['planId']:'${plan.id}'` });
-            if (existingProducts.data.length > 0) {
-                product = existingProducts.data[0];
-            } else {
-                product = await stripe.products.create({
-                    name: plan.name,
-                    description: plan.description,
-                    metadata: { planId: plan.id }
-                });
+            let product: Stripe.Product | null = null;
+
+            // Find or create the Stripe Product
+            if (plan.stripeProductId) {
+                try {
+                    product = await stripe.products.retrieve(plan.stripeProductId);
+                    if (!product.active) product = null; // Treat inactive products as if they don't exist
+                } catch (error) {
+                    console.warn(`Could not retrieve Stripe product ${plan.stripeProductId}, will create a new one.`, error);
+                    product = null;
+                }
             }
             
+            if (!product) {
+                product = await stripe.products.create({
+                    name: plan.name,
+                    description: plan.description || undefined,
+                    metadata: { planId: plan.id }
+                });
+                // Save the new product ID back to our plan document in Firestore
+                await updateDoc(planRef, { stripeProductId: product.id });
+            }
+            
+            // Create the Stripe Price
             const price = await stripe.prices.create({
                 product: product.id,
                 unit_amount: (isYearly ? plan.yearlyPrice : plan.monthlyPrice) * 100, // in cents
@@ -54,11 +66,12 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
             });
             priceId = price.id;
             
+            // Save the new price ID back to our plan document
             const planUpdateData = isYearly ? { stripeYearlyPriceId: priceId } : { stripeMonthlyPriceId: priceId };
             await updateDoc(planRef, planUpdateData);
         }
 
-        // 3. Create Stripe Checkout Session without a pre-existing customer
+        // 3. Create Stripe Checkout Session
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: 'subscription',

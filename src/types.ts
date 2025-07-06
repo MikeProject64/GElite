@@ -62,6 +62,7 @@ export interface Plan {
     inventario: boolean;
   };
   createdAt: Timestamp;
+  stripeProductId?: string;
   stripeMonthlyPriceId?: string;
   stripeYearlyPriceId?: string;
 }
