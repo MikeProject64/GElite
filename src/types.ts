@@ -38,6 +38,9 @@ export interface UserSettings {
     feature2Image?: string;
     feature3Image?: string;
     galleryImages?: string[];
+    testimonial1Image?: string;
+    testimonial2Image?: string;
+    testimonial3Image?: string;
   };
 }
 

@@ -44,6 +44,9 @@ export interface UserSettings {
     feature2Image?: string;
     feature3Image?: string;
     galleryImages?: string[];
+    testimonial1Image?: string;
+    testimonial2Image?: string;
+    testimonial3Image?: string;
   };
 }
 
@@ -77,6 +80,9 @@ const defaultSettings: UserSettings = {
     feature2Image: 'https://placehold.co/550x450.png',
     feature3Image: 'https://placehold.co/550x450.png',
     galleryImages: Array(9).fill('https://placehold.co/600x400.png'),
+    testimonial1Image: 'https://placehold.co/100x100.png',
+    testimonial2Image: 'https://placehold.co/100x100.png',
+    testimonial3Image: 'https://placehold.co/100x100.png',
   },
 };
 

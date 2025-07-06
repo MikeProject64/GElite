@@ -1,31 +1,39 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
+import { useSettings } from '../settings-provider';
+import type { UserSettings } from '@/types';
 
-const testimonials = [
-  {
-    quote: "O Gestor Elite transformou nossa operação. O que antes levava horas em planilhas, agora resolvemos em minutos. Nossos clientes estão mais satisfeitos do que nunca.",
-    name: "Carlos Silva",
-    title: "Sócio-Diretor, Ar Frio Refrigeração",
-    avatar: "CS",
-    image: "https://placehold.co/100x100.png"
-  },
-  {
-    quote: "Como autônomo, organização é tudo. Este software me deu o controle que eu precisava para gerenciar meus serviços e clientes sem dor de cabeça. Recomendo!",
-    name: "Fernanda Lima",
-    title: "Técnica de Eletrônicos",
-    avatar: "FL",
-    image: "https://placehold.co/100x100.png"
-  },
-  {
-    quote: "Finalmente encontramos um sistema que entende as necessidades de uma assistência técnica. O controle de inventário e o histórico de clientes são fantásticos.",
-    name: "Roberto Nunes",
-    title: "Gerente, ConsertaTudo Celulares",
-    avatar: "RN",
-    image: "https://placehold.co/100x100.png"
-  }
-];
+interface TestimonialsProps {
+  landingPageImages?: UserSettings['landingPageImages'];
+}
 
-export function Testimonials() {
+export function Testimonials({ landingPageImages }: TestimonialsProps) {
+  const { settings } = useSettings();
+
+  const testimonials = [
+    {
+      quote: "O Gestor Elite transformou nossa operação. O que antes levava horas em planilhas, agora resolvemos em minutos. Nossos clientes estão mais satisfeitos do que nunca.",
+      name: "Carlos Silva",
+      title: "Sócio-Diretor, Ar Frio Refrigeração",
+      avatar: "CS",
+      image: landingPageImages?.testimonial1Image || settings.landingPageImages?.testimonial1Image || "https://placehold.co/100x100.png"
+    },
+    {
+      quote: "Como autônomo, organização é tudo. Este software me deu o controle que eu precisava para gerenciar meus serviços e clientes sem dor de cabeça. Recomendo!",
+      name: "Fernanda Lima",
+      title: "Técnica de Eletrônicos",
+      avatar: "FL",
+      image: landingPageImages?.testimonial2Image || settings.landingPageImages?.testimonial2Image || "https://placehold.co/100x100.png"
+    },
+    {
+      quote: "Finalmente encontramos um sistema que entende as necessidades de uma assistência técnica. O controle de inventário e o histórico de clientes são fantásticos.",
+      name: "Roberto Nunes",
+      title: "Gerente, ConsertaTudo Celulares",
+      avatar: "RN",
+      image: landingPageImages?.testimonial3Image || settings.landingPageImages?.testimonial3Image || "https://placehold.co/100x100.png"
+    }
+  ];
+
   return (
     <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">

@@ -40,7 +40,7 @@ export default async function Home() {
         <TargetAudience />
         <Features landingPageImages={landingPageImages} />
         <Benefits />
-        <Testimonials />
+        <Testimonials landingPageImages={landingPageImages} />
         <Comparison />
         <Pricing />
         <Guarantee />

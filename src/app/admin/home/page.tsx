@@ -200,6 +200,39 @@ export default function AdminHomePage() {
 
       <Card>
         <CardHeader>
+          <CardTitle>Seção de Depoimentos</CardTitle>
+          <CardDescription>As três imagens dos avatares dos clientes.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid md:grid-cols-3 gap-6">
+          <ImageUploader
+            title="Depoimento 1"
+            description="Dimensões: 100x100"
+            imageUrl={landingImages?.testimonial1Image}
+            fieldName="testimonial1Image"
+            onUpload={handleUpload}
+            isUploading={uploading['testimonial1Image']}
+          />
+          <ImageUploader
+            title="Depoimento 2"
+            description="Dimensões: 100x100"
+            imageUrl={landingImages?.testimonial2Image}
+            fieldName="testimonial2Image"
+            onUpload={handleUpload}
+            isUploading={uploading['testimonial2Image']}
+          />
+          <ImageUploader
+            title="Depoimento 3"
+            description="Dimensões: 100x100"
+            imageUrl={landingImages?.testimonial3Image}
+            fieldName="testimonial3Image"
+            onUpload={handleUpload}
+            isUploading={uploading['testimonial3Image']}
+          />
+        </CardContent>
+      </Card>
+      
+      <Card>
+        <CardHeader>
           <CardTitle>Seção de Galeria</CardTitle>
           <CardDescription>As 9 imagens exibidas na galeria.</CardDescription>
         </CardHeader>
