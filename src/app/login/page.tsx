@@ -90,12 +90,6 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
-            Não tem uma conta?{' '}
-            <Link href="/signup" className="underline hover:text-primary">
-              Cadastre-se
-            </Link>
-          </p>
         </CardContent>
       </Card>
     </main>

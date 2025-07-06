@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import type { Plan, SystemUser } from '@/types';
+import type { Plan } from '@/types';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -17,40 +17,23 @@ async function getStripeInstance(): Promise<Stripe> {
     return new Stripe(stripeSecretKey);
 }
 
-export async function createCheckoutSession(planId: string, interval: 'month' | 'year', userId: string) {
+export async function createCheckoutSession(planId: string, interval: 'month' | 'year', email: string) {
     try {
         const stripe = await getStripeInstance();
         const origin = headers().get('origin') || 'http://localhost:3000';
 
-        // 1. Get Plan and User details from Firestore
+        // 1. Get Plan details from Firestore
         const planRef = doc(db, 'plans', planId);
-        const userRef = doc(db, 'users', userId);
-        const [planSnap, userSnap] = await Promise.all([getDoc(planRef), getDoc(userRef)]);
+        const planSnap = await getDoc(planRef);
 
         if (!planSnap.exists()) throw new Error('Plano selecionado não foi encontrado no banco de dados.');
-        if (!userSnap.exists()) throw new Error('Usuário não encontrado para iniciar a sessão de pagamento.');
-
         const plan = { id: planSnap.id, ...planSnap.data() } as Plan;
-        const user = { uid: userSnap.id, ...userSnap.data() } as SystemUser;
 
-        // 2. Get or Create Stripe Customer
-        let stripeCustomerId = user.stripeCustomerId;
-        if (!stripeCustomerId) {
-            const customer = await stripe.customers.create({
-                email: user.email,
-                name: user.email, // Or a display name if you have one
-                metadata: { firebaseUID: user.uid },
-            });
-            stripeCustomerId = customer.id;
-            await updateDoc(userRef, { stripeCustomerId });
-        }
-
-        // 3. Get or Create Stripe Price ID
+        // 2. Get or Create Stripe Price ID
         const isYearly = interval === 'year';
         let priceId = isYearly ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
         
         if (!priceId) {
-            // Find or create a Stripe Product for this plan
             let product;
             const existingProducts = await stripe.products.list({ query: `metadata['planId']:'${plan.id}'` });
             if (existingProducts.data.length > 0) {
@@ -63,7 +46,6 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
                 });
             }
             
-            // Create the Stripe Price
             const price = await stripe.prices.create({
                 product: product.id,
                 unit_amount: (isYearly ? plan.yearlyPrice : plan.monthlyPrice) * 100, // in cents
@@ -72,22 +54,20 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
             });
             priceId = price.id;
             
-            // Save the new price ID back to Firestore
             const planUpdateData = isYearly ? { stripeYearlyPriceId: priceId } : { stripeMonthlyPriceId: priceId };
             await updateDoc(planRef, planUpdateData);
         }
 
-        // 4. Create Stripe Checkout Session
+        // 3. Create Stripe Checkout Session without a pre-existing customer
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: 'subscription',
-            customer: stripeCustomerId,
-            client_reference_id: user.uid,
+            customer_email: email, // Pre-fill customer email
             line_items: [{ price: priceId, quantity: 1 }],
-            success_url: `${origin}/dashboard/subscription?session_id={CHECKOUT_SESSION_ID}`,
+            success_url: `${origin}/signup/complete-registration?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/signup?planId=${planId}&interval=${interval}`,
             subscription_data: {
-                metadata: { firebaseUID: user.uid, planId: plan.id }
+                metadata: { planId: plan.id, interval: interval }
             }
         });
 
