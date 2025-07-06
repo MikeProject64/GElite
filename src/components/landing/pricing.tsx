@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
@@ -104,8 +105,62 @@ export function Pricing() {
             </Label>
         </div>
 
+        {/* Mobile Carousel View */}
+        <div className="md:hidden">
+            <Carousel opts={{ align: "start" }} className="w-full max-w-sm mx-auto">
+              <CarouselContent>
+                {plans.map((plan, index) => {
+                  const price = interval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
+                  const priceDescription = interval === 'year' && plan.yearlyPrice > 0 ? '/ano' : '/mês';
+                  const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
+                  
+                  return (
+                    <CarouselItem key={plan.id} className="basis-full">
+                      <div className="p-1 h-full flex">
+                        <Card className={`flex flex-col h-full shadow-sm w-full ${index === 1 ? 'border-primary' : ''}`}>
+                          <CardHeader className="text-center">
+                              <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                              <CardDescription>{plan.description}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="flex-grow flex flex-col">
+                              <div className="text-center mb-6">
+                              <span className="text-4xl font-bold">{formatCurrency(price)}</span>
+                              <span className="text-muted-foreground">{priceDescription}</span>
+                              {interval === 'year' && plan.yearlyPrice > 0 && (
+                                <div className='mt-2'>
+                                  <p className="text-sm text-muted-foreground">Equivalente a {formatCurrency(plan.yearlyPrice / 12)}/mês</p>
+                                  {savings > 0 && <Badge variant="secondary" className="mt-1 text-green-600 border-green-600">Economize {formatCurrency(savings)}!</Badge>}
+                                </div>
+                              )}
+                              </div>
+                              <ul className="space-y-4 flex-grow">
+                              {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
+                                  enabled &&
+                                  <li key={featureKey} className="flex items-center gap-2">
+                                  <CheckCircle className="w-5 h-5 text-green-500" />
+                                  <span>{featureMap[featureKey] || featureKey}</span>
+                                  </li>
+                              ))}
+                              </ul>
+                          </CardContent>
+                          <CardFooter className='flex-col gap-2'>
+                              <Button asChild className={`w-full`}>
+                              <Link href={`/signup?planId=${plan.id}&interval=${interval}`}>Contratar Plano</Link>
+                              </Button>
+                          </CardFooter>
+                        </Card>
+                      </div>
+                    </CarouselItem>
+                  )
+                })}
+              </CarouselContent>
+              <CarouselPrevious />
+              <CarouselNext />
+            </Carousel>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+        {/* Desktop Grid View */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
           {plans.map((plan, index) => {
             const price = interval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
             const priceDescription = interval === 'year' && plan.yearlyPrice > 0 ? '/ano' : '/mês';

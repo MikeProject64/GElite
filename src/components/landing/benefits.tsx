@@ -1,4 +1,5 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { TrendingUp, Smile, ShieldCheck, DollarSign } from 'lucide-react';
 
 const benefits = [
@@ -27,7 +28,7 @@ const benefits = [
 export function Benefits() {
   return (
     <section id="benefits" className="w-full py-12 md:py-24 lg:py-32">
-      <div className="container px-4 md:px-6 lg:px-16 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Desbloqueie o Potencial do Seu Negócio
@@ -36,7 +37,34 @@ export function Benefits() {
             O ServiceWise é mais do que uma ferramenta—é um parceiro de crescimento.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        
+        {/* Mobile Carousel View */}
+        <div className="md:hidden">
+          <Carousel opts={{ align: "start" }} className="w-full max-w-sm mx-auto">
+            <CarouselContent>
+              {benefits.map((benefit, index) => (
+                <CarouselItem key={index}>
+                  <div className="p-1 h-full flex">
+                    <Card className="flex flex-col text-center p-4 shadow-sm h-full">
+                      <CardContent className="flex flex-col items-center flex-grow pt-6">
+                        <div className="p-4 bg-primary/10 rounded-full mb-4">
+                          {benefit.icon}
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">{benefit.title}</h3>
+                        <p className="text-muted-foreground flex-grow">{benefit.description}</p>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
+        </div>
+
+        {/* Desktop Grid View */}
+        <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {benefits.map((benefit, index) => (
             <Card key={index} className="flex flex-col text-center p-4 shadow-sm hover:shadow-md transition-shadow">
               <CardContent className="flex flex-col items-center flex-grow pt-6">
