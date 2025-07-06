@@ -2,55 +2,88 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // --- Helper Functions ---
-    function isAuth() {
-      return request.auth != null;
+
+    // Helper Functions
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      // Safely check for admin role. Must check for existence before accessing data.
-      return isAuth() &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      // Use exists() to prevent errors if the user doc doesn't exist yet (e.g., during creation).
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // --- Global & Public Config ---
+    // --- Global & Admin Configuration ---
+
+    // Site-wide settings (features, branding), readable by all, writable only by admins.
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
+    // Plans are public, but only admins can modify them.
     match /plans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
     }
+    
+    // --- User & Account Management ---
 
-    // --- User Management & Settings ---
+    // User account data.
     match /users/{userId} {
-      // Anyone can create their own user document upon signup.
-      allow create: if isAuth() && request.auth.uid == userId;
-      // Users can read their own document. Admins can read any user document.
-      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
-      // Users can update their own document. Admins can update any user document.
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      // Only admins can delete user documents.
+      // Users can be created during signup.
+      allow create: if request.resource.data.uid == request.auth.uid;
+      // Admins can read all user data, users can only read their own.
+      allow read: if isAdmin() || isOwner(userId);
+      // Admins can update any user, users can only update their own.
+      allow update: if isAdmin() || isOwner(userId);
+      // Only admins can delete users.
       allow delete: if isAdmin();
     }
 
+    // User-specific settings (local overrides like theme).
     match /userSettings/{userId} {
-       // Users can manage their own settings. Admins can manage any user's settings.
-      allow read, write: if isAuth() && (request.auth.uid == userId || isAdmin());
+      // Users can read/write their own settings. Admins can manage all.
+      allow read, write: if isAdmin() || isOwner(userId);
+    }
+    
+    // --- Application Data Collections (Per-user data) ---
+    // All these collections follow a similar pattern: only the owner or an admin can access.
+
+    match /customers/{customerId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
-    // --- Application Data Rules ---
-    // These rules apply to collections where each document belongs to a specific user.
-    match /(customers|serviceOrders|quotes|collaborators|inventory|inventoryMovements|timelineNotes)/{docId} {
-      // Users can read, update, and delete their own documents. Admins can manage any document.
-      allow read, update, delete: if isAuth() && (resource.data.userId == request.auth.uid || isAdmin());
-      
-      // Users can only create documents for themselves. Admins can create for anyone.
-      allow create: if isAuth() && (request.resource.data.userId == request.auth.uid || isAdmin());
+    match /serviceOrders/{orderId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    match /quotes/{quoteId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /collaborators/{collaboratorId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /inventory/{itemId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /inventoryMovements/{movementId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /timelineNotes/{noteId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
     }
   }
 }
