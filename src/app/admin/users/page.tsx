@@ -9,13 +9,13 @@ import { collection, onSnapshot, query, orderBy, doc, updateDoc } from 'firebase
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
-import type { SystemUser } from '@/types';
+import type { SystemUser, Plan } from '@/types';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, MoreHorizontal, Shield, KeyRound, UserCheck } from 'lucide-react';
+import { Loader2, MoreHorizontal, Shield, KeyRound, UserCheck, CreditCard } from 'lucide-react';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -24,54 +24,79 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 const roleFormSchema = z.object({
   role: z.enum(['user', 'admin'], { required_error: 'Por favor, selecione uma permissão.' }),
 });
-
 type RoleFormValues = z.infer<typeof roleFormSchema>;
+
+const planFormSchema = z.object({
+  planId: z.string({ required_error: 'Por favor, selecione um plano.' }),
+});
+type PlanFormValues = z.infer<typeof planFormSchema>;
+
 
 export default function AdminUsersPage() {
   const [users, setUsers] = useState<SystemUser[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isPlanDialogOpen, setIsPlanDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<SystemUser | null>(null);
 
-  const form = useForm<RoleFormValues>({
+  const roleForm = useForm<RoleFormValues>({
     resolver: zodResolver(roleFormSchema),
+  });
+  
+  const planForm = useForm<PlanFormValues>({
+    resolver: zodResolver(planFormSchema),
   });
 
   useEffect(() => {
     setIsLoading(true);
-    const q = query(collection(db, 'users'), orderBy('email', 'asc'));
+    const usersQuery = query(collection(db, 'users'), orderBy('email', 'asc'));
+    const plansQuery = query(collection(db, 'plans'), orderBy('monthlyPrice', 'asc'));
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const unsubUsers = onSnapshot(usersQuery, (querySnapshot) => {
       const usersList = querySnapshot.docs.map(doc => ({
         uid: doc.id,
         ...doc.data(),
       } as SystemUser));
       setUsers(usersList);
-      setIsLoading(false);
     }, (error) => {
       console.error("Error fetching users: ", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar usuários",
-        description: "Verifique suas permissões de administrador e as regras de segurança.",
-      });
-      setIsLoading(false);
+      toast({ variant: "destructive", title: "Erro ao carregar usuários" });
+    });
+    
+    const unsubPlans = onSnapshot(plansQuery, (querySnapshot) => {
+        const plansList = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        } as Plan));
+        setPlans(plansList);
+    }, (error) => {
+        console.error("Error fetching plans: ", error);
+        toast({ variant: "destructive", title: "Erro ao carregar planos" });
     });
 
-    return () => unsubscribe();
+    Promise.all([new Promise(res => onSnapshot(usersQuery, res)), new Promise(res => onSnapshot(plansQuery, res))])
+        .finally(() => setIsLoading(false));
+
+    return () => {
+        unsubUsers();
+        unsubPlans();
+    };
   }, [toast]);
 
   useEffect(() => {
     if (selectedUser) {
-      form.setValue('role', selectedUser.role);
+      roleForm.setValue('role', selectedUser.role);
+      planForm.setValue('planId', selectedUser.planId || '');
     }
-  }, [selectedUser, form]);
+  }, [selectedUser, roleForm, planForm]);
 
-  const handleOpenRoleDialog = (user: SystemUser) => {
+  const handleOpenDialog = (user: SystemUser, type: 'role' | 'plan') => {
     setSelectedUser(user);
-    setIsRoleDialogOpen(true);
+    if(type === 'role') setIsRoleDialogOpen(true);
+    if(type === 'plan') setIsPlanDialogOpen(true);
   };
   
   const onRoleSubmit = async (data: RoleFormValues) => {
@@ -87,6 +112,21 @@ export default function AdminUsersPage() {
        toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atualizar a permissão.' });
     }
   }
+  
+  const onPlanSubmit = async (data: PlanFormValues) => {
+    if (!selectedUser) return;
+    try {
+        const userRef = doc(db, 'users', selectedUser.uid);
+        // Admin assignment grants active status and bypasses/removes Stripe subscription ID
+        await updateDoc(userRef, { planId: data.planId, subscriptionId: null, subscriptionStatus: 'active' });
+        toast({ title: "Sucesso!", description: `Plano de ${selectedUser.email} atualizado.` });
+        setIsPlanDialogOpen(false);
+        setSelectedUser(null);
+    } catch (error) {
+         console.error("Error updating plan: ", error);
+         toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atualizar o plano.' });
+    }
+  };
 
   const getRoleBadgeVariant = (role: string) => {
     return role === 'admin' ? 'default' : 'secondary';
@@ -110,48 +150,53 @@ export default function AdminUsersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Email</TableHead>
+                  <TableHead>Plano</TableHead>
                   <TableHead>Permissão</TableHead>
-                  <TableHead>Data de Cadastro</TableHead>
+                  <TableHead>Cadastro</TableHead>
                   <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => (
-                  <TableRow key={user.uid}>
-                    <TableCell className="font-medium">{user.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">{user.role}</Badge>
-                    </TableCell>
-                    <TableCell>{user.createdAt ? format(user.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                    <TableCell>
-                       <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onClick={() => handleOpenRoleDialog(user)}>
-                                <Shield className="mr-2 h-4 w-4" />
-                                Alterar Permissão
-                            </DropdownMenuItem>
-                             <DropdownMenuSeparator />
-                             <DropdownMenuItem disabled>
-                                <UserCheck className="mr-2 h-4 w-4" />
-                                Logar como Usuário
-                            </DropdownMenuItem>
-                             <DropdownMenuSeparator />
-                             <DropdownMenuItem disabled>
-                                <KeyRound className="mr-2 h-4 w-4" />
-                                Resetar Senha
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {users.map((user) => {
+                    const userPlan = plans.find(p => p.id === user.planId);
+                    return (
+                        <TableRow key={user.uid}>
+                            <TableCell className="font-medium">{user.email}</TableCell>
+                            <TableCell>{userPlan?.name || 'Nenhum'}</TableCell>
+                            <TableCell>
+                            <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">{user.role}</Badge>
+                            </TableCell>
+                            <TableCell>{user.createdAt ? format(user.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                            <TableCell>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button aria-haspopup="true" size="icon" variant="ghost">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Toggle menu</span>
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuItem onClick={() => handleOpenDialog(user, 'role')}>
+                                        <Shield className="mr-2 h-4 w-4" /> Alterar Permissão
+                                    </DropdownMenuItem>
+                                     <DropdownMenuItem onClick={() => handleOpenDialog(user, 'plan')}>
+                                        <CreditCard className="mr-2 h-4 w-4" /> Alterar Plano
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem disabled>
+                                        <UserCheck className="mr-2 h-4 w-4" /> Logar como Usuário
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem disabled>
+                                        <KeyRound className="mr-2 h-4 w-4" /> Resetar Senha
+                                    </DropdownMenuItem>
+                                </DropdownMenuContent>
+                                </DropdownMenu>
+                            </TableCell>
+                        </TableRow>
+                    )
+                })}
               </TableBody>
             </Table>
           )}
@@ -171,10 +216,10 @@ export default function AdminUsersPage() {
                 Alterando a permissão para <span className="font-bold">{selectedUser?.email}</span>.
               </DialogDescription>
             </DialogHeader>
-             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onRoleSubmit)} className="space-y-4">
+             <Form {...roleForm}>
+              <form onSubmit={roleForm.handleSubmit(onRoleSubmit)} className="space-y-4">
                  <FormField
-                    control={form.control}
+                    control={roleForm.control}
                     name="role"
                     render={({ field }) => (
                         <FormItem>
@@ -192,8 +237,48 @@ export default function AdminUsersPage() {
                  />
                 <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setIsRoleDialogOpen(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <Button type="submit" disabled={roleForm.formState.isSubmitting}>
+                        {roleForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                        Salvar Alterações
+                    </Button>
+                </DialogFooter>
+              </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
+    
+      <Dialog open={isPlanDialogOpen} onOpenChange={setIsPlanDialogOpen}>
+        <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Alterar Plano do Usuário</DialogTitle>
+              <DialogDescription>
+                Alterando o plano de <span className="font-bold">{selectedUser?.email}</span>. Esta ação substituirá qualquer assinatura existente.
+              </DialogDescription>
+            </DialogHeader>
+             <Form {...planForm}>
+              <form onSubmit={planForm.handleSubmit(onPlanSubmit)} className="space-y-4">
+                 <FormField
+                    control={planForm.control}
+                    name="planId"
+                    render={({ field }) => (
+                        <FormItem>
+                        <FormLabel>Plano</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                            <FormControl><SelectTrigger><SelectValue placeholder="Selecione um plano" /></SelectTrigger></FormControl>
+                            <SelectContent>
+                                {plans.map(plan => (
+                                    <SelectItem key={plan.id} value={plan.id}>{plan.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                        <FormMessage />
+                        </FormItem>
+                    )}
+                 />
+                <DialogFooter>
+                    <Button type="button" variant="ghost" onClick={() => setIsPlanDialogOpen(false)}>Cancelar</Button>
+                    <Button type="submit" disabled={planForm.formState.isSubmitting}>
+                        {planForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                         Salvar Alterações
                     </Button>
                 </DialogFooter>
@@ -204,3 +289,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+

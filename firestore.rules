@@ -1,77 +1,67 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions to make rules cleaner and more reusable.
+    // Helper Functions
     function isOwner(userId) {
-      return request.auth.uid == userId;
+      return request.auth != null && request.auth.uid == userId;
     }
 
     function isAdmin() {
-      // Check if the requesting user has the 'admin' role in their user document.
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // --- Global & Public Configurations ---
-
-    // Site-wide settings: readable by anyone, writable only by admins.
+    // Site-wide configuration, readable by anyone, writable only by admins.
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Plans: readable by anyone (for pricing pages), writable only by admins.
+    // Public plans, readable by anyone, writable only by admins.
     match /plans/{planId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
-    }
-    
-    // User-specific settings: A user can manage their own appearance settings.
-    match /userSettings/{userId} {
-      allow read, write: if isOwner(userId);
+      allow write: if isAdmin();
     }
 
-    // --- User Management ---
-
-    // Users collection: Admins can manage all users.
-    // Users can read and update their own profiles.
+    // User profiles and roles
     match /users/{userId} {
-      allow get, list, update: if isOwner(userId) || isAdmin();
-      allow create, delete: if isAdmin();
-    }
-    
-    // --- Application Data (Owner-based security) ---
-    // All of the following collections are protected so that users can only
-    // access documents they own (where their UID is in the `userId` field).
-    // Admins have override access to all of them.
-
-    match /customers/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
-    }
-
-    match /collaborators/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+      // Admins can manage any user profile
+      allow read, write: if isAdmin();
+      
+      // A user can read their own profile
+      allow read: if isOwner(userId);
+      
+      // A user can update their own profile (e.g., to add stripeCustomerId)
+      allow update: if isOwner(userId);
+      
+      // Any authenticated user can create their own user document during signup
+      allow create: if request.auth != null && request.auth.uid == userId;
     }
 
-    match /inventory/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
-    }
-    
-    match /inventoryMovements/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    // User-specific settings, only accessible by the owner or an admin
+    match /userSettings/{userId} {
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    match /quotes/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
-    }
+    // Generic rules for user-owned data collections
+    // This rule applies to any collection listed in the `where` clause.
+    // It ensures that users can only access their own data, while admins have full access.
+    match /{collection}/{docId} 
+      where collection in ['customers', 'serviceOrders', 'quotes', 'collaborators', 'inventory', 'inventoryMovements', 'timelineNotes'] {
+      
+      // Admins can do anything
+      allow read, write: if isAdmin();
 
-    match /serviceOrders/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
-    }
+      // Users can create their own documents.
+      // We check the `userId` field in the new document being created.
+      allow create: if request.auth.uid == request.resource.data.userId;
 
-    match /timelineNotes/{docId} {
-      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+      // Users can read, update, and delete their own existing documents.
+      // We check the `userId` field in the existing document.
+      allow read, update, delete: if request.auth.uid == resource.data.userId;
     }
   }
 }

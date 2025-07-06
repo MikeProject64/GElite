@@ -4,7 +4,7 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { useToast } from '@/hooks/use-toast';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Plan } from '@/types';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -14,10 +14,79 @@ import { createCheckoutSession } from '@/app/signup/actions';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, XCircle, AlertTriangle, CreditCard } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, AlertTriangle, CreditCard, Check } from 'lucide-react';
 import Link from 'next/link';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+function NoPlanView() {
+    const [plans, setPlans] = useState<Plan[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const fetchedPlans = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plan));
+            setPlans(fetchedPlans);
+            setIsLoading(false);
+        }, (error) => {
+            console.error("Error fetching public plans: ", error);
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, []);
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
+    return (
+        <Card>
+            <CardHeader>
+                <CardTitle>Escolha seu Plano</CardTitle>
+                <CardDescription>Para começar a usar o sistema, você precisa escolher um plano de assinatura.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                 {plans.map((plan) => (
+                    <Card key={plan.id} className={`flex flex-col h-full`}>
+                    <CardHeader className="text-center">
+                        <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
+                        <CardDescription className="font-body">{plan.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex-grow flex flex-col">
+                        <div className="text-center mb-6">
+                        <span className="text-4xl font-bold font-headline">{formatCurrency(plan.monthlyPrice)}</span>
+                        <span className="text-muted-foreground font-body">/mês</span>
+                        {plan.yearlyPrice > 0 && (
+                            <p className="text-xs text-muted-foreground mt-1">ou {formatCurrency(plan.yearlyPrice)}/ano</p>
+                            )}
+                        </div>
+                        <ul className="space-y-4 font-body flex-grow">
+                        {Object.entries(plan.features).map(([feature, enabled]) => (
+                            enabled &&
+                            <li key={feature} className="flex items-center gap-2">
+                                <Check className="w-5 h-5 text-green-500" />
+                                <span className='capitalize'>{feature}</span>
+                            </li>
+                        ))}
+                        </ul>
+                    </CardContent>
+                    <CardFooter className='flex-col gap-2'>
+                        <Button asChild className={`w-full`}>
+                        <Link href={`/signup?planId=${plan.id}&interval=month`}>Contratar Mensal</Link>
+                        </Button>
+                        {plan.yearlyPrice > 0 && (
+                        <Button asChild variant="outline" className={`w-full`}>
+                            <Link href={`/signup?planId=${plan.id}&interval=year`}>Contratar Anual</Link>
+                        </Button>
+                        )}
+                    </CardFooter>
+                    </Card>
+                ))}
+            </CardContent>
+        </Card>
+    )
+}
 
 function SubscriptionPageContent() {
     const { systemUser, user } = useAuth();
@@ -39,11 +108,9 @@ function SubscriptionPageContent() {
                 const result = await activateSubscription(sessionId);
                 if (result.success) {
                     toast({ title: 'Assinatura Ativada!', description: 'Seu acesso foi liberado. Bem-vindo(a)!' });
-                    // The auth provider will pick up the change and grant access
                 } else {
                     toast({ variant: 'destructive', title: 'Erro na Ativação', description: result.message });
                 }
-                // Clean the URL
                 router.replace('/dashboard/subscription', { scroll: false });
                 setIsActivating(false);
             }
@@ -68,7 +135,7 @@ function SubscriptionPageContent() {
         if (!systemUser || !systemUser.planId || !user) return;
         setIsManaging(true);
         try {
-            const checkoutResult = await createCheckoutSession(systemUser.planId, 'month', user.uid); // Defaulting to month for retry
+            const checkoutResult = await createCheckoutSession(systemUser.planId, 'month', user.uid);
             if (!checkoutResult.success || !checkoutResult.url) {
                 throw new Error(checkoutResult.message || 'Não foi possível reiniciar o pagamento.');
             }
@@ -96,16 +163,8 @@ function SubscriptionPageContent() {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
-    if (!plan || !systemUser) {
-        return (
-             <Card>
-                <CardHeader><CardTitle>Nenhum plano encontrado</CardTitle></CardHeader>
-                <CardContent>
-                    <p>Você ainda não selecionou um plano de assinatura.</p>
-                    <Button asChild className='mt-4'><Link href="/#pricing">Ver Planos</Link></Button>
-                </CardContent>
-            </Card>
-        )
+    if (!plan || !systemUser?.planId) {
+        return <NoPlanView />
     }
 
     const statusInfo = getStatusInfo();

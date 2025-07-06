@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, Suspense } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,7 +31,17 @@ function SignupForm() {
   const [error, setError] = useState<string | null>(null);
 
   const planId = searchParams.get('planId');
-  const interval = searchParams.get('interval') || 'month';
+  const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
+  const [pageTitle, setPageTitle] = useState('Crie sua Conta');
+  const [pageDescription, setPageDescription] = useState('Faça seu cadastro para continuar.');
+
+  useEffect(() => {
+    if (planId) {
+      setPageTitle('Último Passo!');
+      setPageDescription('Crie sua conta para ativar a assinatura.');
+    }
+  }, [planId]);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -41,22 +51,6 @@ function SignupForm() {
     },
   });
 
-  if (!planId) {
-    return (
-        <Card className="w-full max-w-sm">
-            <CardHeader>
-                <CardTitle className="text-2xl font-headline text-destructive">Plano não selecionado</CardTitle>
-                <CardDescription>Você precisa escolher um plano antes de se registrar.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Button asChild className="w-full">
-                    <Link href="/#pricing">Ver Planos</Link>
-                </Button>
-            </CardContent>
-        </Card>
-    )
-  }
-
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     setError(null);
@@ -65,31 +59,35 @@ function SignupForm() {
       const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
       const user = userCredential.user;
 
-      // 2. Create user document in Firestore with subscription info
+      // 2. Create user document in Firestore
       await setDoc(doc(db, "users", user.uid), {
         uid: user.uid,
         email: user.email,
         createdAt: Timestamp.now(),
         role: 'user',
-        planId: planId,
-        subscriptionStatus: 'incomplete',
+        planId: planId || null,
+        subscriptionStatus: planId ? 'incomplete' : null,
       });
-      
-      // 3. Create Stripe Checkout session
-      const checkoutResult = await createCheckoutSession(planId, interval, user.uid);
-      
-      if (!checkoutResult.success || !checkoutResult.url) {
-        throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
+
+      // 3. If a plan was selected, proceed to checkout
+      if (planId) {
+        const checkoutResult = await createCheckoutSession(planId, interval, user.uid);
+        if (!checkoutResult.success || !checkoutResult.url) {
+          throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
+        }
+        // Redirect to Stripe
+        router.push(checkoutResult.url);
+      } else {
+        // If no plan, just log in and go to dashboard
+        toast({ title: "Cadastro realizado!", description: "Bem-vindo(a)! Agora escolha um plano para começar." });
+        router.push('/dashboard');
       }
-      
-      // 4. Redirect to Stripe Checkout
-      router.push(checkoutResult.url);
 
     } catch (error: any) {
       let errorMessage = 'Ocorreu um erro. Por favor, tente novamente.';
       if (error.code === 'auth/email-already-in-use') {
         errorMessage = 'Este e-mail já está em uso.';
-      } else if(error.message) {
+      } else if (error.message) {
         errorMessage = error.message;
       }
       setError(errorMessage);
@@ -105,8 +103,8 @@ function SignupForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">Crie sua Conta</CardTitle>
-        <CardDescription>Complete seu cadastro para ativar sua assinatura.</CardDescription>
+        <CardTitle className="text-2xl font-headline">{pageTitle}</CardTitle>
+        <CardDescription>{pageDescription}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -139,7 +137,7 @@ function SignupForm() {
             />
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : 'Continuar para o Pagamento'}
+              {isLoading ? <Loader2 className="animate-spin" /> : (planId ? 'Continuar para o Pagamento' : 'Criar Conta')}
             </Button>
           </form>
         </Form>

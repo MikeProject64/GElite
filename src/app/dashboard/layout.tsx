@@ -26,10 +26,20 @@ export default function DashboardLayout({
     }
 
     // Gatekeeping for subscription
-    if (systemUser && systemUser.planId && systemUser.subscriptionStatus !== 'active') {
-       // Allow access to the subscription page itself
-      if (pathname !== '/dashboard/subscription') {
-        router.push('/dashboard/subscription');
+    if (systemUser) {
+      // If user has no plan, redirect them to the subscription page to choose one.
+      if (!systemUser.planId) {
+        if (pathname !== '/dashboard/subscription') {
+          router.push('/dashboard/subscription');
+        }
+        return; // Stop further checks
+      }
+
+      // If user has a plan but it's not active, also redirect to subscription management.
+      if (systemUser.subscriptionStatus !== 'active') {
+        if (pathname !== '/dashboard/subscription') {
+          router.push('/dashboard/subscription');
+        }
       }
     }
 
@@ -43,9 +53,8 @@ export default function DashboardLayout({
     );
   }
 
-  // If the user has a plan but subscription is not active, show a restricted view
-  // This prevents brief flashes of content during redirection
-  if (systemUser && systemUser.planId && systemUser.subscriptionStatus !== 'active' && pathname !== '/dashboard/subscription') {
+  // If the user is being redirected, show a loading state to prevent content flash.
+  if (systemUser && (!systemUser.planId || systemUser.subscriptionStatus !== 'active') && pathname !== '/dashboard/subscription') {
      return (
        <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
