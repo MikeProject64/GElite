@@ -46,10 +46,14 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, password: s
         if (!planId) {
             throw new Error('ID do plano não encontrado nos metadados da assinatura.');
         }
-
-        // The check for an existing user in Firestore is removed.
-        // We will now rely on createUserWithEmailAndPassword to throw an 'auth/email-already-in-use' error,
-        // which is caught below. This avoids the Firestore permissions error for unauthenticated queries.
+        
+        // Check if user already exists
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("email", "==", email), limit(1));
+        const querySnapshot = await getDocs(q);
+        if (!querySnapshot.empty) {
+            throw new Error('Este e-mail já foi utilizado para criar uma conta.');
+        }
 
         // 1. Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
