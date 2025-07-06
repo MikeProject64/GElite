@@ -1,19 +1,12 @@
 import type { Metadata } from 'next';
-import { Poppins, PT_Sans } from 'next/font/google';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/components/providers';
 import { cn } from '@/lib/utils';
 
-const fontSans = PT_Sans({
+const fontSans = Inter({
   subsets: ['latin'],
-  weight: ['400', '700'],
-  variable: '--font-pt-sans',
-});
-
-const fontHeading = Poppins({
-  subsets: ['latin'],
-  weight: ['600', '700'],
-  variable: '--font-poppins',
+  variable: '--font-sans',
 });
 
 export const metadata: Metadata = {
@@ -29,9 +22,8 @@ export default function RootLayout({
     <html lang="pt-BR" suppressHydrationWarning>
       <head />
       <body className={cn(
-        "font-body antialiased",
-        fontSans.variable,
-        fontHeading.variable
+        "min-h-screen bg-background font-sans antialiased",
+        fontSans.variable
       )}>
         <Providers>
           {children}

@@ -31,10 +31,10 @@ export function Features() {
     <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 mx-auto">
         <div className="text-center mb-16">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Como o ServiceWise Funciona
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
             Nossa plataforma simplifica cada etapa do seu fluxo de trabalho de serviço, da criação à conclusão.
           </p>
         </div>
@@ -46,9 +46,9 @@ export function Features() {
                    <div className="p-3 bg-primary/10 rounded-full">
                      {feature.icon}
                    </div>
-                  <h3 className="text-2xl font-bold font-headline">{feature.title}</h3>
+                  <h3 className="text-2xl font-bold">{feature.title}</h3>
                 </div>
-                <p className="text-muted-foreground font-body">
+                <p className="text-muted-foreground">
                   {feature.description}
                 </p>
               </div>

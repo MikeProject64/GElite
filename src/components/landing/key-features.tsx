@@ -34,10 +34,10 @@ export function KeyFeatures() {
     <section id="key-features" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Funcionalidades Essenciais para sua Gestão
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
             Tudo o que você precisa para otimizar suas operações em um só lugar.
           </p>
         </div>
@@ -48,7 +48,7 @@ export function KeyFeatures() {
                 <div className="p-3 bg-accent rounded-lg text-primary-foreground">
                   {React.cloneElement(feature.icon, { className: 'w-7 h-7' })}
                 </div>
-                <h3 className="text-lg font-semibold font-headline">{feature.title}</h3>
+                <h3 className="text-lg font-semibold">{feature.title}</h3>
               </CardContent>
             </Card>
           ))}

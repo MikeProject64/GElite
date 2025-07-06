@@ -35,10 +35,10 @@ export function Pricing() {
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
         <div className="container px-4 md:px-6 mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+            <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
               Preços Simples e Transparentes
             </h2>
-            <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
+            <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
               Escolha o plano certo para o seu negócio.
             </p>
           </div>
@@ -66,10 +66,10 @@ export function Pricing() {
     <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 mx-auto">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
+          <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Preços Simples e Transparentes
           </h2>
-          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
+          <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
             Escolha o plano certo para o seu negócio.
           </p>
         </div>
@@ -77,19 +77,19 @@ export function Pricing() {
           {plans.map((plan, index) => (
             <Card key={plan.id} className={`flex flex-col h-full`}>
               <CardHeader className="text-center">
-                <CardTitle className="font-headline text-2xl">{plan.name}</CardTitle>
-                <CardDescription className="font-body">{plan.description}</CardDescription>
+                <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                <CardDescription>{plan.description}</CardDescription>
               </CardHeader>
               <CardContent className="flex-grow flex flex-col">
                 <div className="text-center mb-6">
-                  <span className="text-4xl font-bold font-headline">{formatCurrency(plan.monthlyPrice)}</span>
-                  <span className="text-muted-foreground font-body">/mês</span>
+                  <span className="text-4xl font-bold">{formatCurrency(plan.monthlyPrice)}</span>
+                  <span className="text-muted-foreground">/mês</span>
                    {plan.yearlyPrice > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">ou {formatCurrency(plan.yearlyPrice)}/ano</p>
                     )}
                 </div>
-                <ul className="space-y-4 font-body flex-grow">
-                  {Object.entries(plan.features).map(([feature, enabled]) => (
+                <ul className="space-y-4 flex-grow">
+                  {plan.features && Object.entries(plan.features).map(([feature, enabled]) => (
                     enabled &&
                     <li key={feature} className="flex items-center gap-2">
                       <Check className="w-5 h-5 text-green-500" />

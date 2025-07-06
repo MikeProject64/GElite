@@ -9,13 +9,13 @@ export function Hero() {
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-x-16 items-center">
           <div className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
-              <p className="text-sm font-semibold uppercase tracking-wider text-accent">
+              <p className="text-sm font-semibold uppercase tracking-wider text-primary">
                 GESTÃO DE SERVIÇOS
               </p>
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline text-primary">
+              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none text-primary">
                 Um software para uma gestão de serviço 100% integrada.
               </h1>
-              <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
+              <p className="max-w-[600px] text-muted-foreground md:text-xl">
                 O ServiceWise oferece uma plataforma tudo-em-um para otimizar operações, aumentar a satisfação do cliente e impulsionar o crescimento do negócio.
               </p>
             </div>

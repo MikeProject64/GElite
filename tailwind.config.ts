@@ -8,11 +8,16 @@ export default {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
+    container: {
+      center: true,
+      padding: '1rem',
+      screens: {
+        '2xl': '1400px',
+      },
+    },
     extend: {
       fontFamily: {
-        body: ['var(--font-pt-sans)', 'sans-serif'],
-        headline: ['var(--font-poppins)', 'sans-serif'],
-        code: ['monospace'],
+        sans: ['var(--font-sans)', 'sans-serif'],
       },
       colors: {
         background: 'hsl(var(--background))',
