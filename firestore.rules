@@ -2,35 +2,30 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
+    
     // --- Helper Functions ---
-    function isAdmin() {
-      // Safely checks if the requesting user has the 'admin' role.
-      // Returns false if the user document doesn't exist yet.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
     function isOwner(userId) {
-      // Checks if the requesting user is the owner of the document ID.
       return request.auth != null && request.auth.uid == userId;
     }
     
-    function isResourceOwner() {
-      // Checks if the requesting user is the owner of an existing document,
-      // by looking at the 'userId' field inside the document's data.
-      return request.auth != null && resource.data.userId == request.auth.uid;
+    function isAdmin() {
+      // Use exists() to safely check for the admin role to prevent errors on new user creation.
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    function isCreatingForSelf() {
-      // Checks if the user is creating a new document for themselves,
-      // by looking at the 'userId' field in the incoming data.
+    // Checks ownership of a document being created by looking at the incoming data.
+    function isCreatingOwnResource() {
       return request.auth != null && request.resource.data.userId == request.auth.uid;
     }
 
+    // Checks ownership of an existing document by looking at the stored data.
+    function isAccessingOwnResource() {
+        return request.auth != null && resource.data.userId == request.auth.uid;
+    }
 
-    // --- Global Configuration ---
-    // Readable by anyone (for landing page, etc.), writable only by admins.
+    // --- Global Config & Plans ---
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
@@ -40,56 +35,58 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
-
-    // --- User & Settings Management ---
-    // Rules for the 'users' collection itself.
+    
+    // --- User Documents ---
     match /users/{userId} {
-      allow create: if isOwner(userId); // Allows a user to create their own document on signup.
-      allow read, update, delete: if isOwner(userId) || isAdmin(); // Allows a user to manage their own doc, or an admin to manage any.
+      // Crucial for signup: Allows a newly authenticated user to create their own document.
+      allow create: if isOwner(userId);
+      
+      // Users can read/update their own data. Admins can manage any user.
+      allow read, update: if isOwner(userId) || isAdmin();
+
+      // Only admins can delete users.
+      allow delete: if isAdmin();
     }
     
-    // Rules for user-specific settings (like appearance).
+    // --- User-Specific Appearance Settings ---
     match /userSettings/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if isOwner(userId);
     }
-
-
-    // --- Application Data Collections ---
-    // Rules for data collections owned by a user.
     
+    // --- Application Data Collections ---
     match /customers/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
     
     match /serviceOrders/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
 
     match /quotes/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
     
     match /collaborators/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
-
+    
     match /inventory/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
     
     match /inventoryMovements/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
 
     match /timelineNotes/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isCreatingForSelf() || isAdmin();
+      allow create: if isCreatingOwnResource() || isAdmin();
+      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
     }
   }
 }
