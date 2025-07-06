@@ -1,67 +1,62 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper Functions
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-
+    // --- Helper Functions ---
+    // Checks if the requesting user has an 'admin' role.
     function isAdmin() {
-      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Site-wide configuration, readable by anyone, writable only by admins.
+    // Checks if the requesting user is the owner of the document.
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    // Checks if the user is signed in.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // --- Global Configuration ---
+    // siteConfig: Readable by anyone (for feature flags/landing page), writable only by admins.
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-
-    // Public plans, readable by anyone, writable only by admins.
+    
+    // plans: Readable by anyone (for pricing page), writable only by admins.
     match /plans/{planId} {
-      allow read: if true;
-      allow write: if isAdmin();
+        allow read: if true;
+        allow write: if isAdmin();
     }
-
-    // User profiles and roles
+    
+    // --- User Management ---
+    // users: Can be read/updated by the owner or an admin. Can be created by the new user on signup.
     match /users/{userId} {
-      // Admins can manage any user profile
-      allow read, write: if isAdmin();
-      
-      // A user can read their own profile
-      allow read: if isOwner(userId);
-      
-      // A user can update their own profile (e.g., to add stripeCustomerId)
-      allow update: if isOwner(userId);
-      
-      // Any authenticated user can create their own user document during signup
-      allow create: if request.auth != null && request.auth.uid == userId;
+      allow read, update: if isAdmin() || isOwner(userId);
+      allow create: if isOwner(userId);
     }
 
-    // User-specific settings, only accessible by the owner or an admin
+    // userSettings: Can be read/written only by the owner or an admin.
     match /userSettings/{userId} {
-      allow read, write: if isOwner(userId) || isAdmin();
+        allow read, write: if isAdmin() || isOwner(userId);
     }
-
-    // Generic rules for user-owned data collections
-    // This rule applies to any collection listed in the `where` clause.
-    // It ensures that users can only access their own data, while admins have full access.
+    
+    // --- User-Owned Application Data ---
+    // This rule applies to all collections that are owned by a specific user.
+    // An admin can manage any document.
+    // A regular user can create, read, update, and delete their own documents.
     match /{collection}/{docId} 
-      where collection in ['customers', 'serviceOrders', 'quotes', 'collaborators', 'inventory', 'inventoryMovements', 'timelineNotes'] {
+        where collection in ['customers', 'serviceOrders', 'quotes', 'collaborators', 'inventory', 'inventoryMovements', 'timelineNotes'] {
       
-      // Admins can do anything
-      allow read, write: if isAdmin();
-
-      // Users can create their own documents.
-      // We check the `userId` field in the new document being created.
-      allow create: if request.auth.uid == request.resource.data.userId;
-
-      // Users can read, update, and delete their own existing documents.
-      // We check the `userId` field in the existing document.
-      allow read, update, delete: if request.auth.uid == resource.data.userId;
+      // Allow read, update, delete if the user is an admin OR if they are the owner of the document.
+      allow read, update, delete: if isAdmin() || (isSignedIn() && resource.data.userId == request.auth.uid);
+      
+      // Allow create if the user is an admin OR if the new document's userId matches their own.
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.userId == request.auth.uid);
     }
   }
 }
