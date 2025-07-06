@@ -1,93 +1,110 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper Functions
-    function isAuth() {
+  
+    // =================================
+    //  Helper Functions
+    // =================================
+    function userIsAuthenticated() {
       return request.auth != null;
     }
     
-    function isOwner(userId) {
-      return isAuth() && request.auth.uid == userId;
+    function userIsAdmin() {
+      // Check if the requesting user has an 'admin' role in their user document.
+      // Use exists() to prevent errors if the user doc doesn't exist yet.
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
     
-    function isAdmin() {
-      return isAuth() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // A user can create their own user document after the server-side
-    // auth user has been created. The server action context is unauthenticated,
-    // so this rule MUST NOT check for auth, but MUST validate the data.
-    match /users/{userId} {
-      allow create: if request.resource.data.uid == userId
-                    && request.resource.data.role == 'user';
-                    
-      // Users can read/update their own doc. Admins can read/update/delete any.
-      allow read, update: if isOwner(userId) || isAdmin();
-      allow delete: if isAdmin();
+    function userIsOwner(userId) {
+      return request.auth.uid == userId;
     }
     
-    // All other data collections require the user to be the owner.
-    // The userId field in the document must match the authenticated user's UID.
-    function isResourceOwner() {
+    // Checks the `userId` field within a document against the requesting user.
+    function userOwnsDocument() {
       return request.auth.uid == resource.data.userId;
     }
     
-    function isCreatingOwnResource() {
+    // Checks the `userId` field on a document being created.
+    function userIsCreatingOwnDocument() {
       return request.auth.uid == request.resource.data.userId;
     }
+    
+    // =================================
+    //  Collection Rules
+    // =================================
 
-    // Admins can manage site-wide configuration.
+    // --- Public / Semi-Public Collections ---
     match /siteConfig/{docId} {
-      allow read: if isAuth();
-      allow write: if isAdmin();
-    }
-
-    // Admins can manage plans. Public can read for pricing pages.
-    match /plans/{planId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow write: if userIsAdmin();
     }
     
-    // Users can manage their own appearance settings.
+    match /plans/{docId} {
+      allow read: if userIsAuthenticated();
+      allow write: if userIsAdmin();
+    }
+
+    // --- User Management Collections ---
+    match /users/{userId} {
+      allow get: if userIsOwner(userId) || userIsAdmin();
+      allow list: if userIsAdmin();
+      allow update: if userIsOwner(userId) || userIsAdmin();
+      // Allow a new user to create their own user document after signup.
+      // Must set their own uid and role must be 'user'.
+      allow create: if request.auth.uid == userId && request.resource.data.role == 'user';
+    }
+    
     match /userSettings/{userId} {
-        allow read, write: if isOwner(userId);
+    	allow read, write: if userIsOwner(userId);
     }
     
-    match /customers/{customerId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
+    // --- User-Owned Data Collections ---
+    // These collections require queries to be constrained by `where("userId", "==", request.auth.uid)`
+    // for `list` operations to succeed for non-admin users.
+    
+    match /customers/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
     
-    match /collaborators/{collaboratorId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
+    match /serviceOrders/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
     
-    match /serviceOrders/{orderId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
+    match /quotes/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
     
-    match /quotes/{quoteId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
-    }
-
-    match /inventory/{itemId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
+    match /collaborators/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
     
-    match /inventoryMovements/{movementId} {
-      allow read, update, delete: if isAuth() && isResourceOwner();
-      allow create: if isAuth() && isCreatingOwnResource();
+    match /inventory/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
-
-    match /timelineNotes/{noteId} {
-        allow read, update, delete: if isAuth() && isResourceOwner();
-        allow create: if isAuth() && isCreatingOwnResource();
+    
+    match /inventoryMovements/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
+    }
+    
+    match /timelineNotes/{docId} {
+      allow get, update, delete: if userOwnsDocument() || userIsAdmin();
+      allow list: if userIsAuthenticated();
+      allow create: if userIsCreatingOwnDocument();
     }
   }
 }
