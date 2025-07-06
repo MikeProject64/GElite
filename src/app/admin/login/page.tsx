@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -5,8 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { signInWithEmailAndPassword, signOut } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,14 +37,33 @@ export default function AdminLoginPage() {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      // The admin layout will handle role-based redirection
-      router.push('/admin/dashboard'); 
+      // 1. Authenticate with Firebase Auth
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // 2. Verify admin role in Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+        // 3. Role is confirmed, proceed to dashboard
+        router.push('/admin/dashboard');
+      } else {
+        // 4. Not an admin, sign out and show error
+        await signOut(auth);
+        toast({
+          variant: 'destructive',
+          title: 'Acesso Negado',
+          description: 'Você não possui permissões de administrador.',
+        });
+        setIsLoading(false);
+      }
     } catch (error: any) {
+      // This catches both Firebase Auth errors (wrong pass) and Firestore errors.
       toast({
         variant: 'destructive',
         title: 'Falha no Login',
-        description: 'E-mail ou senha incorretos. Verifique suas credenciais de administrador.',
+        description: 'Credenciais incorretas ou você não tem permissão para acessar esta área.',
       });
       setIsLoading(false);
     }
