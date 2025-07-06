@@ -32,15 +32,21 @@ function SignupForm() {
 
   const planId = searchParams.get('planId');
   const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
-  const [pageTitle, setPageTitle] = useState('Crie sua Conta');
-  const [pageDescription, setPageDescription] = useState('Faça seu cadastro para continuar.');
+  
+  const [isVerifying, setIsVerifying] = useState(true);
 
   useEffect(() => {
-    if (planId) {
-      setPageTitle('Último Passo!');
-      setPageDescription('Crie sua conta para ativar a assinatura.');
+    if (!planId) {
+      toast({
+        title: "Nenhum plano selecionado",
+        description: "Você precisa escolher um plano para se cadastrar.",
+        variant: 'destructive'
+      });
+      router.push('/#pricing');
+    } else {
+      setIsVerifying(false);
     }
-  }, [planId]);
+  }, [planId, router, toast]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,6 +58,10 @@ function SignupForm() {
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    if (!planId) {
+        toast({variant: 'destructive', title: 'Erro', description: 'Nenhum plano foi selecionado para o checkout.'});
+        return;
+    }
     setIsLoading(true);
     setError(null);
     try {
@@ -65,23 +75,17 @@ function SignupForm() {
         email: user.email,
         createdAt: Timestamp.now(),
         role: 'user',
-        planId: planId || null,
-        subscriptionStatus: planId ? 'incomplete' : null,
+        planId: planId,
+        subscriptionStatus: 'incomplete',
       });
 
-      // 3. If a plan was selected, proceed to checkout
-      if (planId) {
-        const checkoutResult = await createCheckoutSession(planId, interval, user.uid);
-        if (!checkoutResult.success || !checkoutResult.url) {
-          throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
-        }
-        // Redirect to Stripe
-        router.push(checkoutResult.url);
-      } else {
-        // If no plan, just log in and go to dashboard
-        toast({ title: "Cadastro realizado!", description: "Bem-vindo(a)! Agora escolha um plano para começar." });
-        router.push('/dashboard');
+      // 3. Proceed to checkout
+      const checkoutResult = await createCheckoutSession(planId, interval, user.uid);
+      if (!checkoutResult.success || !checkoutResult.url) {
+        throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
       }
+      // Redirect to Stripe
+      router.push(checkoutResult.url);
 
     } catch (error: any) {
       let errorMessage = 'Ocorreu um erro. Por favor, tente novamente.';
@@ -100,11 +104,25 @@ function SignupForm() {
     }
   };
 
+  if (isVerifying) {
+    return (
+      <Card className="w-full max-w-sm">
+        <CardHeader>
+          <CardTitle className="text-2xl font-headline">Verificando plano...</CardTitle>
+          <CardDescription>Aguarde um momento...</CardDescription>
+        </CardHeader>
+        <CardContent className="flex justify-center items-center h-24">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <CardTitle className="text-2xl font-headline">{pageTitle}</CardTitle>
-        <CardDescription>{pageDescription}</CardDescription>
+        <CardTitle className="text-2xl font-headline">Último Passo!</CardTitle>
+        <CardDescription>Crie sua conta para ativar a assinatura.</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
@@ -137,7 +155,7 @@ function SignupForm() {
             />
             {error && <p className="text-sm font-medium text-destructive">{error}</p>}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : (planId ? 'Continuar para o Pagamento' : 'Criar Conta')}
+              {isLoading ? <Loader2 className="animate-spin" /> : 'Continuar para o Pagamento'}
             </Button>
           </form>
         </Form>

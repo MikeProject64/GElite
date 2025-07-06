@@ -47,7 +47,6 @@ export function Header() {
                 <Button variant="ghost" onClick={() => router.push('/login')}>
                   Login
                 </Button>
-                <Button onClick={() => router.push('/signup')}>Cadastre-se</Button>
               </>
             )}
           </nav>
