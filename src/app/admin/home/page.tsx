@@ -9,6 +9,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useToast } from '@/hooks/use-toast';
 import type { UserSettings } from '@/types';
 import Image from 'next/image';
+import { useAuth } from '@/components/auth-provider';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -73,6 +74,7 @@ function ImageUploader({ title, description, imageUrl, fieldName, onUpload, isUp
 
 export default function AdminHomePage() {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [settings, setSettings] = useState<UserSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState<Record<string, boolean>>({});
@@ -89,13 +91,18 @@ export default function AdminHomePage() {
   }, []);
 
   const handleUpload = async (fieldName: string, file: File, index?: number) => {
+    if (!user) {
+        toast({ variant: 'destructive', title: 'Erro', description: 'Você precisa estar autenticado.' });
+        return;
+    }
     const uniqueFieldName = typeof index === 'number' ? `${fieldName}-${index}` : fieldName;
     setUploading(prev => ({ ...prev, [uniqueFieldName]: true }));
 
     try {
       const storagePath = `siteConfig/${fieldName}/${uuidv4()}-${file.name}`;
       const storageRef = ref(storage, storagePath);
-      await uploadBytes(storageRef, file);
+      const metadata = { customMetadata: { userId: user.uid } };
+      await uploadBytes(storageRef, file, metadata);
       const downloadURL = await getDownloadURL(storageRef);
 
       const settingsRef = doc(db, 'siteConfig', 'main');

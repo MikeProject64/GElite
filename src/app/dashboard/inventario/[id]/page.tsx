@@ -167,7 +167,8 @@ export default function InventarioItemDetailPage() {
                     const fileExtension = fileToUpload.name.split('.').pop();
                     const fileName = `${uuidv4()}.${fileExtension}`;
                     const storageRef = ref(storage, `inventoryMovements/${item.id}/${fileName}`);
-                    const snapshot = await uploadBytes(storageRef, fileToUpload, { customMetadata: { userId: user.uid } });
+                    const metadata = { customMetadata: { userId: user.uid } };
+                    const snapshot = await uploadBytes(storageRef, fileToUpload, metadata);
                     const downloadURL = await getDownloadURL(snapshot.ref);
                     attachments.push({ name: fileToUpload.name, url: downloadURL });
                 }
