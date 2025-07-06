@@ -2,99 +2,97 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // Helper Functions
-    function isAdmin() {
-      // Check if the user document exists and has the 'admin' role.
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-    
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
-    }
-    
-    // --- Collection Rules ---
 
-    // Site-wide configuration, readable by all, writable only by admins.
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check if the user is signed in and if their role is 'admin' in the users collection.
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Returns true if the data being written has the owner's UID.
+    function isCreatingOwnContent(userId) {
+        return isOwner(userId) && request.resource.data.userId == userId;
+    }
+
+    // Global Collections - Public read, admin write
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Plans are public to show on the pricing page, but only admins can manage them.
+
     match /plans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // Users collection rules
+
+    // User Management
     match /users/{userId} {
-      // Allow a user to create their own document. This is critical for signup.
+      // A user can create their own user document during signup.
       allow create: if isOwner(userId);
-      
-      // Allow a user to read their own document. Admins can read any user document.
-      allow read: if isOwner(userId) || isAdmin();
-      
-      // Allow a user to update their own document, but not change their role.
-      // Admins can update any user document, including changing roles.
-      allow update: if (isOwner(userId) && (!('role' in request.resource.data) || request.resource.data.role == resource.data.role)) || isAdmin();
-      
-      // Only admins can delete users.
+      // A user can read or update their own data. An admin can read or update any user's data.
+      allow read, update: if isOwner(userId) || isAdmin();
+      // Only an admin can delete a user.
       allow delete: if isAdmin();
     }
-
-    // User-specific settings, only the owner can read/write.
+    
+    // User Settings
     match /userSettings/{userId} {
-      allow read, write: if isOwner(userId);
+        // A user can create, read, update, and delete their own settings document.
+        allow read, write: if isOwner(userId);
     }
     
-    // --- Rules for User-Owned Content ---
+    // Core Application Data - Each document must have a `userId` field.
+    // Users can only interact with their own data.
     
-    function userContentRules() {
-      return {
-        // Allow read/write if the user is the owner of the document or an admin.
-        'read': (isOwner(resource.data.userId) || isAdmin()),
-        'update': (isOwner(resource.data.userId) || isAdmin()),
-        'delete': (isOwner(resource.data.userId) || isAdmin()),
-        // Allow creation if the incoming document's userId matches the requester.
-        'create': (isOwner(request.resource.data.userId))
-      };
+    function isResourceOwner() {
+        return request.auth.uid == resource.data.userId;
+    }
+    
+    function isRequestingOwnData() {
+        return request.auth.uid == request.resource.data.userId;
     }
 
     match /customers/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
-
+    
     match /serviceOrders/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
     
     match /quotes/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
-    }
-
-    match /collaborators/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
     
+    match /collaborators/{docId} {
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
+    }
+
     match /inventory/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
 
     match /inventoryMovements/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
-    
+
     match /timelineNotes/{docId} {
-      allow read, update, delete: if userContentRules().read;
-      allow create: if userContentRules().create;
+      allow read, update, delete: if isResourceOwner() || isAdmin();
+      allow create: if isRequestingOwnData();
     }
   }
 }
