@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/auth-provider';
 import { Loader2 } from 'lucide-react';
 import { Hero } from '@/components/landing/hero';
-import { ProblemSolution } from '@/components/landing/problem-solution';
+import { KeyFeatures } from '@/components/landing/key-features';
 import { Features } from '@/components/landing/features';
 import { Benefits } from '@/components/landing/benefits';
 import { Pricing } from '@/components/landing/pricing';
@@ -36,7 +36,7 @@ export default function Home() {
       <Header />
       <main className="flex-grow">
         <Hero />
-        <ProblemSolution />
+        <KeyFeatures />
         <Features />
         <Benefits />
         <Pricing />
