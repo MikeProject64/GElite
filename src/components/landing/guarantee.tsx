@@ -20,7 +20,7 @@ const guarantees = [
 
 export function Guarantee() {
   return (
-    <section id="guarantee" className="w-full py-12 md:py-24 lg:py-32">
+    <section id="guarantee" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
