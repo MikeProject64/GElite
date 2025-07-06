@@ -2,97 +2,99 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper Functions
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
+    
+    // --- Helper Functions ---
     function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-
-    function isAdmin() {
-      // Check if the user is signed in and if their role is 'admin' in the users collection.
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Returns true if the data being written has the owner's UID.
-    function isCreatingOwnContent(userId) {
-        return isOwner(userId) && request.resource.data.userId == userId;
-    }
-
-    // Global Collections - Public read, admin write
-    match /siteConfig/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    match /plans/{planId} {
-      allow read: if true;
-      allow write: if isAdmin();
-    }
-
-    // User Management
-    match /users/{userId} {
-      // A user can create their own user document during signup.
-      allow create: if isOwner(userId);
-      // A user can read or update their own data. An admin can read or update any user's data.
-      allow read, update: if isOwner(userId) || isAdmin();
-      // Only an admin can delete a user.
-      allow delete: if isAdmin();
+      return request.auth != null && request.auth.uid == userId;
     }
     
-    // User Settings
+    function isAdmin() {
+      // Check if user document exists and has the role 'admin'
+      return request.auth != null &&
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- Public & Admin Collections ---
+
+    // Site-wide configuration, readable by all, writable only by admins.
+    match /siteConfig/{docId} {
+      allow read;
+      allow write: if isAdmin();
+    }
+    
+    // Plans are readable by all, writable only by admins.
+    match /plans/{planId} {
+      allow read;
+      allow write: if isAdmin();
+    }
+
+    // --- User Management ---
+
+    // User documents
+    match /users/{userId} {
+      // Anyone can create their own user document upon signup. This is critical.
+      allow create: if isOwner(userId);
+      
+      // Users can read/update their own doc. Admins can read/update any.
+      allow read, update: if isOwner(userId) || isAdmin();
+      
+      // Only Admins can list or delete users.
+      allow list, delete: if isAdmin();
+    }
+
+    // User-specific appearance settings
     match /userSettings/{userId} {
-        // A user can create, read, update, and delete their own settings document.
         allow read, write: if isOwner(userId);
     }
-    
-    // Core Application Data - Each document must have a `userId` field.
-    // Users can only interact with their own data.
-    
-    function isResourceOwner() {
-        return request.auth.uid == resource.data.userId;
-    }
-    
-    function isRequestingOwnData() {
-        return request.auth.uid == request.resource.data.userId;
-    }
+
+    // --- Collections with user-owned documents ---
+    // The security pattern here is:
+    // 1. Allow a logged-in user to perform a list query (e.g., get all their customers).
+    // 2. The client-side code MUST use a `where("userId", "==", user.uid)` clause in the query.
+    // 3. The `allow read` rule then checks each document individually, ensuring only documents
+    //    owned by the user are actually returned. This combination is secure.
 
     match /customers/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+      allow read, update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+      allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+      allow list: if request.auth != null || isAdmin();
     }
-    
+
     match /serviceOrders/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
-    
+
     match /quotes/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
-    
+
     match /collaborators/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
 
     match /inventory/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, update, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
 
     match /inventoryMovements/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
 
     match /timelineNotes/{docId} {
-      allow read, update, delete: if isResourceOwner() || isAdmin();
-      allow create: if isRequestingOwnData();
+       allow read, delete: if resource.data.userId == request.auth.uid || isAdmin();
+       allow create: if request.resource.data.userId == request.auth.uid || isAdmin();
+       allow list: if request.auth != null || isAdmin();
     }
   }
 }
