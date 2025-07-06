@@ -102,10 +102,25 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     setLoadingGlobal(true);
     const settingsRef = doc(db, 'siteConfig', 'main');
     const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
-      const newGlobalSettings = docSnap.exists()
-        ? { ...defaultSettings, ...docSnap.data() }
-        : defaultSettings;
-      setGlobalSettings(newGlobalSettings);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        // Deep merge of settings to ensure defaults are kept for nested objects
+        const newGlobalSettings = {
+          ...defaultSettings,
+          ...data,
+          landingPageImages: {
+            ...defaultSettings.landingPageImages,
+            ...data.landingPageImages,
+          },
+          featureFlags: {
+            ...defaultSettings.featureFlags,
+            ...data.featureFlags,
+          },
+        };
+        setGlobalSettings(newGlobalSettings);
+      } else {
+        setGlobalSettings(defaultSettings);
+      }
       setLoadingGlobal(false);
     }, (error) => {
       console.error("Error fetching global settings:", error);
