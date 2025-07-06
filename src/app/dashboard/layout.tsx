@@ -13,7 +13,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, systemUser, loading } = useAuth();
+  const { user, systemUser, isAdmin, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -25,7 +25,14 @@ export default function DashboardLayout({
       return;
     }
 
-    // Gatekeeping for subscription
+    // If the user is an admin, they should not be in the user dashboard.
+    // Redirect them to the admin panel immediately.
+    if (isAdmin) {
+      router.push('/admin/dashboard');
+      return;
+    }
+
+    // Subscription gatekeeping for regular (non-admin) users
     if (systemUser) {
       // If user has no plan, redirect them to the subscription page to choose one.
       if (!systemUser.planId) {
@@ -43,9 +50,11 @@ export default function DashboardLayout({
       }
     }
 
-  }, [user, systemUser, loading, router, pathname]);
+  }, [user, systemUser, isAdmin, loading, router, pathname]);
 
-  if (loading || !user) {
+  // Show loader while auth is resolving, if user is not logged in,
+  // or if an admin is being redirected away from this layout.
+  if (loading || !user || isAdmin) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -53,7 +62,7 @@ export default function DashboardLayout({
     );
   }
 
-  // If the user is being redirected, show a loading state to prevent content flash.
+  // If the user is being redirected to subscription, show a loader to prevent content flash.
   if (systemUser && (!systemUser.planId || systemUser.subscriptionStatus !== 'active') && pathname !== '/dashboard/subscription') {
      return (
        <div className="flex items-center justify-center h-screen bg-background">
@@ -63,6 +72,7 @@ export default function DashboardLayout({
      )
   }
 
+  // If all checks pass for a regular user, render the user dashboard.
   return (
     <>
       <DynamicLayoutEffects />
