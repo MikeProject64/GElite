@@ -15,6 +15,7 @@ import {
   CreditCard,
   Puzzle,
   Wrench,
+  Settings,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -31,6 +32,7 @@ function AdminNavContent() {
     { href: '/admin/users', label: 'Usuários', icon: Users },
     { href: '/admin/plans', label: 'Planos', icon: CreditCard },
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },
+    { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
   const handleLogout = async () => {
@@ -52,7 +54,7 @@ function AdminNavContent() {
       <div className="flex-1 overflow-y-auto">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-2">
           {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href;
+            const isActive = pathname.startsWith(href);
             return (
                 <Link
                 key={href}
