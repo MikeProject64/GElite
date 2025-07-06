@@ -48,6 +48,9 @@ const planFormSchema = z.object({
         return acc;
     }, {} as Record<FeatureId, z.ZodBoolean>)
   ).default({}),
+  stripeProductId: z.string().optional(),
+  stripeMonthlyPriceId: z.string().optional(),
+  stripeYearlyPriceId: z.string().optional(),
 });
 
 type PlanFormValues = z.infer<typeof planFormSchema>;
@@ -74,6 +77,9 @@ export default function AdminPlansPage() {
       yearlyPrice: 0,
       isPublic: true,
       features: featureList.reduce((acc, feature) => ({ ...acc, [feature.id]: false }), {}),
+      stripeProductId: '',
+      stripeMonthlyPriceId: '',
+      stripeYearlyPriceId: '',
     },
   });
 
@@ -110,6 +116,7 @@ export default function AdminPlansPage() {
         form.reset({
           name: '', description: '', monthlyPrice: 0, yearlyPrice: 0, isPublic: true,
           features: featureList.reduce((acc, feature) => ({ ...acc, [feature.id]: false }), {}),
+          stripeProductId: '', stripeMonthlyPriceId: '', stripeYearlyPriceId: '',
         });
       }
     }
@@ -228,6 +235,25 @@ export default function AdminPlansPage() {
                     ))}
                   </div>
                 </div>
+
+                <Separator />
+
+                <div className="space-y-4">
+                    <h3 className="text-lg font-medium">Configuração do Stripe (Opcional)</h3>
+                    <p className="text-sm text-muted-foreground -mt-4">
+                    Crie um produto e seus preços no painel do Stripe e cole os IDs aqui para habilitar o checkout.
+                    </p>
+                    <FormField control={form.control} name="stripeProductId" render={({ field }) => (
+                        <FormItem><FormLabel>ID do Produto (Stripe)</FormLabel><FormControl><Input placeholder="prod_..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="stripeMonthlyPriceId" render={({ field }) => (
+                        <FormItem><FormLabel>ID do Preço Mensal (Stripe)</FormLabel><FormControl><Input placeholder="price_..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                    <FormField control={form.control} name="stripeYearlyPriceId" render={({ field }) => (
+                        <FormItem><FormLabel>ID do Preço Anual (Stripe)</FormLabel><FormControl><Input placeholder="price_..." {...field} /></FormControl><FormMessage /></FormItem>
+                    )}/>
+                </div>
+
 
                 <DialogFooter className='pt-4 sticky bottom-0 bg-background py-3'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>

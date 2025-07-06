@@ -26,49 +26,17 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
         const planRef = doc(db, 'plans', planId);
         const planSnap = await getDoc(planRef);
 
-        if (!planSnap.exists()) throw new Error('Plano selecionado não foi encontrado no banco de dados.');
+        if (!planSnap.exists()) {
+            throw new Error('Plano selecionado não foi encontrado no banco de dados.');
+        }
         const plan = { id: planSnap.id, ...planSnap.data() } as Plan;
 
-        // 2. Get or Create Stripe Product & Price IDs
+        // 2. Get pre-configured Stripe Price ID
         const isYearly = interval === 'year';
-        let priceId = isYearly ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
-        
-        if (!priceId) {
-            let product: Stripe.Product | null = null;
+        const priceId = isYearly ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
 
-            // Find or create the Stripe Product
-            if (plan.stripeProductId) {
-                try {
-                    product = await stripe.products.retrieve(plan.stripeProductId);
-                    if (!product.active) product = null; // Treat inactive products as if they don't exist
-                } catch (error) {
-                    console.warn(`Could not retrieve Stripe product ${plan.stripeProductId}, will create a new one.`, error);
-                    product = null;
-                }
-            }
-            
-            if (!product) {
-                product = await stripe.products.create({
-                    name: plan.name,
-                    description: plan.description || undefined,
-                    metadata: { planId: plan.id }
-                });
-                // Save the new product ID back to our plan document in Firestore
-                await updateDoc(planRef, { stripeProductId: product.id });
-            }
-            
-            // Create the Stripe Price
-            const price = await stripe.prices.create({
-                product: product.id,
-                unit_amount: (isYearly ? plan.yearlyPrice : plan.monthlyPrice) * 100, // in cents
-                currency: 'brl',
-                recurring: { interval: isYearly ? 'year' : 'month' },
-            });
-            priceId = price.id;
-            
-            // Save the new price ID back to our plan document
-            const planUpdateData = isYearly ? { stripeYearlyPriceId: priceId } : { stripeMonthlyPriceId: priceId };
-            await updateDoc(planRef, planUpdateData);
+        if (!priceId) {
+            throw new Error('Este plano não está configurado para pagamentos. Por favor, contate o administrador.');
         }
 
         // 3. Create Stripe Checkout Session
