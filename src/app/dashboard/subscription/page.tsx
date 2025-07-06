@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -63,7 +62,7 @@ function NoPlanView() {
                         {Object.entries(plan.features).map(([feature, enabled]) => (
                             enabled &&
                             <li key={feature} className="flex items-center gap-2">
-                                <Check className="w-5 h-5 text-green-500" />
+                                <CheckCircle className="w-5 h-5 text-green-500" />
                                 <span className='capitalize'>{feature}</span>
                             </li>
                         ))}

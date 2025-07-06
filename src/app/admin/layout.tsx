@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
@@ -17,12 +16,11 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   useEffect(() => {
-    // This effect should only handle redirection after the loading is complete.
     if (loading) {
-      return;
+      return; // Wait until loading is finished
     }
 
-    // If we are not on the login page...
+    // If we are on any page other than the login page...
     if (pathname !== '/admin/login') {
       if (!user) {
         // ...and there's no user, redirect to login.
@@ -34,13 +32,16 @@ export default function AdminLayout({
     }
   }, [user, isAdmin, loading, router, pathname]);
 
-  // Handle the login page separately, it doesn't need protection or a sidebar.
+  // If it's the login page, render it without the admin layout.
+  // The useEffect above won't trigger any redirects from the login page.
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  // For any other admin page, show a loader until the auth state is resolved.
-  if (loading) {
+  // For all other admin pages:
+  // If still loading, or if not an admin (which covers the redirecting state),
+  // show a loader to prevent content flashing and to cover the redirection time.
+  if (loading || !isAdmin) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -48,26 +49,15 @@ export default function AdminLayout({
     );
   }
 
-  // After loading, if the user is an admin, show the layout.
-  // If they are not, the useEffect above will have already initiated a redirect,
-  // but we also prevent flashing the content by checking here.
-  if (isAdmin) {
-    return (
-      <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <AdminSidebar />
-        <div className="flex flex-col overflow-hidden">
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
-            {children}
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // Fallback loader while the redirect is in progress for non-admins.
+  // If loading is complete and the user is a confirmed admin, render the full admin layout.
   return (
-    <div className="flex items-center justify-center h-screen bg-background">
-      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      <AdminSidebar />
+      <div className="flex flex-col overflow-hidden">
+        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
