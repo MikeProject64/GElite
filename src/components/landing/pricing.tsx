@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Check, Loader2 } from 'lucide-react';
+import { Check, CheckCircle, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
@@ -12,6 +12,17 @@ import type { Plan } from '@/types';
 import { Skeleton } from '../ui/skeleton';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const featureMap: Record<string, string> = {
+  servicos: 'Gestão de Serviços',
+  orcamentos: 'Criação de Orçamentos',
+  prazos: 'Controle de Prazos',
+  atividades: 'Histórico de Atividades',
+  clientes: 'Base de Clientes (CRM)',
+  colaboradores: 'Equipes e Colaboradores',
+  inventario: 'Controle de Inventário',
+};
+
 
 export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -33,7 +44,7 @@ export function Pricing() {
   if (isLoading) {
     return (
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-        <div className="container px-4 md:px-6 mx-auto">
+        <div className="container px-4 md:px-6 lg:px-8 mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
               Preços Simples e Transparentes
@@ -44,7 +55,7 @@ export function Pricing() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
              {[...Array(3)].map((_, i) => (
-               <Card key={i} className="flex flex-col h-full p-6">
+               <Card key={i} className="flex flex-col h-full p-6 shadow-sm">
                   <Skeleton className="h-6 w-1/2 mb-2" />
                   <Skeleton className="h-4 w-3/4 mb-6" />
                   <Skeleton className="h-10 w-1/3 mb-6" />
@@ -64,7 +75,7 @@ export function Pricing() {
 
   return (
     <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-      <div className="container px-4 md:px-6 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-8 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Preços Simples e Transparentes
@@ -75,7 +86,7 @@ export function Pricing() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
           {plans.map((plan, index) => (
-            <Card key={plan.id} className={`flex flex-col h-full`}>
+            <Card key={plan.id} className={`flex flex-col h-full shadow-sm ${index === 1 ? 'border-primary' : ''}`}>
               <CardHeader className="text-center">
                 <CardTitle className="text-2xl">{plan.name}</CardTitle>
                 <CardDescription>{plan.description}</CardDescription>
@@ -89,11 +100,11 @@ export function Pricing() {
                     )}
                 </div>
                 <ul className="space-y-4 flex-grow">
-                  {plan.features && Object.entries(plan.features).map(([feature, enabled]) => (
+                  {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
                     enabled &&
-                    <li key={feature} className="flex items-center gap-2">
-                      <Check className="w-5 h-5 text-green-500" />
-                      <span className='capitalize'>{feature}</span>
+                    <li key={featureKey} className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span>{featureMap[featureKey] || featureKey}</span>
                     </li>
                   ))}
                 </ul>
