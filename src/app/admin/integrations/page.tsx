@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -13,8 +14,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 
 const stripeFormSchema = z.object({
   stripePublishableKey: z.string().startsWith('pk_').optional().or(z.literal('')),
@@ -22,6 +24,12 @@ const stripeFormSchema = z.object({
 });
 
 type StripeFormValues = z.infer<typeof stripeFormSchema>;
+
+const testCreditFormSchema = z.object({
+  amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
+});
+type TestCreditFormValues = z.infer<typeof testCreditFormSchema>;
+
 
 function StripeSettingsForm() {
     const { toast } = useToast();
@@ -35,6 +43,16 @@ function StripeSettingsForm() {
             stripeSecretKey: '',
         },
     });
+
+    const testCreditForm = useForm<TestCreditFormValues>({
+        resolver: zodResolver(testCreditFormSchema),
+        defaultValues: {
+            amount: 100.00,
+        },
+    });
+
+    const watchedStripeKey = form.watch('stripePublishableKey');
+    const isTestMode = watchedStripeKey?.startsWith('pk_test_');
 
     useEffect(() => {
         const settingsRef = doc(db, 'siteConfig', 'main');
@@ -71,6 +89,16 @@ function StripeSettingsForm() {
             setIsSaving(false);
         }
     };
+    
+    const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+    const onTestCreditSubmit = async (data: TestCreditFormValues) => {
+        toast({
+            title: 'Ação de Teste',
+            description: `Crédito de teste de ${formatCurrency(data.amount)} solicitado. (Funcionalidade em desenvolvimento)`,
+        });
+        testCreditForm.reset();
+    };
 
     if (isLoading) {
       return (
@@ -83,40 +111,86 @@ function StripeSettingsForm() {
     }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                    control={form.control}
-                    name="stripePublishableKey"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Chave Publicável do Stripe</FormLabel>
-                            <FormControl><Input placeholder="pk_live_..." {...field} /></FormControl>
-                            <FormDescription>Sua chave publicável do Stripe. Encontrada no painel do Stripe.</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <FormField
+                        control={form.control}
+                        name="stripePublishableKey"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Chave Publicável do Stripe</FormLabel>
+                                <FormControl><Input placeholder="pk_test_..." {...field} /></FormControl>
+                                <FormDescription>Sua chave publicável do Stripe. Encontrada no painel do Stripe.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                <FormField
-                    control={form.control}
-                    name="stripeSecretKey"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Chave Secreta do Stripe</FormLabel>
-                            <FormControl><Input type="password" placeholder="sk_live_..." {...field} /></FormControl>
-                            <FormDescription>Sua chave secreta do Stripe. Mantenha esta chave segura e nunca a exponha no lado do cliente.</FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+                    <FormField
+                        control={form.control}
+                        name="stripeSecretKey"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Chave Secreta do Stripe</FormLabel>
+                                <FormControl><Input type="password" placeholder="sk_test_..." {...field} /></FormControl>
+                                <FormDescription>Sua chave secreta do Stripe. Mantenha esta chave segura e nunca a exponha no lado do cliente.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
 
-                <Button type="submit" disabled={isSaving}>
-                    {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
-                    Salvar Chaves do Stripe
-                </Button>
-            </form>
-        </Form>
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
+                        Salvar Chaves do Stripe
+                    </Button>
+                </form>
+            </Form>
+
+            {isTestMode && (
+                 <>
+                    <Separator className="my-8" />
+                    <div className="space-y-4">
+                        <h3 className="text-lg font-medium">Modo de Teste Ativado</h3>
+                        <p className="text-sm text-muted-foreground">
+                            Você está usando uma chave de teste. As ações abaixo são para fins de desenvolvimento e não afetarão seus dados reais.
+                        </p>
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Adicionar Crédito de Teste</CardTitle>
+                                <CardDescription>Simule a adição de fundos a uma conta de teste para fins de desenvolvimento.</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Form {...testCreditForm}>
+                                    <form onSubmit={testCreditForm.handleSubmit(onTestCreditSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
+                                        <FormField
+                                            control={testCreditForm.control}
+                                            name="amount"
+                                            render={({ field }) => (
+                                                <FormItem className="flex-grow">
+                                                    <FormLabel>Valor (R$)</FormLabel>
+                                                    <FormControl>
+                                                        <div className="relative">
+                                                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                            <Input type="number" step="0.01" placeholder="100.00" className="pl-10" {...field} />
+                                                        </div>
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <Button type="submit" disabled={testCreditForm.formState.isSubmitting} className="w-full sm:w-auto">
+                                            {testCreditForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                                            Creditar Valor
+                                        </Button>
+                                    </form>
+                                </Form>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </>
+            )}
+        </>
     );
 }
 
