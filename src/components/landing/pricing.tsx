@@ -30,7 +30,7 @@ const featureMap: Record<string, string> = {
 export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [interval, setInterval] = useState<'month' | 'year'>('month');
+  const [interval, setInterval] = useState<'month' | 'year'>('year');
 
   useEffect(() => {
     const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
@@ -48,7 +48,7 @@ export function Pricing() {
   if (isLoading) {
     return (
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-        <div className="container px-4 md:px-6 lg:px-16 mx-auto">
+        <div className="container px-4 md:px-6 lg:px-24 mx-auto">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
               Preços Simples e Transparentes
@@ -79,7 +79,7 @@ export function Pricing() {
 
   return (
     <section id="pricing" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-      <div className="container px-4 md:px-6 lg:px-16 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Preços Simples e Transparentes

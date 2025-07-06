@@ -9,6 +9,7 @@ import { KeyFeatures } from '@/components/landing/key-features';
 import { Features } from '@/components/landing/features';
 import { Benefits } from '@/components/landing/benefits';
 import { Pricing } from '@/components/landing/pricing';
+import { Guarantee } from '@/components/landing/guarantee';
 import { FinalCta } from '@/components/landing/final-cta';
 import { Footer } from '@/components/landing/footer';
 import { Header } from '@/components/header';
@@ -32,7 +33,7 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen font-sans bg-gray-50">
       <Header />
       <main className="flex-grow">
         <Hero />
@@ -40,6 +41,7 @@ export default function Home() {
         <Features />
         <Benefits />
         <Pricing />
+        <Guarantee />
         <FinalCta />
       </main>
       <Footer />
