@@ -21,6 +21,7 @@ import {
   FileText,
   Briefcase,
   Bell,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -74,7 +75,6 @@ function NotificationBell() {
         };
 
         const unsubscribes = queries.map(q => onSnapshot(q, () => {
-            // This is just to trigger a refetch when any collection changes.
             fetchCombinedActivity();
         }));
         
@@ -144,6 +144,7 @@ function NavContent() {
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
     { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase, flag: 'colaboradores' },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
+    { href: '/dashboard/subscription', label: 'Assinatura', icon: CreditCard },
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
   ];
 

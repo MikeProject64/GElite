@@ -1,10 +1,11 @@
+
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function DashboardLayout({
@@ -12,14 +13,27 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, systemUser, loading } = useAuth();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+
+    if (!user) {
       router.push('/login');
+      return;
     }
-  }, [user, loading, router]);
+
+    // Gatekeeping for subscription
+    if (systemUser && systemUser.planId && systemUser.subscriptionStatus !== 'active') {
+       // Allow access to the subscription page itself
+      if (pathname !== '/dashboard/subscription') {
+        router.push('/dashboard/subscription');
+      }
+    }
+
+  }, [user, systemUser, loading, router, pathname]);
 
   if (loading || !user) {
     return (
@@ -27,6 +41,17 @@ export default function DashboardLayout({
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
+  }
+
+  // If the user has a plan but subscription is not active, show a restricted view
+  // This prevents brief flashes of content during redirection
+  if (systemUser && systemUser.planId && systemUser.subscriptionStatus !== 'active' && pathname !== '/dashboard/subscription') {
+     return (
+       <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className='ml-4'>Verificando assinatura...</p>
+      </div>
+     )
   }
 
   return (

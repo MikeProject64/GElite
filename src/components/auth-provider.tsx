@@ -1,71 +1,73 @@
+
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, onSnapshot } from 'firebase/firestore';
+import type { SystemUser } from '@/types';
 
 interface AuthContextType {
   user: User | null;
+  systemUser: SystemUser | null;
   loading: boolean;
-  role: 'admin' | 'user' | null;
   isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
+  systemUser: null,
   loading: true,
-  role: null,
   isAdmin: false,
 });
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [role, setRole] = useState<'admin' | 'user' | null>(null);
+  const [systemUser, setSystemUser] = useState<SystemUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let unsubscribeUser: (() => void) | undefined;
+    let unsubscribeUserDoc: (() => void) | undefined;
 
-    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
-      setUser(user);
+    const unsubscribeAuth = onAuthStateChanged(auth, (authUser) => {
+      setUser(authUser);
 
-      if (unsubscribeUser) {
-        unsubscribeUser();
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
       }
 
-      if (user) {
+      if (authUser) {
         setLoading(true);
-        const userDocRef = doc(db, 'users', user.uid);
-        unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+        const userDocRef = doc(db, 'users', authUser.uid);
+        unsubscribeUserDoc = onSnapshot(userDocRef, (docSnap) => {
           if (docSnap.exists()) {
-            const userData = docSnap.data();
-            setRole(userData.role || 'user');
+            setSystemUser({ uid: docSnap.id, ...docSnap.data() } as SystemUser);
           } else {
-            setRole('user'); // Default role if document doesn't exist
+            // This might happen briefly before the user doc is created
+            setSystemUser(null);
           }
           setLoading(false);
         }, (error) => {
-          console.error("Error fetching user role:", error);
-          setRole('user');
+          console.error("Error fetching user data:", error);
+          setSystemUser(null);
           setLoading(false);
         });
       } else {
-        setRole(null);
+        setSystemUser(null);
         setLoading(false);
       }
     });
 
     return () => {
       unsubscribeAuth();
-      if (unsubscribeUser) {
-        unsubscribeUser();
+      if (unsubscribeUserDoc) {
+        unsubscribeUserDoc();
       }
     };
   }, []);
 
-  const isAdmin = role === 'admin';
-  const value = { user, role, isAdmin, loading };
+  const isAdmin = systemUser?.role === 'admin';
+  const value = { user, systemUser, isAdmin, loading };
 
   return (
     <AuthContext.Provider value={value}>

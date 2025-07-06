@@ -39,6 +39,10 @@ export interface SystemUser {
   email: string;
   role: 'admin' | 'user';
   createdAt: Timestamp;
+  planId?: string;
+  stripeCustomerId?: string;
+  subscriptionStatus?: 'active' | 'incomplete' | 'canceled' | 'past_due' | 'incomplete_expired';
+  subscriptionId?: string;
 }
 
 export interface Plan {
@@ -58,6 +62,8 @@ export interface Plan {
     inventario: boolean;
   };
   createdAt: Timestamp;
+  stripeMonthlyPriceId?: string;
+  stripeYearlyPriceId?: string;
 }
 
 export interface Collaborator {
