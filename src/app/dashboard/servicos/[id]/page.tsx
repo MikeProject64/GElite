@@ -610,6 +610,9 @@ export default function ServicoDetailPage() {
         <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
           <DialogHeader className="flex-shrink-0">
             <DialogTitle className="truncate">{previewFile?.name}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Pré-visualização do anexo {previewFile?.name}.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-grow h-full w-full overflow-auto bg-muted/50 rounded-md">
             {renderPreview(previewFile)}
