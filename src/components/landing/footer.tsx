@@ -1,7 +1,7 @@
 export function Footer() {
   return (
     <footer className="w-full py-6 px-4 md:px-6 border-t">
-      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between text-center md:text-left px-4 md:px-6 lg:px-8">
+      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between text-center md:text-left px-4 md:px-6 lg:px-16">
         <p className="text-sm text-muted-foreground">
           &copy; {new Date().getFullYear()} ServiceWise. Todos os direitos reservados.
         </p>

@@ -32,7 +32,7 @@ const features = [
 export function KeyFeatures() {
   return (
     <section id="key-features" className="w-full py-12 md:py-24 lg:py-32">
-      <div className="container px-4 md:px-6 lg:px-8 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-16 mx-auto">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Funcionalidades Essenciais para sua Gestão
@@ -45,7 +45,7 @@ export function KeyFeatures() {
           {features.map((feature) => (
             <Card key={feature.title} className="transition-transform transform hover:-translate-y-1 shadow-sm">
               <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 bg-accent rounded-lg text-primary-foreground">
+                <div className="p-3 bg-primary/10 rounded-lg text-primary">
                   {React.cloneElement(feature.icon, { className: 'w-7 h-7' })}
                 </div>
                 <h3 className="text-lg font-semibold">{feature.title}</h3>

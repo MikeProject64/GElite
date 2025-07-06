@@ -29,7 +29,7 @@ const features = [
 export function Features() {
   return (
     <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-card">
-      <div className="container px-4 md:px-6 lg:px-8 mx-auto">
+      <div className="container px-4 md:px-6 lg:px-16 mx-auto">
         <div className="text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Como o ServiceWise Funciona
