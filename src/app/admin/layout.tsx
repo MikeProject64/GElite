@@ -16,37 +16,31 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  // This effect handles protection for all OTHER admin pages.
-  // It is called unconditionally to respect the Rules of Hooks.
   useEffect(() => {
-    // On the login page, no protection is needed, so we do nothing.
-    if (pathname === '/admin/login') {
+    // This effect should only handle redirection after the loading is complete.
+    if (loading) {
       return;
     }
 
-    // On other pages, wait for auth to load before checking permissions.
-    if (loading) return;
-
-    if (!user) {
-      // If not logged in, redirect to login.
-      router.push('/admin/login');
-      return;
-    }
-
-    if (!isAdmin) {
-      // If logged in but not an admin, redirect to the main user dashboard.
-      router.push('/dashboard');
+    // If we are not on the login page...
+    if (pathname !== '/admin/login') {
+      if (!user) {
+        // ...and there's no user, redirect to login.
+        router.push('/admin/login');
+      } else if (!isAdmin) {
+        // ...and the user is not an admin, redirect to the user dashboard.
+        router.push('/dashboard');
+      }
     }
   }, [user, isAdmin, loading, router, pathname]);
 
-  // If we are on the login page, we can render the form immediately.
+  // Handle the login page separately, it doesn't need protection or a sidebar.
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  // This loader will show for all protected admin pages while auth is loading,
-  // or briefly before the redirect to the login page happens.
-  if (loading || !user || !isAdmin) {
+  // For any other admin page, show a loader until the auth state is resolved.
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -54,9 +48,12 @@ export default function AdminLayout({
     );
   }
 
-  // If all checks pass, render the protected admin layout with sidebar.
-  return (
-    <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+  // After loading, if the user is an admin, show the layout.
+  // If they are not, the useEffect above will have already initiated a redirect,
+  // but we also prevent flashing the content by checking here.
+  if (isAdmin) {
+    return (
+      <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
         <AdminSidebar />
         <div className="flex flex-col overflow-hidden">
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
@@ -64,5 +61,13 @@ export default function AdminLayout({
           </main>
         </div>
       </div>
+    );
+  }
+
+  // Fallback loader while the redirect is in progress for non-admins.
+  return (
+    <div className="flex items-center justify-center h-screen bg-background">
+      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+    </div>
   );
 }

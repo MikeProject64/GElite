@@ -25,15 +25,8 @@ export default function DashboardLayout({
       return;
     }
 
-    // If the user is an admin, they should not be in the user dashboard.
-    // Redirect them to the admin panel immediately.
-    if (isAdmin) {
-      router.push('/admin/dashboard');
-      return;
-    }
-
-    // Subscription gatekeeping for regular (non-admin) users
-    if (systemUser) {
+    // Only apply subscription gatekeeping to regular users
+    if (!isAdmin && systemUser) {
       // If user has no plan, redirect them to the subscription page to choose one.
       if (!systemUser.planId) {
         if (pathname !== '/dashboard/subscription') {
@@ -52,9 +45,8 @@ export default function DashboardLayout({
 
   }, [user, systemUser, isAdmin, loading, router, pathname]);
 
-  // Show loader while auth is resolving, if user is not logged in,
-  // or if an admin is being redirected away from this layout.
-  if (loading || !user || isAdmin) {
+  // Show a loader while auth state is resolving for any user
+  if (loading || !user) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -62,8 +54,8 @@ export default function DashboardLayout({
     );
   }
 
-  // If the user is being redirected to subscription, show a loader to prevent content flash.
-  if (systemUser && (!systemUser.planId || systemUser.subscriptionStatus !== 'active') && pathname !== '/dashboard/subscription') {
+  // If a regular user is being redirected to subscription, show a loader to prevent content flash.
+  if (!isAdmin && systemUser && (!systemUser.planId || systemUser.subscriptionStatus !== 'active') && pathname !== '/dashboard/subscription') {
      return (
        <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -72,7 +64,7 @@ export default function DashboardLayout({
      )
   }
 
-  // If all checks pass for a regular user, render the user dashboard.
+  // If all checks pass for a regular user or an admin, render the dashboard.
   return (
     <>
       <DynamicLayoutEffects />
