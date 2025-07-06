@@ -7,17 +7,19 @@ import { Button } from './ui/button';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
-import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
 import { Wrench } from 'lucide-react';
 
-export function Header() {
+interface HeaderProps {
+    siteName?: string;
+    iconName?: string;
+}
+
+export function Header({ siteName = "Gestor Elite", iconName = "Wrench" }: HeaderProps) {
   const { user } = useAuth();
   const router = useRouter();
-  const { settings } = useSettings();
 
-  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'Gestor Elite';
+  const Icon = availableIcons[iconName as keyof typeof availableIcons] || Wrench;
 
   const handleLogout = async () => {
     await signOut(auth);

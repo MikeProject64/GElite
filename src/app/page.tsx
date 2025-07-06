@@ -21,13 +21,19 @@ export const revalidate = 0;
 export default async function Home() {
   
   // Fetch settings on the server to prevent image flashing on the client.
+  let siteName = 'Gestor Elite';
+  let iconName = 'Wrench';
   let landingPageImages: UserSettings['landingPageImages'] = {};
+
   try {
     const settingsRef = doc(db, 'siteConfig', 'main');
     const settingsSnap = await getDoc(settingsRef);
 
     if (settingsSnap.exists()) {
-      landingPageImages = settingsSnap.data().landingPageImages || {};
+      const data = settingsSnap.data();
+      siteName = data.siteName || 'Gestor Elite';
+      iconName = data.iconName || 'Wrench';
+      landingPageImages = data.landingPageImages || {};
     }
   } catch (error) {
     console.error("Failed to fetch landing page settings on server:", error);
@@ -36,7 +42,7 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
-      <Header />
+      <Header siteName={siteName} iconName={iconName} />
       <main className="flex-grow">
         <Hero landingPageImages={landingPageImages} />
         <KeyFeatures />

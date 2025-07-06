@@ -10,6 +10,10 @@ const fontSans = Inter({
 });
 
 export const metadata: Metadata = {
+  title: {
+    default: 'Gestor Elite',
+    template: '%s | Gestor Elite',
+  },
   description: 'Otimize sua gestão de serviços com o Gestor Elite.',
 };
 
