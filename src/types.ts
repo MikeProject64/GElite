@@ -25,6 +25,13 @@ export interface UserSettings {
   tags?: Tag[];
 }
 
+export interface SystemUser {
+  uid: string;
+  email: string;
+  role: 'admin' | 'user';
+  createdAt: Timestamp;
+}
+
 export interface Collaborator {
   id: string;
   userId: string;

@@ -1,48 +1,44 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper function to check if the user is authenticated
-    function isSignedIn() {
-      return request.auth != null;
+  
+    // Helper function to check for admin role
+    function isAdmin(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid)) &&
+             get(/databases/$(database)/documents/users/$(uid)).data.role == 'admin';
     }
 
-    // Helper function to check if the user is an admin
-    function isAdmin() {
-      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-    }
-
-    // Publicly readable global site configuration, writable only by admins.
+    // Global site configuration
     match /siteConfig/{docId} {
-      allow read: if true;
-      allow write: if isAdmin();
+      allow read: if true; // Anyone can read global site settings (for landing page, etc.)
+      allow write: if request.auth != null && isAdmin(request.auth.uid); // Only admins can write
     }
 
-    // Users collection rules
-    match /users/{userId} {
-      // A user can create their own user document (on signup)
-      allow create: if isSignedIn();
-      // A user can read and update their own document
-      allow read, update: if isSignedIn() && request.auth.uid == userId;
-    }
-
-    // User-specific settings are private to the user.
+    // User settings
     match /userSettings/{userId} {
-      allow read, write: if isSignedIn() && request.auth.uid == userId;
+      // Users can read and write to their own settings document
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
-    
-    // Generic rules for all other user-specific data collections.
-    // This applies to customers, serviceOrders, quotes, collaborators, etc.
+
+    // User data (profiles, roles)
+    match /users/{userId} {
+      // A user can read their own profile
+      allow get: if request.auth != null && request.auth.uid == userId;
+      
+      // Admins can read the full list of users and update any user's data (e.g., change roles)
+      allow read, write: if request.auth != null && isAdmin(request.auth.uid);
+
+      // New users can create their own user document upon signup
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // All other collections (customers, serviceOrders, etc.)
     match /{collection}/{docId} {
-      // Users can read their own documents.
-      allow read: if isSignedIn() && request.auth.uid == resource.data.userId;
-      
-      // Users can update and delete their own documents.
-      allow update, delete: if isSignedIn() && request.auth.uid == resource.data.userId;
-      
-      // Users can create documents and must set themselves as the owner.
-      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Allow full access if the document's userId matches the authenticated user's ID
+      // This is a broad rule that covers all primary user-owned data.
+      allow read, write, delete, create: if request.auth != null && request.resource.data.userId == request.auth.uid;
     }
   }
 }
