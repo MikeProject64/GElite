@@ -1,92 +1,69 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    
-    // --- Helper Functions ---
+
+    // Helper Functions
     function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+      return request.auth.uid == userId;
     }
-    
     function isAdmin() {
-      // Use exists() to safely check for the admin role to prevent errors on new user creation.
-      return request.auth != null &&
-             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+      // Safe check: return false if user doc doesn't exist
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Checks ownership of a document being created by looking at the incoming data.
-    function isCreatingOwnResource() {
-      return request.auth != null && request.resource.data.userId == request.auth.uid;
-    }
+    // --- Rules for Each Collection ---
 
-    // Checks ownership of an existing document by looking at the stored data.
-    function isAccessingOwnResource() {
-        return request.auth != null && resource.data.userId == request.auth.uid;
-    }
-
-    // --- Global Config & Plans ---
+    // Public readable, admin writable
     match /siteConfig/{docId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
+
     match /plans/{planId} {
       allow read: if true;
       allow write: if isAdmin();
     }
-    
-    // --- User Documents ---
-    match /users/{userId} {
-      // Crucial for signup: Allows a newly authenticated user to create their own document.
-      allow create: if isOwner(userId);
-      
-      // Users can read/update their own data. Admins can manage any user.
-      allow read, update: if isOwner(userId) || isAdmin();
 
+    // User Management
+    match /users/{userId} {
+      // A user can create their own document upon signup. THIS IS THE KEY FIX.
+      allow create: if request.auth.uid == userId;
+      // A user can read/update their own doc. Admin can read/update any.
+      allow read, update: if isOwner(userId) || isAdmin();
       // Only admins can delete users.
       allow delete: if isAdmin();
     }
     
-    // --- User-Specific Appearance Settings ---
+    // User-specific settings can be read and written by the owner or an admin
     match /userSettings/{userId} {
-        allow read, write: if isOwner(userId);
-    }
-    
-    // --- Application Data Collections ---
-    match /customers/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
-    }
-    
-    match /serviceOrders/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+      allow read, write: if isOwner(userId) || isAdmin();
     }
 
-    match /quotes/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+    // User-specific data collections.
+    // The user must be the owner of the document, or an admin.
+    match /customers/{customerId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
-    
-    match /collaborators/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+    match /serviceOrders/{orderId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
-    
-    match /inventory/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+    match /quotes/{quoteId} {
+       allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
-    
-    match /inventoryMovements/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+    match /collaborators/{collabId} {
+       allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
-
-    match /timelineNotes/{docId} {
-      allow create: if isCreatingOwnResource() || isAdmin();
-      allow read, update, delete: if isAccessingOwnResource() || isAdmin();
+    match /inventory/{itemId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+     match /inventoryMovements/{moveId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+     match /timelineNotes/{noteId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
   }
 }

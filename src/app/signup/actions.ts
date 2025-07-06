@@ -11,7 +11,7 @@ async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
     const settingsSnap = await getDoc(settingsRef);
     if (!settingsSnap.exists() || !settingsSnap.data().stripeSecretKey) {
-        throw new Error('Chave secreta do Stripe não configurada.');
+        throw new Error('Chave secreta do Stripe não configurada pelo administrador do site.');
     }
     const stripeSecretKey = settingsSnap.data().stripeSecretKey;
     return new Stripe(stripeSecretKey);
@@ -27,8 +27,8 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
         const userRef = doc(db, 'users', userId);
         const [planSnap, userSnap] = await Promise.all([getDoc(planRef), getDoc(userRef)]);
 
-        if (!planSnap.exists()) throw new Error('Plano não encontrado.');
-        if (!userSnap.exists()) throw new Error('Usuário não encontrado.');
+        if (!planSnap.exists()) throw new Error('Plano selecionado não foi encontrado no banco de dados.');
+        if (!userSnap.exists()) throw new Error('Usuário não encontrado para iniciar a sessão de pagamento.');
 
         const plan = { id: planSnap.id, ...planSnap.data() } as Plan;
         const user = { uid: userSnap.id, ...userSnap.data() } as SystemUser;
@@ -85,7 +85,7 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
             client_reference_id: user.uid,
             line_items: [{ price: priceId, quantity: 1 }],
             success_url: `${origin}/dashboard/subscription?session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${origin}/#pricing`,
+            cancel_url: `${origin}/signup?planId=${planId}&interval=${interval}`,
             subscription_data: {
                 metadata: { firebaseUID: user.uid, planId: plan.id }
             }
