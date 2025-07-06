@@ -111,6 +111,9 @@ export default function AdminHomePage() {
         const docSnap = await getDoc(settingsRef);
         const currentImages = docSnap.data()?.landingPageImages?.galleryImages || [];
         const newImages = [...currentImages];
+        while (newImages.length <= index) {
+            newImages.push(''); 
+        }
         newImages[index] = downloadURL;
         await updateDoc(settingsRef, { 'landingPageImages.galleryImages': newImages });
       } else { // Handle single field update
@@ -201,18 +204,21 @@ export default function AdminHomePage() {
           <CardDescription>As 9 imagens exibidas na galeria.</CardDescription>
         </CardHeader>
         <CardContent className="grid md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {landingImages?.galleryImages?.map((url, index) => (
-            <ImageUploader
-              key={index}
-              title={`Imagem ${index + 1}`}
-              description="Dimensões: 600x400"
-              imageUrl={url}
-              fieldName="galleryImages"
-              index={index}
-              onUpload={handleUpload}
-              isUploading={uploading[`galleryImages-${index}`]}
-            />
-          ))}
+          {Array.from({ length: 9 }).map((_, index) => {
+            const imageUrl = landingImages?.galleryImages?.[index];
+            return (
+              <ImageUploader
+                key={index}
+                title={`Imagem ${index + 1}`}
+                description="Dimensões: 600x400"
+                imageUrl={imageUrl}
+                fieldName="galleryImages"
+                index={index}
+                onUpload={handleUpload}
+                isUploading={uploading[`galleryImages-${index}`]}
+              />
+            );
+          })}
         </CardContent>
       </Card>
     </div>
