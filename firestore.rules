@@ -1,40 +1,77 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-  
-    // Global Site Configuration:
-    // - Anyone can read (for landing page, user settings inheritance)
-    // - Only admins can write
+
+    // Helper functions to make rules cleaner and more reusable.
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      // Check if the requesting user has the 'admin' role in their user document.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- Global & Public Configurations ---
+
+    // Site-wide settings: readable by anyone, writable only by admins.
     match /siteConfig/{docId} {
       allow read: if true;
-      allow write: if request.auth.uid != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow write: if isAdmin();
     }
 
-    // User Management:
-    // - Admins can read the full list and write to any user document
-    // - A user can read their own document
-    match /users/{userId} {
-      allow read: if request.auth.uid != null && 
-                     (request.auth.uid == userId || get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
-      allow write: if request.auth.uid != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
-      allow create: if request.auth.uid == userId; // Allows user signup
-    }
-
-    // Subscription Plans:
-    // - Anyone can read (for public pricing page)
-    // - Only admins can write (create, update, delete)
+    // Plans: readable by anyone (for pricing pages), writable only by admins.
     match /plans/{planId} {
       allow read: if true;
-      allow write: if request.auth.uid != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // User-specific settings: A user can manage their own appearance settings.
+    match /userSettings/{userId} {
+      allow read, write: if isOwner(userId);
     }
 
-    // User-Specific Data Collections (Customers, Service Orders, etc.):
-    // - Users can only perform actions on documents they own (userId field matches their auth uid).
-    // - No one can list documents from other users.
-    match /{collection}/{docId} {
-      allow read, write: if request.auth.uid != null && request.auth.uid == resource.data.userId;
+    // --- User Management ---
+
+    // Users collection: Admins can manage all users.
+    // Users can read and update their own profiles.
+    match /users/{userId} {
+      allow get, list, update: if isOwner(userId) || isAdmin();
+      allow create, delete: if isAdmin();
+    }
+    
+    // --- Application Data (Owner-based security) ---
+    // All of the following collections are protected so that users can only
+    // access documents they own (where their UID is in the `userId` field).
+    // Admins have override access to all of them.
+
+    match /customers/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /collaborators/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /inventory/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    match /inventoryMovements/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /quotes/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /serviceOrders/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    match /timelineNotes/{docId} {
+      allow read, write: if isOwner(resource.data.userId) || isAdmin();
     }
   }
 }
