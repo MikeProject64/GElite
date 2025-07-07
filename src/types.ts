@@ -46,6 +46,7 @@ export interface UserSettings {
 
 export interface SystemUser {
   uid: string;
+  name: string;
   email: string;
   role: 'admin' | 'user';
   createdAt: Timestamp;

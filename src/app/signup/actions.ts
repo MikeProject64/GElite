@@ -1,7 +1,7 @@
 
 'use server';
 
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
@@ -16,6 +16,24 @@ async function getStripeInstance(): Promise<Stripe> {
     const stripeSecretKey = settingsSnap.data().stripeSecretKey;
     return new Stripe(stripeSecretKey);
 }
+
+export async function checkEmailExists(email: string): Promise<{ exists: boolean; error?: string }> {
+    if (!email) {
+        return { exists: false, error: 'E-mail não fornecido.' };
+    }
+    try {
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("email", "==", email));
+        const querySnapshot = await getDocs(q);
+        return { exists: !querySnapshot.empty };
+    } catch (error: any) {
+        console.error("Error checking email existence: ", error);
+        // This might be a permissions error if rules don't allow unauthenticated reads.
+        // Returning `exists: false` allows the flow to continue to payment, where the final check will happen.
+        return { exists: false, error: "Não foi possível verificar o e-mail no momento. A verificação final ocorrerá ao criar a conta." };
+    }
+}
+
 
 export async function createCheckoutSession(planId: string, interval: 'month' | 'year', email: string) {
     try {

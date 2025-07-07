@@ -16,9 +16,9 @@ async function getStripeInstance(): Promise<Stripe> {
     return new Stripe(stripeSecretKey);
 }
 
-export async function verifyCheckoutAndCreateUser(sessionId: string, password: string) {
-    if (!sessionId || !password) {
-        return { success: false, message: 'ID da sessão ou senha ausentes.' };
+export async function verifyCheckoutAndCreateUser(sessionId: string, name: string, password: string) {
+    if (!sessionId || !password || !name) {
+        return { success: false, message: 'Dados da sessão, nome ou senha ausentes.' };
     }
 
     try {
@@ -47,10 +47,6 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, password: s
             throw new Error('ID do plano não encontrado nos metadados da assinatura.');
         }
 
-        // The check for an existing user in Firestore is removed.
-        // We will now rely on createUserWithEmailAndPassword to throw an 'auth/email-already-in-use' error,
-        // which is caught below. This avoids the Firestore permissions error for unauthenticated queries.
-
         // 1. Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
@@ -58,6 +54,7 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, password: s
         // 2. Create user document in Firestore
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
+            name: name,
             email: user.email,
             createdAt: Timestamp.now(),
             role: 'user',
@@ -72,27 +69,9 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, password: s
     } catch (error: any) {
         let errorMessage = error.message || 'Ocorreu um erro desconhecido.';
         if(error.code === 'auth/email-already-in-use') {
-            errorMessage = 'Este e-mail já foi utilizado para criar uma conta.';
+            errorMessage = 'Este e-mail já foi utilizado para criar uma conta. Faça login para acessar seu painel.';
         }
         console.error("Error creating user after payment:", error);
         return { success: false, message: errorMessage };
-    }
-}
-
-export async function getSessionEmail(sessionId: string) {
-    if(!sessionId) return { email: null };
-
-    try {
-        const stripe = await getStripeInstance();
-        const session = await stripe.checkout.sessions.retrieve(sessionId);
-        
-        if (session.status !== 'complete') {
-            return { email: null, error: 'Sessão de pagamento inválida ou não concluída.' };
-        }
-
-        return { email: session.customer_email };
-    } catch (error: any) {
-        console.error("Error fetching session email:", error.message);
-        return { email: null, error: 'Não foi possível verificar a sessão.' };
     }
 }

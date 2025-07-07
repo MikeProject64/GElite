@@ -3,100 +3,105 @@
 
 import { useState, Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CheckCircle } from 'lucide-react';
-import { getSessionEmail, verifyCheckoutAndCreateUser } from './actions';
+import { Loader2, CheckCircle, Rocket } from 'lucide-react';
+import { verifyCheckoutAndCreateUser } from './actions';
 
-const formSchema = z.object({
-  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
-});
-
-function CompleteRegistrationForm() {
+function CompleteRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
   
-  const [isLoading, setIsLoading] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState<string | null>(null);
+  const [status, setStatus] = useState<'verifying' | 'creating' | 'success' | 'error'>('verifying');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(5);
+
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
+    if (status !== 'verifying') return;
+
     if (!sessionId) {
       toast({ title: 'Erro', description: 'ID de sessão inválido.', variant: 'destructive' });
       router.push('/#pricing');
       return;
     }
 
-    const fetchEmail = async () => {
-        const result = await getSessionEmail(sessionId);
-        if (result.email) {
-            setEmail(result.email);
-        } else {
-            toast({ title: 'Erro', description: result.error || 'Não foi possível verificar seu pagamento.', variant: 'destructive'});
-            router.push('/#pricing');
+    const completeRegistration = async () => {
+        setStatus('creating');
+        const name = localStorage.getItem('signup_name');
+        const email = localStorage.getItem('signup_email');
+        const password = localStorage.getItem('signup_password');
+
+        if (!name || !email || !password) {
+            setErrorMessage('Dados de cadastro não encontrados. Por favor, tente novamente.');
+            setStatus('error');
+            return;
         }
-        setIsVerifying(false);
+
+        const result = await verifyCheckoutAndCreateUser(sessionId, name, password);
+
+        if (!result.success || !result.email) {
+            setErrorMessage(result.message || 'Ocorreu uma falha desconhecida.');
+            setStatus('error');
+            return;
+        }
+        
+        // Cleanup localStorage
+        localStorage.removeItem('signup_name');
+        localStorage.removeItem('signup_email');
+        localStorage.removeItem('signup_password');
+        
+        // Log user in
+        await signInWithEmailAndPassword(auth, result.email, password);
+        setStatus('success');
     };
-    fetchEmail();
-  }, [sessionId, router, toast]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      password: '',
-    },
-  });
+    completeRegistration();
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    if (!sessionId) return;
-    setIsLoading(true);
-    setError(null);
+  }, [sessionId, router, toast, status]);
 
-    try {
-      const result = await verifyCheckoutAndCreateUser(sessionId, values.password);
-      if (!result.success || !result.email) {
-        throw new Error(result.message || 'Falha ao criar a conta.');
+  useEffect(() => {
+    if (status === 'success') {
+      if (countdown > 0) {
+        const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+        return () => clearTimeout(timer);
+      } else {
+        router.push('/dashboard');
       }
-
-      toast({
-        title: 'Conta Criada com Sucesso!',
-        description: 'Você será redirecionado para o painel de controle.',
-      });
-
-      // Log the user in automatically
-      await signInWithEmailAndPassword(auth, result.email, values.password);
-      router.push('/dashboard');
-
-    } catch (error: any) {
-      setError(error.message);
-      toast({
-        variant: 'destructive',
-        title: 'Erro ao Criar Conta',
-        description: error.message,
-      });
-      setIsLoading(false);
     }
-  };
+  }, [status, countdown, router]);
 
-  if (isVerifying) {
+
+  if (status === 'verifying' || status === 'creating') {
      return (
         <Card className="w-full max-w-sm">
             <CardHeader className='items-center text-center'>
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                <CardTitle className="text-2xl font-headline">Verificando Pagamento...</CardTitle>
-                <CardDescription>Aguarde um momento, estamos confirmando sua assinatura.</CardDescription>
+                <CardTitle className="text-2xl font-headline">
+                    {status === 'verifying' ? 'Verificando Pagamento...' : 'Criando sua Conta...'}
+                </CardTitle>
+                <CardDescription>Aguarde um momento, estamos finalizando tudo para você.</CardDescription>
             </CardHeader>
+        </Card>
+     );
+  }
+
+  if (status === 'error') {
+     return (
+        <Card className="w-full max-w-sm">
+            <CardHeader className='items-center text-center'>
+                <CheckCircle className='h-12 w-12 text-destructive' />
+                <CardTitle className="text-2xl font-headline">Ocorreu um Erro</CardTitle>
+                <CardDescription>{errorMessage}</CardDescription>
+            </CardHeader>
+             <CardContent>
+                <Button className='w-full' onClick={() => router.push('/#pricing')}>Voltar para Planos</Button>
+            </CardContent>
         </Card>
      );
   }
@@ -104,32 +109,15 @@ function CompleteRegistrationForm() {
   return (
     <Card className="w-full max-w-sm">
       <CardHeader className="items-center text-center">
-        <CheckCircle className='h-12 w-12 text-green-500' />
-        <CardTitle className="text-2xl font-headline">Pagamento Aprovado!</CardTitle>
-        <CardDescription>Agora, crie uma senha para acessar sua conta com o e-mail <span className='font-bold text-foreground'>{email}</span>.</CardDescription>
+        <Rocket className='h-12 w-12 text-green-500' />
+        <CardTitle className="text-2xl font-headline">Tudo Pronto!</CardTitle>
+        <CardDescription>Sua conta foi criada e sua assinatura está ativa. Bem-vindo(a)!</CardDescription>
       </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-             <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Crie sua Senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            {error && <p className="text-sm font-medium text-destructive">{error}</p>}
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Loader2 className="animate-spin" /> : 'Finalizar Cadastro e Acessar'}
-            </Button>
-          </form>
-        </Form>
+      <CardContent className='text-center'>
+        <p className='text-sm text-muted-foreground'>Você será redirecionado em {countdown} segundos...</p>
+        <Button className='w-full mt-4' onClick={() => router.push('/dashboard')}>
+          Acessar Agora
+        </Button>
       </CardContent>
     </Card>
   );
@@ -138,9 +126,9 @@ function CompleteRegistrationForm() {
 
 export default function CompleteRegistrationPage() {
     return (
-        <main className="flex items-center justify-center min-h-screen bg-background p-4">
-            <Suspense fallback={<div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
-                <CompleteRegistrationForm />
+        <main className="flex items-center justify-center min-h-screen bg-secondary p-4">
+            <Suspense fallback={<Loader2 className="h-8 w-8 animate-spin text-primary" />}>
+                <CompleteRegistrationContent />
             </Suspense>
         </main>
     );
