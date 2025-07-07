@@ -48,17 +48,20 @@ export async function syncPlanWithStripe(planData: SyncPlanInput): Promise<SyncP
     try {
         const stripe = await getStripeInstance();
         
-        // Fetch logoURL from siteConfig
+        // Fetch logoURL and siteName from siteConfig
         const settingsRef = doc(db, 'siteConfig', 'main');
         const settingsSnap = await getDoc(settingsRef);
-        const logoURL = settingsSnap.exists() ? settingsSnap.data().logoURL : undefined;
+        const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
+        const logoURL = settingsData.logoURL;
+        const siteName = settingsData.siteName || 'Gestor Elite';
 
+        const stripeProductName = `${siteName} - ${planData.name}`;
         let productId = planData.stripeProductId;
 
         // 1. Create or Update Stripe Product
         if (productId) {
             const productUpdatePayload: Stripe.ProductUpdateParams = {
-                name: planData.name,
+                name: stripeProductName,
                 description: planData.description || undefined,
             };
             if (logoURL) {
@@ -69,7 +72,7 @@ export async function syncPlanWithStripe(planData: SyncPlanInput): Promise<SyncP
             await stripe.products.update(productId, productUpdatePayload);
         } else {
             const productCreatePayload: Stripe.ProductCreateParams = {
-                name: planData.name,
+                name: stripeProductName,
                 description: planData.description || undefined,
                 type: 'service',
             };

@@ -93,18 +93,22 @@ export async function createTestSubscriptionAction(amount: number): Promise<Test
         
         const settingsRef = doc(db, 'siteConfig', 'main');
         const settingsSnap = await getDoc(settingsRef);
-        const logoURL = settingsSnap.exists() ? settingsSnap.data().logoURL : undefined;
+        const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
+        const logoURL = settingsData.logoURL;
+        const siteName = settingsData.siteName || 'Gestor Elite';
+
 
         // 1. Find or create a test product for subscriptions
+        const testProductName = `${siteName} - Produto de Assinatura Teste`;
         const products = await stripe.products.list({ active: true });
-        let product = products.data.find(p => p.name === 'Produto de Assinatura Teste');
+        let product = products.data.find(p => p.name === testProductName);
         if (!product) {
-            const createPayload: Stripe.ProductCreateParams = { name: 'Produto de Assinatura Teste', type: 'service' };
+            const createPayload: Stripe.ProductCreateParams = { name: testProductName, type: 'service' };
             if (logoURL) createPayload.images = [logoURL];
             product = await stripe.products.create(createPayload);
         } else {
             // Product already exists, maybe update it with the logo
-            const updatePayload: Stripe.ProductUpdateParams = { name: 'Produto de Assinatura Teste' };
+            const updatePayload: Stripe.ProductUpdateParams = { name: testProductName };
             if (logoURL) updatePayload.images = [logoURL];
             await stripe.products.update(product.id, updatePayload);
         }
