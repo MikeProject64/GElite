@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, Suspense, useEffect } from 'react';
+import { useState, Suspense, useEffect, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -45,6 +45,7 @@ function SignupForm() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
 
   const planId = searchParams.get('planId');
   const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
@@ -77,10 +78,33 @@ function SignupForm() {
     defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
 
+  const handleEmailBlur = useCallback(async (email: string) => {
+    if (!email || !form.formState.dirtyFields.email) return;
+
+    const isEmailValid = await form.trigger("email");
+    if (!isEmailValid) return;
+    
+    setIsVerifyingEmail(true);
+    try {
+        const { exists } = await checkEmailExists(email);
+        if (exists) {
+            form.setError("email", { type: "manual", message: "Este e-mail já está em uso." });
+        } else {
+            form.clearErrors("email");
+        }
+    } catch(error) {
+         toast({ variant: 'destructive', title: 'Erro de verificação', description: 'Não foi possível verificar o e-mail no momento.' });
+    } finally {
+        setIsVerifyingEmail(false);
+    }
+  }, [form, toast]);
+
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!planId) return;
     setIsLoading(true);
 
+    // Double check email on submit, just in case
     const emailCheck = await checkEmailExists(values.email);
     if (emailCheck.exists) {
         form.setError("email", { type: "manual", message: "Este e-mail já está em uso." });
@@ -120,10 +144,31 @@ function SignupForm() {
                 <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input placeholder="Seu nome completo" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                    <FormField control={form.control} name="email" render={({ field }) => (<FormItem><FormLabel>E-mail</FormLabel><FormControl><Input placeholder="seu@email.com" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>E-mail</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <Input
+                                placeholder="seu@email.com"
+                                {...field}
+                                onBlur={() => handleEmailBlur(field.value)}
+                              />
+                              {isVerifyingEmail && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                     <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                     <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                    <Button type="submit" className="w-full !mt-6" disabled={isLoading}>{isLoading ? <Loader2 className="animate-spin" /> : 'Ir para o Pagamento'}</Button>
+                    <Button type="submit" className="w-full !mt-6" disabled={isLoading || isVerifyingEmail || !!form.formState.errors.email}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : 'Ir para o Pagamento'}
+                    </Button>
                 </form>
                 </Form>
             </CardContent>
