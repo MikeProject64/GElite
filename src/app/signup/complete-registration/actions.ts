@@ -41,6 +41,11 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
         if (!subscription || !subscription.id) {
             throw new Error('Detalhes da assinatura não encontrados na sessão.');
         }
+
+        const customer = session.customer as Stripe.Customer;
+        if (!customer || !customer.id) {
+            throw new Error('Detalhes do cliente Stripe não encontrados na sessão.');
+        }
         
         const planId = subscription.metadata.planId;
         if (!planId) {
@@ -59,7 +64,7 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             createdAt: Timestamp.now(),
             role: 'user',
             planId: planId,
-            stripeCustomerId: session.customer as string,
+            stripeCustomerId: customer.id, // Store the customer ID string, not the object
             subscriptionStatus: 'active',
             subscriptionId: subscription.id,
         });
