@@ -45,6 +45,8 @@ export interface UserSettings {
   };
   whatsappNumber?: string;
   whatsappMessage?: string;
+  emailFrom?: string;
+  emailRecipients?: string[];
 }
 
 export interface SystemUser {

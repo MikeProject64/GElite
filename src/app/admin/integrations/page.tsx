@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { createTestChargeAction, createTestSubscriptionAction } from './actions';
@@ -31,6 +31,12 @@ const whatsappFormSchema = z.object({
   whatsappMessage: z.string().optional().or(z.literal('')),
 });
 type WhatsAppFormValues = z.infer<typeof whatsappFormSchema>;
+
+const emailFormSchema = z.object({
+  emailFrom: z.string().email({ message: 'Por favor, insira um e-mail válido.' }).optional().or(z.literal('')),
+  emailRecipients: z.string().optional(),
+});
+type EmailFormValues = z.infer<typeof emailFormSchema>;
 
 
 const testChargeFormSchema = z.object({
@@ -350,6 +356,112 @@ function WhatsAppSettingsForm() {
     );
 }
 
+function EmailSettingsForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<EmailFormValues>({
+        resolver: zodResolver(emailFormSchema),
+        defaultValues: { emailFrom: '', emailRecipients: '' },
+    });
+
+    useEffect(() => {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                form.reset({
+                    emailFrom: data.emailFrom || '',
+                    emailRecipients: (data.emailRecipients || []).join('\n'),
+                });
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [form]);
+
+    const onSubmit = async (data: EmailFormValues) => {
+        setIsSaving(true);
+        try {
+            const recipientsArray = data.emailRecipients
+                ?.split('\n')
+                .map(email => email.trim())
+                .filter(email => email) || [];
+
+            const settingsRef = doc(db, 'siteConfig', 'main');
+            await setDoc(settingsRef, { 
+                emailFrom: data.emailFrom,
+                emailRecipients: recipientsArray
+             }, { merge: true });
+            
+            toast({
+                title: 'Sucesso!',
+                description: 'As configurações de e-mail foram salvas.',
+            });
+        } catch (error) {
+            console.error('Error updating Email settings:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Não foi possível salvar as configurações de e-mail.',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-8">
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-20 w-full" /></div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+      )
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                    control={form.control}
+                    name="emailFrom"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>E-mail Remetente (De:)</FormLabel>
+                            <FormControl><Input type="email" placeholder="contato@seusite.com" {...field} /></FormControl>
+                            <FormDescription>
+                                O endereço de e-mail que aparecerá como remetente. Este domínio deve ser verificado no seu provedor de e-mail (ex: SendGrid).
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="emailRecipients"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Destinatários de Notificação</FormLabel>
+                            <FormControl><Textarea placeholder="email1@exemplo.com&#10;email2@exemplo.com" {...field} rows={4} /></FormControl>
+                            <FormDescription>
+                                Uma lista de e-mails que receberão notificações do sistema. Insira um e-mail por linha.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
+                    Salvar Configurações de E-mail
+                </Button>
+            </form>
+        </Form>
+    );
+}
 
 export default function AdminIntegrationsPage() {
   return (
@@ -360,8 +472,11 @@ export default function AdminIntegrationsPage() {
           <TabsTrigger value="stripe">
             <KeyRound className="mr-2 h-4 w-4" /> Stripe
           </TabsTrigger>
-           <TabsTrigger value="whatsapp">
+          <TabsTrigger value="whatsapp">
             <MessageSquare className="mr-2 h-4 w-4" /> Suporte WhatsApp
+          </TabsTrigger>
+           <TabsTrigger value="email">
+            <Mail className="mr-2 h-4 w-4" /> Email
           </TabsTrigger>
         </TabsList>
         <TabsContent value="stripe">
@@ -375,7 +490,7 @@ export default function AdminIntegrationsPage() {
               </CardContent>
           </Card>
         </TabsContent>
-         <TabsContent value="whatsapp">
+        <TabsContent value="whatsapp">
           <Card>
               <CardHeader>
                   <CardTitle>Configuração do Suporte via WhatsApp</CardTitle>
@@ -383,6 +498,19 @@ export default function AdminIntegrationsPage() {
               </CardHeader>
               <CardContent>
                   <WhatsAppSettingsForm />
+              </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="email">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Configuração de Envio de E-mail</CardTitle>
+                  <CardDescription>
+                      Configure o remetente e os destinatários para os e-mails transacionais do sistema. O envio real é gerenciado pela extensão "Trigger Email" do Firebase.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <EmailSettingsForm />
               </CardContent>
           </Card>
         </TabsContent>
