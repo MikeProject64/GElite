@@ -7,6 +7,7 @@ import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 
 export default function DashboardLayout({
   children,
@@ -76,6 +77,7 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
+      <WhatsAppSupportButton />
     </>
   );
 }

@@ -14,16 +14,24 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { createTestChargeAction, createTestSubscriptionAction } from './actions';
+import { Textarea } from '@/components/ui/textarea';
 
 const stripeFormSchema = z.object({
   stripePublishableKey: z.string().startsWith('pk_').optional().or(z.literal('')),
   stripeSecretKey: z.string().startsWith('sk_').optional().or(z.literal('')),
 });
 type StripeFormValues = z.infer<typeof stripeFormSchema>;
+
+const whatsappFormSchema = z.object({
+  whatsappNumber: z.string().optional().or(z.literal('')),
+  whatsappMessage: z.string().optional().or(z.literal('')),
+});
+type WhatsAppFormValues = z.infer<typeof whatsappFormSchema>;
+
 
 const testChargeFormSchema = z.object({
   amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
@@ -209,7 +217,7 @@ function StripeSettingsForm() {
                                 <CardHeader>
                                     <CardTitle className="text-base flex items-center gap-2"><Repeat /> Testar Assinatura</CardTitle>
                                     <CardDescription>Cria uma assinatura mensal de teste para um cliente fictício.</CardDescription>
-                                </CardHeader>
+                                </Header>
                                 <CardContent>
                                     <Form {...testSubscriptionForm}>
                                         <form onSubmit={testSubscriptionForm.handleSubmit(onTestSubscriptionSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
@@ -245,6 +253,103 @@ function StripeSettingsForm() {
     );
 }
 
+function WhatsAppSettingsForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<WhatsAppFormValues>({
+        resolver: zodResolver(whatsappFormSchema),
+        defaultValues: {
+            whatsappNumber: '',
+            whatsappMessage: 'Olá! Preciso de ajuda com o sistema.',
+        },
+    });
+
+    useEffect(() => {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                form.reset({
+                    whatsappNumber: data.whatsappNumber || '',
+                    whatsappMessage: data.whatsappMessage || 'Olá! Preciso de ajuda com o sistema.',
+                });
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [form]);
+
+    const onSubmit = async (data: WhatsAppFormValues) => {
+        setIsSaving(true);
+        try {
+            const settingsRef = doc(db, 'siteConfig', 'main');
+            await setDoc(settingsRef, data, { merge: true });
+            toast({
+                title: 'Sucesso!',
+                description: 'As configurações do WhatsApp foram salvas.',
+            });
+        } catch (error) {
+            console.error('Error updating WhatsApp settings:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Não foi possível salvar as configurações.',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-8">
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-20 w-full" /></div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+      )
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                    control={form.control}
+                    name="whatsappNumber"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Número do WhatsApp para Suporte</FormLabel>
+                            <FormControl><Input placeholder="5511999998888" {...field} /></FormControl>
+                            <FormDescription>Insira o número completo com código do país e DDD, sem símbolos. Ex: 5511999998888</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="whatsappMessage"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Mensagem Padrão</FormLabel>
+                            <FormControl><Textarea placeholder="Olá! Preciso de ajuda..." {...field} /></FormControl>
+                            <FormDescription>Esta mensagem será pré-preenchida quando o usuário clicar no botão de suporte.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
+                    Salvar Configurações do WhatsApp
+                </Button>
+            </form>
+        </Form>
+    );
+}
+
 
 export default function AdminIntegrationsPage() {
   return (
@@ -255,6 +360,9 @@ export default function AdminIntegrationsPage() {
           <TabsTrigger value="stripe">
             <KeyRound className="mr-2 h-4 w-4" /> Stripe
           </TabsTrigger>
+           <TabsTrigger value="whatsapp">
+            <MessageSquare className="mr-2 h-4 w-4" /> Suporte WhatsApp
+          </TabsTrigger>
         </TabsList>
         <TabsContent value="stripe">
           <Card>
@@ -264,6 +372,17 @@ export default function AdminIntegrationsPage() {
               </CardHeader>
               <CardContent>
                   <StripeSettingsForm />
+              </CardContent>
+          </Card>
+        </TabsContent>
+         <TabsContent value="whatsapp">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Configuração do Suporte via WhatsApp</CardTitle>
+                  <CardDescription>Adicione um botão flutuante no sistema para seus usuários entrarem em contato.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <WhatsAppSettingsForm />
               </CardContent>
           </Card>
         </TabsContent>

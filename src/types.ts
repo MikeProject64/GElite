@@ -43,6 +43,8 @@ export interface UserSettings {
     testimonial2Image?: string;
     testimonial3Image?: string;
   };
+  whatsappNumber?: string;
+  whatsappMessage?: string;
 }
 
 export interface SystemUser {
