@@ -54,6 +54,7 @@ const brandColors = [
 
 const globalSettingsFormSchema = z.object({
   siteName: z.string().min(3, { message: 'O nome do site deve ter pelo menos 3 caracteres.' }).max(30, { message: 'O nome do site deve ter no máximo 30 caracteres.' }),
+  logoURL: z.string().url({ message: "Por favor, insira uma URL válida." }).optional().or(z.literal('')),
   iconName: z.string({ required_error: 'Por favor, selecione um ícone.' }),
   primaryColorHsl: z.object({
     h: z.number().min(0).max(360),
@@ -98,6 +99,7 @@ function GlobalSettingsForm() {
         resolver: zodResolver(globalSettingsFormSchema),
         defaultValues: {
             siteName: '',
+            logoURL: '',
             iconName: 'Wrench',
             primaryColorHsl: { h: 210, s: 70, l: 40 },
         },
@@ -157,6 +159,19 @@ function GlobalSettingsForm() {
                             <FormLabel>Nome do Site</FormLabel>
                             <FormControl><Input placeholder="Ex: Minha Empresa" {...field} /></FormControl>
                             <FormDescription>Este nome aparecerá em todo o site, incluindo a página inicial e o título das abas do navegador.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="logoURL"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>URL do Logo</FormLabel>
+                            <FormControl><Input placeholder="https://exemplo.com/logo.png" {...field} value={field.value ?? ''} /></FormControl>
+                            <FormDescription>Link para a imagem do seu logo. Será exibido no checkout do Stripe. Use uma imagem quadrada (ex: 256x256px).</FormDescription>
                             <FormMessage />
                         </FormItem>
                     )}

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { doc, getDoc } from 'firebase/firestore';
@@ -90,11 +91,22 @@ export async function createTestSubscriptionAction(amount: number): Promise<Test
     try {
         const stripe = await getStripeInstance();
         
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const settingsSnap = await getDoc(settingsRef);
+        const logoURL = settingsSnap.exists() ? settingsSnap.data().logoURL : undefined;
+
         // 1. Find or create a test product for subscriptions
         const products = await stripe.products.list({ active: true });
         let product = products.data.find(p => p.name === 'Produto de Assinatura Teste');
         if (!product) {
-            product = await stripe.products.create({ name: 'Produto de Assinatura Teste', type: 'service' });
+            const createPayload: Stripe.ProductCreateParams = { name: 'Produto de Assinatura Teste', type: 'service' };
+            if (logoURL) createPayload.images = [logoURL];
+            product = await stripe.products.create(createPayload);
+        } else {
+            // Product already exists, maybe update it with the logo
+            const updatePayload: Stripe.ProductUpdateParams = { name: 'Produto de Assinatura Teste' };
+            if (logoURL) updatePayload.images = [logoURL];
+            await stripe.products.update(product.id, updatePayload);
         }
 
         // 2. Create a recurring price for that product

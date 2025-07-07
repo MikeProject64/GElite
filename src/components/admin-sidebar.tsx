@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -46,12 +47,17 @@ function AdminNavContent() {
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
+  const logoURL = settings.logoURL;
 
   return (
     <div className="flex h-full max-h-screen flex-col gap-2">
       <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
         <Link href="/admin/dashboard" className="flex items-center gap-2 font-semibold">
-          <Icon className="h-6 w-6 text-primary" />
+          {logoURL ? (
+            <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6 object-contain" />
+          ) : (
+            <Icon className="h-6 w-6 text-primary" />
+          )}
           <span className="">{siteName} (Admin)</span>
         </Link>
       </div>
@@ -96,6 +102,7 @@ export function AdminSidebar() {
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
+  const logoURL = settings.logoURL;
 
   return (
     <>
@@ -117,7 +124,11 @@ export function AdminSidebar() {
             </SheetContent>
           </Sheet>
            <div className="flex items-center gap-2 font-semibold">
-             <Icon className="h-6 w-6 text-primary" />
+             {logoURL ? (
+                <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6 object-contain" />
+              ) : (
+                <Icon className="h-6 w-6 text-primary" />
+              )}
              <span className="">{siteName} (Admin)</span>
            </div>
       </header>

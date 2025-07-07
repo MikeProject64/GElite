@@ -47,20 +47,36 @@ interface SyncPlanOutput {
 export async function syncPlanWithStripe(planData: SyncPlanInput): Promise<SyncPlanOutput> {
     try {
         const stripe = await getStripeInstance();
+        
+        // Fetch logoURL from siteConfig
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const settingsSnap = await getDoc(settingsRef);
+        const logoURL = settingsSnap.exists() ? settingsSnap.data().logoURL : undefined;
+
         let productId = planData.stripeProductId;
 
         // 1. Create or Update Stripe Product
         if (productId) {
-            await stripe.products.update(productId, {
+            const productUpdatePayload: Stripe.ProductUpdateParams = {
                 name: planData.name,
                 description: planData.description || undefined,
-            });
+            };
+            if (logoURL) {
+                productUpdatePayload.images = [logoURL];
+            } else {
+                productUpdatePayload.images = [];
+            }
+            await stripe.products.update(productId, productUpdatePayload);
         } else {
-            const product = await stripe.products.create({
+            const productCreatePayload: Stripe.ProductCreateParams = {
                 name: planData.name,
                 description: planData.description || undefined,
                 type: 'service',
-            });
+            };
+            if (logoURL) {
+                productCreatePayload.images = [logoURL];
+            }
+            const product = await stripe.products.create(productCreatePayload);
             productId = product.id;
         }
 
