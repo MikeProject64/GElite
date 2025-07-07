@@ -17,36 +17,15 @@ async function getStripeInstance(): Promise<Stripe> {
     return new Stripe(stripeSecretKey);
 }
 
-async function getStripeCustomerId(uid: string): Promise<string> {
-    if (!uid) {
-        throw new Error('ID do usuário não fornecido.');
-    }
-    
-    const userDocRef = doc(db, 'users', uid);
-    const userDocSnap = await getDoc(userDocRef);
-
-    if (!userDocSnap.exists()) {
-        throw new Error('Documento do usuário não encontrado.');
-    }
-    
-    const stripeCustomerId = userDocSnap.data().stripeCustomerId;
+export async function getSubscriptionDetails(stripeCustomerId: string | undefined): Promise<{ success: boolean; data?: SubscriptionDetails; message?: string }> {
     if (!stripeCustomerId) {
-        throw new Error('ID de cliente do Stripe não encontrado para este usuário.');
-    }
-    
-    return stripeCustomerId;
-}
-
-export async function getSubscriptionDetails(uid: string): Promise<{ success: boolean; data?: SubscriptionDetails; message?: string }> {
-    if (!uid) {
-        return { success: false, message: 'Usuário não autenticado.' };
+        return { success: true, data: undefined, message: 'ID do cliente Stripe não associado a este usuário.' };
     }
     try {
         const stripe = await getStripeInstance();
-        const customerId = await getStripeCustomerId(uid);
 
         const subscriptions = await stripe.subscriptions.list({
-            customer: customerId,
+            customer: stripeCustomerId,
             status: 'all',
             limit: 1, // Get the most recent subscription
             expand: ['data.plan.product'],
@@ -99,17 +78,16 @@ export async function cancelSubscriptionAction(uid: string, subscriptionId: stri
 }
 
 
-export async function createStripePortalSession(uid: string): Promise<{ success: boolean; url?: string; message?: string; }> {
-    if (!uid) {
-        return { success: false, message: 'Usuário não autenticado.' };
+export async function createStripePortalSession(stripeCustomerId: string | undefined): Promise<{ success: boolean; url?: string; message?: string; }> {
+    if (!stripeCustomerId) {
+        return { success: false, message: 'ID de cliente do Stripe não encontrado para este usuário.' };
     }
     try {
         const stripe = await getStripeInstance();
-        const customerId = await getStripeCustomerId(uid);
         const origin = headers().get('origin') || 'http://localhost:3000';
 
         const portalSession = await stripe.billingPortal.sessions.create({
-            customer: customerId,
+            customer: stripeCustomerId,
             return_url: `${origin}/dashboard/subscription`,
         });
 

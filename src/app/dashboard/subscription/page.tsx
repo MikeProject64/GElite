@@ -109,7 +109,7 @@ function SubscriptionPageContent() {
             setIsLoading(true);
             if (systemUser.planId) {
                 const planRef = doc(db, 'plans', systemUser.planId);
-                const subDetailsResult = await getSubscriptionDetails(systemUser.uid);
+                const subDetailsResult = await getSubscriptionDetails(systemUser.stripeCustomerId);
 
                 const planSnap = await getDoc(planRef);
                 if (planSnap.exists()) {
@@ -131,7 +131,7 @@ function SubscriptionPageContent() {
     const handleManagePayment = async () => {
         if (!systemUser) return;
         setIsRedirecting(true);
-        const result = await createStripePortalSession(systemUser.uid);
+        const result = await createStripePortalSession(systemUser.stripeCustomerId);
 
         if (result.success && result.url) {
             router.push(result.url);
@@ -153,7 +153,7 @@ function SubscriptionPageContent() {
         
         if (result.success) {
             toast({ title: 'Sucesso', description: 'Sua assinatura foi agendada para cancelamento.' });
-            const updatedSub = await getSubscriptionDetails(systemUser.uid);
+            const updatedSub = await getSubscriptionDetails(systemUser.stripeCustomerId);
             if (updatedSub.success) {
                 setSubscription(updatedSub.data || null);
             }
