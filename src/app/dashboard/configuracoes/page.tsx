@@ -636,9 +636,6 @@ export default function ConfiguracoesPage() {
                                                                 <Check className="h-5 w-5 text-white mix-blend-difference" />
                                                             ) : null}
                                                         </button>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{color.name}</p>
                                                     </TooltipContent>
                                                 </Tooltip>
                                             </TooltipProvider>
