@@ -1,7 +1,6 @@
-
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +26,12 @@ const resetPasswordSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um e-mail válido para redefinir a senha.' }),
 });
 
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOGIN_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
+const MAX_RESET_ATTEMPTS = 3;
+const RESET_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
+
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
@@ -34,41 +39,86 @@ export default function LoginPage() {
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
+  // Rate limiting state
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [loginDisabledUntil, setLoginDisabledUntil] = useState<number | null>(null);
+  const [resetAttempts, setResetAttempts] = useState(0);
+  const [resetDisabledUntil, setResetDisabledUntil] = useState<number | null>(null);
+
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
 
   const form = useForm<z.infer<typeof loginFormSchema>>({
     resolver: zodResolver(loginFormSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
+    defaultValues: { email: '', password: '' },
   });
 
   const resetForm = useForm<z.infer<typeof resetPasswordSchema>>({
     resolver: zodResolver(resetPasswordSchema),
-    defaultValues: {
-        email: '',
-    },
+    defaultValues: { email: '' },
   });
 
-  const onSubmit = async (values: z.infer<typeof loginFormSchema>) => {
+  const getTimeRemaining = (until: number) => {
+    const remaining = Math.ceil((until - Date.now()) / 1000);
+    const minutes = Math.floor(remaining / 60);
+    const seconds = remaining % 60;
+    return `${minutes}m ${seconds}s`;
+  };
+
+  const handleLoginSubmit = async (values: z.infer<typeof loginFormSchema>) => {
+    const now = Date.now();
+    if (loginDisabledUntil && now < loginDisabledUntil) {
+      toast({
+        variant: 'destructive',
+        title: 'Muitas tentativas de login',
+        description: `Por favor, aguarde ${getTimeRemaining(loginDisabledUntil)} para tentar novamente.`,
+      });
+      return;
+    }
+
     setIsLoading(true);
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
+      setLoginAttempts(0); // Reset on success
+      setLoginDisabledUntil(null);
       router.push('/dashboard');
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Falha no Login',
-        description: 'E-mail ou senha incorretos. Por favor, tente novamente.',
-      });
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        const disabledUntil = now + LOGIN_COOLDOWN_MS;
+        setLoginDisabledUntil(disabledUntil);
+        setLoginAttempts(0);
+         toast({
+          variant: 'destructive',
+          title: 'Muitas tentativas de login',
+          description: `Sua conta foi bloqueada temporariamente por segurança. Tente novamente em 5 minutos.`,
+        });
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Falha no Login',
+          description: `E-mail ou senha incorretos. Tentativa ${newAttempts} de ${MAX_LOGIN_ATTEMPTS}.`,
+        });
+      }
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const onPasswordResetSubmit = async (values: z.infer<typeof resetPasswordSchema>) => {
+  const handlePasswordResetSubmit = async (values: z.infer<typeof resetPasswordSchema>) => {
+    const now = Date.now();
+    if (resetDisabledUntil && now < resetDisabledUntil) {
+      toast({
+        variant: 'destructive',
+        title: 'Muitas solicitações',
+        description: `Por favor, aguarde ${getTimeRemaining(resetDisabledUntil)} para tentar novamente.`,
+      });
+      return;
+    }
+
     setIsResetting(true);
     try {
       await sendPasswordResetEmail(auth, values.email);
@@ -78,15 +128,41 @@ export default function LoginPage() {
       });
       setIsResetDialogOpen(false);
     } catch (error: any) {
-      toast({
+       toast({
         variant: 'destructive',
         title: 'Erro',
         description: 'Não foi possível enviar o e-mail. Verifique se o endereço está correto.',
       });
     } finally {
-      setIsResetting(false);
+        const newAttempts = resetAttempts + 1;
+        setResetAttempts(newAttempts);
+        if (newAttempts >= MAX_RESET_ATTEMPTS) {
+            const disabledUntil = now + RESET_COOLDOWN_MS;
+            setResetDisabledUntil(disabledUntil);
+            setResetAttempts(0);
+        }
+        setIsResetting(false);
     }
   };
+
+  // Effect to clear disabled state after cooldown
+  useEffect(() => {
+    let loginTimer: NodeJS.Timeout;
+    if (loginDisabledUntil) {
+      loginTimer = setTimeout(() => setLoginDisabledUntil(null), loginDisabledUntil - Date.now());
+    }
+    let resetTimer: NodeJS.Timeout;
+    if (resetDisabledUntil) {
+      resetTimer = setTimeout(() => setResetDisabledUntil(null), resetDisabledUntil - Date.now());
+    }
+    return () => {
+      clearTimeout(loginTimer);
+      clearTimeout(resetTimer);
+    };
+  }, [loginDisabledUntil, resetDisabledUntil]);
+
+  const isLoginButtonDisabled = isLoading || !!loginDisabledUntil;
+  const isResetButtonDisabled = isResetting || !!resetDisabledUntil;
 
   return (
     <>
@@ -97,12 +173,11 @@ export default function LoginPage() {
                <Icon className="h-8 w-8 text-primary" />
                <h1 className="text-3xl font-bold font-headline">{siteName}</h1>
             </div>
-            <CardTitle className="text-2xl font-headline">Login</CardTitle>
             <CardDescription>Acesse sua conta para gerenciar seus serviços.</CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(handleLoginSubmit)} className="space-y-4">
                 <FormField
                   control={form.control}
                   name="email"
@@ -134,7 +209,7 @@ export default function LoginPage() {
                         Esqueci minha senha
                     </Button>
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button type="submit" className="w-full" disabled={isLoginButtonDisabled}>
                   {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
                 </Button>
               </form>
@@ -152,7 +227,7 @@ export default function LoginPage() {
                 </DialogDescription>
             </DialogHeader>
             <Form {...resetForm}>
-                <form onSubmit={resetForm.handleSubmit(onPasswordResetSubmit)} className="space-y-4">
+                <form onSubmit={resetForm.handleSubmit(handlePasswordResetSubmit)} className="space-y-4">
                     <FormField
                     control={resetForm.control}
                     name="email"
@@ -168,7 +243,7 @@ export default function LoginPage() {
                     />
                     <DialogFooter>
                         <Button type="button" variant="ghost" onClick={() => setIsResetDialogOpen(false)}>Cancelar</Button>
-                        <Button type="submit" disabled={isResetting}>
+                        <Button type="submit" disabled={isResetButtonDisabled}>
                             {isResetting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Enviar E-mail de Redefinição
                         </Button>
