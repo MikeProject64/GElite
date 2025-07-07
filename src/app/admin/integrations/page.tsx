@@ -217,7 +217,7 @@ function StripeSettingsForm() {
                                 <CardHeader>
                                     <CardTitle className="text-base flex items-center gap-2"><Repeat /> Testar Assinatura</CardTitle>
                                     <CardDescription>Cria uma assinatura mensal de teste para um cliente fictício.</CardDescription>
-                                </Header>
+                                </CardHeader>
                                 <CardContent>
                                     <Form {...testSubscriptionForm}>
                                         <form onSubmit={testSubscriptionForm.handleSubmit(onTestSubscriptionSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
