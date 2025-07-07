@@ -50,6 +50,7 @@ export interface UserSettings {
   smtpUser?: string;
   smtpPassword?: string;
   emailRecipients?: string[];
+  notifyOnNewSubscription?: boolean;
 }
 
 export interface SystemUser {

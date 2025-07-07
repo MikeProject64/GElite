@@ -19,6 +19,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { createTestChargeAction, createTestSubscriptionAction, sendTestEmailAction } from './actions';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 
 const stripeFormSchema = z.object({
   stripePublishableKey: z.string().startsWith('pk_').optional().or(z.literal('')),
@@ -38,6 +39,7 @@ const emailFormSchema = z.object({
   smtpUser: z.string().email({ message: 'E-mail inválido.' }).optional().or(z.literal('')),
   smtpPassword: z.string().optional(),
   emailRecipients: z.string().optional(),
+  notifyOnNewSubscription: z.boolean().default(false),
 });
 type EmailFormValues = z.infer<typeof emailFormSchema>;
 
@@ -372,7 +374,8 @@ function EmailSettingsForm() {
             smtpPort: 465,
             smtpUser: '',
             smtpPassword: '',
-            emailRecipients: '' 
+            emailRecipients: '',
+            notifyOnNewSubscription: false,
         },
     });
 
@@ -387,6 +390,7 @@ function EmailSettingsForm() {
                     smtpUser: data.smtpUser || '',
                     smtpPassword: data.smtpPassword || '',
                     emailRecipients: (data.emailRecipients || []).join('\n'),
+                    notifyOnNewSubscription: data.notifyOnNewSubscription || false,
                 });
             }
             setIsLoading(false);
@@ -408,7 +412,8 @@ function EmailSettingsForm() {
                 smtpPort: data.smtpPort,
                 smtpUser: data.smtpUser,
                 smtpPassword: data.smtpPassword,
-                emailRecipients: recipientsArray
+                emailRecipients: recipientsArray,
+                notifyOnNewSubscription: data.notifyOnNewSubscription
              }, { merge: true });
             
             toast({
@@ -479,10 +484,33 @@ function EmailSettingsForm() {
                             <FormMessage />
                         </FormItem>
                     )}/>
+                    
+                    <Separator />
+
+                    <FormField
+                        control={form.control}
+                        name="notifyOnNewSubscription"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                                <div className="space-y-0.5">
+                                    <FormLabel className="text-base">Notificar Nova Assinatura</FormLabel>
+                                    <FormDescription>
+                                        Enviar um e-mail para os destinatários acima sempre que um novo usuário assinar um plano.
+                                    </FormDescription>
+                                </div>
+                                <FormControl>
+                                    <Switch
+                                        checked={field.value}
+                                        onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                            </FormItem>
+                        )}
+                    />
 
                     <Button type="submit" disabled={isSaving}>
                         {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
-                        Salvar Credenciais
+                        Salvar Credenciais e Regras
                     </Button>
                 </form>
             </Form>

@@ -5,6 +5,8 @@ import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limi
 import { db, auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
+import nodemailer from 'nodemailer';
+import type { Plan } from '@/types';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -15,6 +17,69 @@ async function getStripeInstance(): Promise<Stripe> {
     const stripeSecretKey = settingsSnap.data().stripeSecretKey;
     return new Stripe(stripeSecretKey);
 }
+
+// Function to send notification email. Placed here to be self-contained.
+async function sendNewSubscriptionNotification(details: {
+    newUser: { name: string; email: string },
+    plan: Plan,
+    subscription: Stripe.Subscription
+}) {
+    try {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const settingsSnap = await getDoc(settingsRef);
+
+        if (!settingsSnap.exists()) {
+            console.log("Configurações do site não encontradas. Email de notificação não enviado.");
+            return;
+        }
+
+        const settings = settingsSnap.data();
+        if (!settings.notifyOnNewSubscription || !settings.smtpHost || !settings.smtpPort || !settings.smtpUser || !settings.smtpPassword || !settings.emailRecipients?.length) {
+            console.log("Configurações de SMTP ou notificação desabilitada. Email não enviado.");
+            return;
+        }
+
+        const transporter = nodemailer.createTransport({
+            host: settings.smtpHost,
+            port: settings.smtpPort,
+            secure: settings.smtpPort === 465,
+            auth: { user: settings.smtpUser, pass: settings.smtpPassword },
+        });
+
+        const subject = `🎉 Novo Assinante: ${details.newUser.name}`;
+        const html = `
+            <div style="font-family: sans-serif; line-height: 1.6;">
+                <h2>Nova Assinatura no ${settings.siteName || 'Gestor Elite'}!</h2>
+                <p>Um novo usuário acaba de se inscrever:</p>
+                <ul>
+                    <li><strong>Nome:</strong> ${details.newUser.name}</li>
+                    <li><strong>E-mail:</strong> ${details.newUser.email}</li>
+                </ul>
+                <h3>Detalhes do Plano Assinado:</h3>
+                <ul>
+                    <li><strong>Plano:</strong> ${details.plan.name}</li>
+                    <li><strong>Valor:</strong> ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format((details.subscription.items.data[0].price.unit_amount || 0) / 100)}</li>
+                    <li><strong>Intervalo:</strong> ${details.subscription.items.data[0].price.recurring?.interval === 'year' ? 'Anual' : 'Mensal'}</li>
+                </ul>
+                <p>A assinatura foi criada em ${new Date(details.subscription.created * 1000).toLocaleString('pt-BR')}.</p>
+            </div>
+        `;
+
+        await transporter.sendMail({
+            from: `"${settings.siteName || 'Gestor Elite'}" <${settings.smtpUser}>`,
+            to: settings.emailRecipients.join(', '),
+            subject: subject,
+            html: html,
+        });
+
+        console.log("E-mail de notificação de nova assinatura enviado com sucesso.");
+
+    } catch (error) {
+        console.error("Falha ao enviar e-mail de notificação de nova assinatura:", error);
+        // Do not throw error here, as it's not critical for the user signup flow.
+    }
+}
+
 
 export async function verifyCheckoutAndCreateUser(sessionId: string, name: string, password: string) {
     if (!sessionId || !password || !name) {
@@ -64,10 +129,25 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             createdAt: Timestamp.now(),
             role: 'user',
             planId: planId,
-            stripeCustomerId: customer.id, // Store the customer ID string, not the object
+            stripeCustomerId: customer.id,
             subscriptionStatus: 'active',
             subscriptionId: subscription.id,
         });
+        
+        try {
+            const planRef = doc(db, 'plans', planId);
+            const planSnap = await getDoc(planRef);
+            if(planSnap.exists()){
+                const planData = { id: planSnap.id, ...planSnap.data() } as Plan;
+                await sendNewSubscriptionNotification({
+                    newUser: { name, email },
+                    plan: planData,
+                    subscription: subscription,
+                });
+            }
+        } catch (emailError) {
+            console.error("Erro no processo de envio de e-mail de notificação:", emailError);
+        }
 
         return { success: true, email: user.email };
 
