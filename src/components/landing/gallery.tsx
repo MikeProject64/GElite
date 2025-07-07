@@ -139,7 +139,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
       </div>
 
       <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && handleCloseModal()}>
-        <DialogContent className="max-w-5xl w-full h-auto p-2 border-0 bg-transparent shadow-none flex items-center justify-center">
+        <DialogContent className="max-w-none w-full h-full p-0 border-0 bg-black/80 shadow-none flex items-center justify-center">
             {selectedImageIndex !== null && (
                 <>
                     <DialogHeader className="sr-only">
@@ -150,28 +150,27 @@ export function Gallery({ landingPageImages }: GalleryProps) {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
+                        className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
                         onClick={handlePrev}
                     >
                         <ChevronLeft className="h-6 w-6" />
                     </Button>
 
-                    <div className="relative w-full h-full max-h-[90vh]">
+                    <div className="relative w-full h-full">
                         <Image
                             src={galleryItems[selectedImageIndex].src}
                             alt={galleryItems[selectedImageIndex].alt}
-                            width={1200}
-                            height={800}
-                            className="w-full h-full object-contain"
+                            fill
+                            className="object-contain p-4 sm:p-8 md:p-12"
                             data-ai-hint={galleryItems[selectedImageIndex].hint}
-                            sizes="90vw"
+                            sizes="100vw"
                         />
                     </div>
                     
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
+                        className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 z-20 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
                         onClick={handleNext}
                     >
                         <ChevronRight className="h-6 w-6" />
