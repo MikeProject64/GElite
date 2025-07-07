@@ -15,6 +15,7 @@ import { Label } from '../ui/label';
 import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
+import { ScrollReveal } from './scroll-reveal';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -82,16 +83,16 @@ export function Pricing() {
   return (
     <section id="pricing" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
-        <div className="text-center mb-12">
+        <ScrollReveal className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Preços Simples e Transparentes
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Escolha o plano certo para o seu negócio.
           </p>
-        </div>
+        </ScrollReveal>
         
-        <div className="flex justify-center items-center gap-4 mb-12 font-body">
+        <ScrollReveal delay={100} className="flex justify-center items-center gap-4 mb-12 font-body">
             <Label htmlFor="interval-switch" className={interval === 'month' ? 'text-primary font-bold' : 'text-muted-foreground'}>
                 Cobrança Mensal
             </Label>
@@ -104,7 +105,7 @@ export function Pricing() {
             <Label htmlFor="interval-switch" className={interval === 'year' ? 'text-primary font-bold' : 'text-muted-foreground'}>
                 Cobrança Anual
             </Label>
-        </div>
+        </ScrollReveal>
 
         {/* Mobile Carousel View */}
         <div className="md:hidden">
@@ -117,7 +118,7 @@ export function Pricing() {
                   
                   return (
                     <CarouselItem key={plan.id} className="basis-11/12 pl-2">
-                      <div className="p-1 h-full flex">
+                      <ScrollReveal className="p-1 h-full flex" delay={index * 100}>
                         <Card className={cn('relative flex flex-col h-full shadow-sm w-full', index === 1 && 'border-primary')}>
                           {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
                           <CardHeader className="text-center">
@@ -151,7 +152,7 @@ export function Pricing() {
                               </Button>
                           </CardFooter>
                         </Card>
-                      </div>
+                      </ScrollReveal>
                     </CarouselItem>
                   )
                 })}
@@ -167,6 +168,7 @@ export function Pricing() {
             const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
             
             return (
+              <ScrollReveal key={plan.id} delay={index * 100} className="h-full">
                 <Card key={plan.id} className={cn('relative flex flex-col h-full shadow-sm', index === 1 && 'border-primary ring-2 ring-primary shadow-lg')}>
                 {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
                 <CardHeader className="text-center">
@@ -200,6 +202,7 @@ export function Pricing() {
                     </Button>
                 </CardFooter>
                 </Card>
+              </ScrollReveal>
             )
           })}
         </div>

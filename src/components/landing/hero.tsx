@@ -6,6 +6,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import type { UserSettings } from '@/types';
 import NetworkAnimation from './network-animation';
+import { ScrollReveal } from './scroll-reveal';
 
 interface HeroProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -19,7 +20,7 @@ export function Hero({ landingPageImages }: HeroProps) {
       <NetworkAnimation />
       <div className="container px-4 md:px-6 lg:px-24 mx-auto relative z-10">
         <div className="grid gap-8 lg:grid-cols-2 lg:gap-x-16 items-center">
-          <div className="flex flex-col justify-center space-y-6">
+          <ScrollReveal className="flex flex-col justify-center space-y-6">
             <div className="space-y-4">
               <p className="text-sm font-semibold uppercase tracking-wider text-primary font-body">
                 GESTÃO DE SERVIÇOS SIMPLIFICADA
@@ -36,8 +37,8 @@ export function Hero({ landingPageImages }: HeroProps) {
                 <Link href="/#pricing">Comece Agora</Link>
               </Button>
             </div>
-          </div>
-          <div className="flex justify-center">
+          </ScrollReveal>
+          <ScrollReveal delay={200} className="flex justify-center">
             <Image
               src={heroImage}
               alt="Ilustração de pessoas analisando gráficos"
@@ -48,7 +49,7 @@ export function Hero({ landingPageImages }: HeroProps) {
               priority
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
-          </div>
+          </ScrollReveal>
         </div>
       </div>
     </section>

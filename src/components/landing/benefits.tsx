@@ -1,6 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { TrendingUp, Smile, ShieldCheck, DollarSign } from 'lucide-react';
+import { ScrollReveal } from './scroll-reveal';
 
 const benefits = [
   {
@@ -27,16 +28,16 @@ const benefits = [
 
 export function Benefits() {
   return (
-    <section id="benefits" className="w-full py-12 md:py-24 lg:py-32 bg-card">
+    <section id="benefits" className="w-full py-12 md:py-24 lg:py-32 bg-background">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
-        <div className="text-center mb-12">
+        <ScrollReveal className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Desbloqueie o Potencial do Seu Negócio
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             O Gestor Elite é mais do que uma ferramenta—é um parceiro de crescimento.
           </p>
-        </div>
+        </ScrollReveal>
         
         {/* Mobile Carousel View */}
         <div className="md:hidden">
@@ -44,8 +45,8 @@ export function Benefits() {
             <CarouselContent className="-ml-2">
               {benefits.map((benefit, index) => (
                 <CarouselItem key={index} className="basis-11/12 pl-2">
-                  <div className="p-1 h-full flex">
-                    <Card className="flex flex-col text-center p-4 shadow-sm h-full">
+                  <ScrollReveal className="p-1 h-full flex" delay={index * 100}>
+                    <Card className="flex flex-col text-center p-4 shadow-sm h-full bg-card">
                       <CardContent className="flex flex-col items-center flex-grow pt-6">
                         <div className="p-4 bg-primary/10 rounded-full mb-4">
                           {benefit.icon}
@@ -54,7 +55,7 @@ export function Benefits() {
                         <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
                       </CardContent>
                     </Card>
-                  </div>
+                  </ScrollReveal>
                 </CarouselItem>
               ))}
             </CarouselContent>
@@ -64,15 +65,17 @@ export function Benefits() {
         {/* Desktop Grid View */}
         <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {benefits.map((benefit, index) => (
-            <Card key={index} className="flex flex-col text-center p-4 shadow-sm hover:shadow-md transition-shadow">
-              <CardContent className="flex flex-col items-center flex-grow pt-6">
-                <div className="p-4 bg-primary/10 rounded-full mb-4">
-                  {benefit.icon}
-                </div>
-                <h3 className="text-xl font-bold mb-2 font-headline">{benefit.title}</h3>
-                <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
-              </CardContent>
-            </Card>
+            <ScrollReveal key={index} delay={index * 100} className="h-full">
+                <Card className="flex flex-col text-center p-4 shadow-sm hover:shadow-md transition-shadow h-full bg-card">
+                  <CardContent className="flex flex-col items-center flex-grow pt-6">
+                    <div className="p-4 bg-primary/10 rounded-full mb-4">
+                      {benefit.icon}
+                    </div>
+                    <h3 className="text-xl font-bold mb-2 font-headline">{benefit.title}</h3>
+                    <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
+                  </CardContent>
+                </Card>
+            </ScrollReveal>
           ))}
         </div>
       </div>

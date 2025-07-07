@@ -4,6 +4,7 @@
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
 import type { UserSettings } from '@/types';
+import { ScrollReveal } from './scroll-reveal';
 
 interface TestimonialsProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -38,33 +39,35 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
   return (
     <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
-        <div className="text-center mb-12">
+        <ScrollReveal className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             O que nossos clientes dizem
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Empresas reais, resultados reais. Veja como o Gestor Elite está fazendo a diferença.
           </p>
-        </div>
+        </ScrollReveal>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <Card key={index} className="p-6 shadow-sm">
-              <CardContent className="p-0">
-                <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
-                  “{testimonial.quote}”
-                </blockquote>
-                <div className="flex items-center gap-4">
-                  <Avatar>
-                    <AvatarImage src={testimonial.image} alt={testimonial.name} data-ai-hint="person portrait" />
-                    <AvatarFallback>{testimonial.avatar}</AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-semibold">{testimonial.name}</p>
-                    <p className="text-sm text-muted-foreground">{testimonial.title}</p>
+            <ScrollReveal key={index} delay={index * 100}>
+              <Card className="p-6 shadow-sm">
+                <CardContent className="p-0">
+                  <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
+                    “{testimonial.quote}”
+                  </blockquote>
+                  <div className="flex items-center gap-4">
+                    <Avatar>
+                      <AvatarImage src={testimonial.image} alt={testimonial.name} data-ai-hint="person portrait" />
+                      <AvatarFallback>{testimonial.avatar}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-semibold">{testimonial.name}</p>
+                      <p className="text-sm text-muted-foreground">{testimonial.title}</p>
+                    </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </ScrollReveal>
           ))}
         </div>
       </div>

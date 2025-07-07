@@ -1,4 +1,5 @@
 import { ShieldCheck, CalendarX, Lock } from 'lucide-react';
+import { ScrollReveal } from './scroll-reveal';
 
 const guarantees = [
   {
@@ -22,23 +23,23 @@ export function Guarantee() {
   return (
     <section id="guarantee" className="w-full py-12 md:py-24 lg:py-32 bg-card">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
-        <div className="text-center mb-12">
+        <ScrollReveal className="text-center mb-12">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl">
             Sua Satisfação é Nossa Prioridade
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2">
             Invista no seu negócio com total tranquilidade.
           </p>
-        </div>
+        </ScrollReveal>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {guarantees.map((item, index) => (
-            <div key={index} className="flex flex-col items-center">
+            <ScrollReveal key={index} className="flex flex-col items-center" delay={index * 100}>
               <div className="p-4 bg-primary/10 rounded-full mb-4">
                 {item.icon}
               </div>
               <h3 className="text-xl font-bold mb-2">{item.title}</h3>
               <p className="text-muted-foreground">{item.description}</p>
-            </div>
+            </ScrollReveal>
           ))}
         </div>
       </div>

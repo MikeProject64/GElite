@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { ClipboardList, Users, Wrench, CheckCircle } from 'lucide-react';
 import React from 'react';
 import type { UserSettings } from '@/types';
+import { ScrollReveal } from './scroll-reveal';
 
 interface FeaturesProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -42,18 +43,18 @@ export function Features({ landingPageImages }: FeaturesProps) {
   return (
     <section id="features" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
-        <div className="text-center mb-16">
+        <ScrollReveal className="text-center mb-16">
           <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
             Como o Gestor Elite Funciona
           </h2>
           <p className="max-w-[700px] mx-auto text-muted-foreground md:text-lg mt-2 font-body">
             Nossa plataforma simplifica cada etapa do seu fluxo de trabalho de serviço, da criação à conclusão.
           </p>
-        </div>
+        </ScrollReveal>
         <div className="space-y-16">
           {features.map((feature, index) => (
             <div key={index} className="grid md:grid-cols-2 gap-12 items-center">
-              <div className={`flex flex-col justify-center space-y-4 ${index % 2 !== 0 ? 'md:order-last' : ''}`}>
+              <ScrollReveal className={`flex flex-col justify-center space-y-4 ${index % 2 !== 0 ? 'md:order-last' : ''}`}>
                 <div className="flex items-center gap-3">
                    <div className="p-3 bg-primary/10 rounded-full">
                      {feature.icon}
@@ -71,8 +72,8 @@ export function Features({ landingPageImages }: FeaturesProps) {
                     </li>
                   ))}
                 </ul>
-              </div>
-              <div className="flex justify-center">
+              </ScrollReveal>
+              <ScrollReveal delay={200} className="flex justify-center">
                  <Image
                     src={feature.image}
                     alt={feature.title}
@@ -82,7 +83,7 @@ export function Features({ landingPageImages }: FeaturesProps) {
                     data-ai-hint={feature.imageHint}
                     sizes="(max-width: 768px) 100vw, 50vw"
                 />
-              </div>
+              </ScrollReveal>
             </div>
           ))}
         </div>
