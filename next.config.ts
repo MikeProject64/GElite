@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'firebasestorage.googleapis.com',
         port: '',
-        pathname: '/**',
+        pathname: '/v0/b/**',
       },
     ],
     deviceSizes: [320, 480, 640, 750, 828, 1080, 1200, 1920, 2040, 3840],
