@@ -95,7 +95,7 @@ export async function createTestSubscriptionAction(amount: number): Promise<Test
         const settingsSnap = await getDoc(settingsRef);
         const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
         const logoURL = settingsData.logoURL;
-        const siteName = settingsData.siteName || 'Gestor Elite';
+        const siteName = 'Gestor Elite';
 
 
         // 1. Find or create a test product for subscriptions

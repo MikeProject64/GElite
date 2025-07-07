@@ -48,12 +48,12 @@ export async function syncPlanWithStripe(planData: SyncPlanInput): Promise<SyncP
     try {
         const stripe = await getStripeInstance();
         
-        // Fetch logoURL and siteName from siteConfig
+        // Fetch logoURL from siteConfig
         const settingsRef = doc(db, 'siteConfig', 'main');
         const settingsSnap = await getDoc(settingsRef);
         const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
         const logoURL = settingsData.logoURL;
-        const siteName = settingsData.siteName || 'Gestor Elite';
+        const siteName = 'Gestor Elite';
 
         const stripeProductName = `${siteName} - ${planData.name}`;
         let productId = planData.stripeProductId;
