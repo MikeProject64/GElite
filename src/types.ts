@@ -1,5 +1,6 @@
 
 import type { Timestamp } from 'firebase/firestore';
+import type { Stripe } from 'stripe';
 
 export interface Tag {
   id: string;
@@ -52,7 +53,7 @@ export interface SystemUser {
   createdAt: Timestamp;
   planId?: string;
   stripeCustomerId?: string;
-  subscriptionStatus?: 'active' | 'incomplete' | 'canceled' | 'past_due' | 'incomplete_expired';
+  subscriptionStatus?: 'active' | 'incomplete' | 'canceled' | 'past_due' | 'incomplete_expired' | 'trialing';
   subscriptionId?: string;
 }
 
@@ -76,6 +77,16 @@ export interface Plan {
   stripeProductId?: string;
   stripeMonthlyPriceId?: string;
   stripeYearlyPriceId?: string;
+}
+
+export interface SubscriptionDetails {
+    id: string;
+    status: Stripe.Subscription.Status;
+    currentPeriodEnd: number; // JS timestamp
+    cancelAtPeriodEnd: boolean;
+    price: number; // in cents
+    interval: 'month' | 'year' | 'day' | 'week' | null;
+    productName: string;
 }
 
 export interface Collaborator {
