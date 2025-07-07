@@ -14,10 +14,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { createTestChargeAction, createTestSubscriptionAction } from './actions';
+import { createTestChargeAction, createTestSubscriptionAction, sendTestEmailAction } from './actions';
 import { Textarea } from '@/components/ui/textarea';
 
 const stripeFormSchema = z.object({
@@ -33,7 +33,10 @@ const whatsappFormSchema = z.object({
 type WhatsAppFormValues = z.infer<typeof whatsappFormSchema>;
 
 const emailFormSchema = z.object({
-  emailFrom: z.string().email({ message: 'Por favor, insira um e-mail válido.' }).optional().or(z.literal('')),
+  smtpHost: z.string().optional(),
+  smtpPort: z.coerce.number().optional(),
+  smtpUser: z.string().email({ message: 'E-mail inválido.' }).optional().or(z.literal('')),
+  smtpPassword: z.string().optional(),
   emailRecipients: z.string().optional(),
 });
 type EmailFormValues = z.infer<typeof emailFormSchema>;
@@ -360,10 +363,17 @@ function EmailSettingsForm() {
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isTesting, setIsTesting] = useState(false);
 
     const form = useForm<EmailFormValues>({
         resolver: zodResolver(emailFormSchema),
-        defaultValues: { emailFrom: '', emailRecipients: '' },
+        defaultValues: { 
+            smtpHost: '',
+            smtpPort: 465,
+            smtpUser: '',
+            smtpPassword: '',
+            emailRecipients: '' 
+        },
     });
 
     useEffect(() => {
@@ -372,7 +382,10 @@ function EmailSettingsForm() {
             if (docSnap.exists()) {
                 const data = docSnap.data();
                 form.reset({
-                    emailFrom: data.emailFrom || '',
+                    smtpHost: data.smtpHost || '',
+                    smtpPort: data.smtpPort || 465,
+                    smtpUser: data.smtpUser || '',
+                    smtpPassword: data.smtpPassword || '',
                     emailRecipients: (data.emailRecipients || []).join('\n'),
                 });
             }
@@ -391,7 +404,10 @@ function EmailSettingsForm() {
 
             const settingsRef = doc(db, 'siteConfig', 'main');
             await setDoc(settingsRef, { 
-                emailFrom: data.emailFrom,
+                smtpHost: data.smtpHost,
+                smtpPort: data.smtpPort,
+                smtpUser: data.smtpUser,
+                smtpPassword: data.smtpPassword,
                 emailRecipients: recipientsArray
              }, { merge: true });
             
@@ -411,6 +427,17 @@ function EmailSettingsForm() {
         }
     };
 
+    const handleSendTestEmail = async () => {
+        setIsTesting(true);
+        const result = await sendTestEmailAction();
+        if (result.success) {
+            toast({ title: 'Sucesso!', description: result.message });
+        } else {
+            toast({ variant: 'destructive', title: 'Falha no Teste', description: result.message });
+        }
+        setIsTesting(false);
+    }
+
     if (isLoading) {
       return (
         <div className="space-y-8">
@@ -422,27 +449,27 @@ function EmailSettingsForm() {
     }
 
     return (
-        <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-                <FormField
-                    control={form.control}
-                    name="emailFrom"
-                    render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>E-mail Remetente (De:)</FormLabel>
-                            <FormControl><Input type="email" placeholder="contato@seusite.com" {...field} /></FormControl>
-                            <FormDescription>
-                                O endereço de e-mail que aparecerá como remetente. Este domínio deve ser verificado no seu provedor de e-mail (ex: SendGrid).
-                            </FormDescription>
-                            <FormMessage />
-                        </FormItem>
-                    )}
-                />
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="smtpHost" render={({ field }) => (
+                            <FormItem><FormLabel>Host SMTP</FormLabel><FormControl><Input placeholder="smtp.seudominio.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                        <FormField control={form.control} name="smtpPort" render={({ field }) => (
+                            <FormItem><FormLabel>Porta SMTP</FormLabel><FormControl><Input type="number" placeholder="465" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                        <FormField control={form.control} name="smtpUser" render={({ field }) => (
+                            <FormItem><FormLabel>Usuário SMTP (E-mail)</FormLabel><FormControl><Input type="email" placeholder="contato@seudominio.com" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                         <FormField control={form.control} name="smtpPassword" render={({ field }) => (
+                            <FormItem><FormLabel>Senha SMTP</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
+                        )}/>
+                    </div>
 
-                <FormField
-                    control={form.control}
-                    name="emailRecipients"
-                    render={({ field }) => (
+                    <FormField control={form.control} name="emailRecipients" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Destinatários de Notificação</FormLabel>
                             <FormControl><Textarea placeholder="email1@exemplo.com&#10;email2@exemplo.com" {...field} rows={4} /></FormControl>
@@ -451,15 +478,26 @@ function EmailSettingsForm() {
                             </FormDescription>
                             <FormMessage />
                         </FormItem>
-                    )}
-                />
+                    )}/>
 
-                <Button type="submit" disabled={isSaving}>
-                    {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
-                    Salvar Configurações de E-mail
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
+                        Salvar Credenciais
+                    </Button>
+                </form>
+            </Form>
+            <Separator className="my-8" />
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium">Testar Configuração</h3>
+                <p className="text-sm text-muted-foreground">
+                    Após salvar suas credenciais, clique no botão abaixo para enviar um e-mail de teste para os destinatários configurados.
+                </p>
+                <Button onClick={handleSendTestEmail} disabled={isTesting}>
+                    {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
+                    Enviar Email de Teste
                 </Button>
-            </form>
-        </Form>
+            </div>
+        </>
     );
 }
 
@@ -476,7 +514,7 @@ export default function AdminIntegrationsPage() {
             <MessageSquare className="mr-2 h-4 w-4" /> Suporte WhatsApp
           </TabsTrigger>
            <TabsTrigger value="email">
-            <Mail className="mr-2 h-4 w-4" /> Email
+            <Mail className="mr-2 h-4 w-4" /> E-mail
           </TabsTrigger>
         </TabsList>
         <TabsContent value="stripe">
@@ -504,9 +542,9 @@ export default function AdminIntegrationsPage() {
         <TabsContent value="email">
           <Card>
               <CardHeader>
-                  <CardTitle>Configuração de Envio de E-mail</CardTitle>
+                  <CardTitle>Configuração de Envio de E-mail (SMTP)</CardTitle>
                   <CardDescription>
-                      Configure o remetente e os destinatários para os e-mails transacionais do sistema. O envio real é gerenciado pela extensão "Trigger Email" do Firebase.
+                      Configure as credenciais do seu servidor de e-mail para que o sistema possa enviar notificações.
                   </CardDescription>
               </CardHeader>
               <CardContent>

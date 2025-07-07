@@ -45,7 +45,10 @@ export interface UserSettings {
   };
   whatsappNumber?: string;
   whatsappMessage?: string;
-  emailFrom?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPassword?: string;
   emailRecipients?: string[];
 }
 

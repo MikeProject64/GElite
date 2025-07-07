@@ -5,13 +5,15 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { z } from 'zod';
+import nodemailer from 'nodemailer';
 
-// Schema and type for the test charge action result
-const TestActionResultSchema = z.object({
+// Schema and type for the action results
+const ActionResultSchema = z.object({
   success: z.boolean(),
   message: z.string(),
 });
-type TestActionResult = z.infer<typeof TestActionResultSchema>;
+type ActionResult = z.infer<typeof ActionResultSchema>;
+
 
 // Helper function to get Stripe instance
 async function getStripeInstance(): Promise<Stripe> {
@@ -36,7 +38,7 @@ async function getStripeInstance(): Promise<Stripe> {
  * Creates a one-time test charge using a test customer and payment method.
  * This simulates a real payment and should appear in the Stripe test dashboard.
  */
-export async function createTestChargeAction(amount: number): Promise<TestActionResult> {
+export async function createTestChargeAction(amount: number): Promise<ActionResult> {
   try {
     const stripe = await getStripeInstance();
     
@@ -87,7 +89,7 @@ export async function createTestChargeAction(amount: number): Promise<TestAction
  * Creates a recurring test subscription for a given monthly amount.
  * This simulates a user signing up for a recurring plan.
  */
-export async function createTestSubscriptionAction(amount: number): Promise<TestActionResult> {
+export async function createTestSubscriptionAction(amount: number): Promise<ActionResult> {
     try {
         const stripe = await getStripeInstance();
         
@@ -95,7 +97,7 @@ export async function createTestSubscriptionAction(amount: number): Promise<Test
         const settingsSnap = await getDoc(settingsRef);
         const settingsData = settingsSnap.exists() ? settingsSnap.data() : {};
         const logoURL = settingsData.logoURL;
-        const siteName = 'Gestor Elite';
+        const siteName = settingsData.siteName || 'Gestor Elite';
 
 
         // 1. Find or create a test product for subscriptions
@@ -160,4 +162,53 @@ export async function createTestSubscriptionAction(amount: number): Promise<Test
         
         return { success: false, message: `Falha na conexão com o Stripe: ${errorMessage}` };
     }
+}
+
+/**
+ * Sends a test email using the configured SMTP settings.
+ */
+export async function sendTestEmailAction(): Promise<ActionResult> {
+  try {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const settingsSnap = await getDoc(settingsRef);
+
+    if (!settingsSnap.exists()) {
+      throw new Error('Configurações do site não encontradas.');
+    }
+
+    const { smtpHost, smtpPort, smtpUser, smtpPassword, emailRecipients, siteName } = settingsSnap.data();
+
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
+      return { success: false, message: 'Configurações de SMTP incompletas. Por favor, preencha todos os campos.' };
+    }
+    
+    if (!emailRecipients || emailRecipients.length === 0) {
+      return { success: false, message: 'Nenhum destinatário de notificação configurado.' };
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465, // true for 465 (SSL), false for other ports (like 587 for TLS)
+      auth: {
+        user: smtpUser,
+        pass: smtpPassword,
+      },
+    });
+    
+    // Verify connection configuration
+    await transporter.verify();
+
+    await transporter.sendMail({
+      from: `"${siteName || 'Gestor Elite'}" <${smtpUser}>`,
+      to: emailRecipients.join(', '),
+      subject: '✔️ Email de Teste do Gestor Elite',
+      html: `<p>Se você recebeu este e-mail, suas configurações de SMTP estão funcionando corretamente!</p>`,
+    });
+
+    return { success: true, message: `E-mail de teste enviado com sucesso para: ${emailRecipients.join(', ')}.` };
+  } catch (error: any) {
+    console.error('Send Test Email Error:', error);
+    return { success: false, message: `Falha ao enviar e-mail: ${error.message}` };
+  }
 }
