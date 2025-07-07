@@ -11,8 +11,9 @@ import { useRouter } from 'next/navigation';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, CheckCircle, XCircle, CreditCard } from 'lucide-react';
+import { Loader2, CheckCircle, XCircle, CreditCard, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
+import { createStripePortalSession } from './actions';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -87,8 +88,12 @@ function NoPlanView() {
 
 function SubscriptionPageContent() {
     const { systemUser } = useAuth();
+    const { toast } = useToast();
+    const router = useRouter();
+
     const [plan, setPlan] = useState<Plan | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRedirecting, setIsRedirecting] = useState(false);
 
     useEffect(() => {
         const fetchPlan = async () => {
@@ -104,6 +109,22 @@ function SubscriptionPageContent() {
         
         fetchPlan();
     }, [systemUser]);
+
+    const handleManageSubscription = async () => {
+        setIsRedirecting(true);
+        const result = await createStripePortalSession();
+
+        if (result.success && result.url) {
+            router.push(result.url);
+        } else {
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: result.message || 'Não foi possível acessar o portal de gerenciamento.',
+            });
+            setIsRedirecting(false);
+        }
+    };
     
     const getStatusInfo = () => {
         switch (systemUser?.subscriptionStatus) {
@@ -149,9 +170,10 @@ function SubscriptionPageContent() {
                 </div>
             </CardContent>
             <CardFooter className="gap-2">
-                 {systemUser.subscriptionStatus === 'active' && (
-                    <Button disabled>
-                        Gerenciar Assinatura (Em breve)
+                 {systemUser.subscriptionStatus === 'active' && systemUser.stripeCustomerId && (
+                    <Button onClick={handleManageSubscription} disabled={isRedirecting}>
+                        {isRedirecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
+                        Gerenciar Assinatura
                     </Button>
                  )}
             </CardFooter>
