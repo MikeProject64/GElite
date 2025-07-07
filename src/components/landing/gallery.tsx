@@ -1,10 +1,13 @@
 
 'use client';
 
+import { useState, useCallback, useEffect } from 'react';
 import Image from 'next/image';
 import { Card, CardContent } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogTrigger, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { UserSettings } from '@/types';
 import { ScrollReveal } from './scroll-reveal';
 
@@ -19,10 +22,10 @@ interface GalleryProps {
 }
 
 export function Gallery({ landingPageImages }: GalleryProps) {
-  
+  const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
+
   const galleryImageUrls = landingPageImages?.galleryImages;
 
-  // Always create a 9-item array, filling with available URLs or placeholders
   const imageList = Array.from({ length: 9 }).map((_, index) => {
     return galleryImageUrls?.[index] || 'https://placehold.co/600x400.png';
   });
@@ -32,6 +35,41 @@ export function Gallery({ landingPageImages }: GalleryProps) {
     alt: `Visualização da galeria ${index + 1}`,
     hint: defaultImageHints[index] || 'software interface',
   }));
+
+  const handleOpenModal = (index: number) => {
+    setSelectedImageIndex(index);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedImageIndex(null);
+  };
+
+  const handleNext = useCallback(() => {
+    if (selectedImageIndex !== null) {
+      setSelectedImageIndex((prevIndex) => (prevIndex! + 1) % galleryItems.length);
+    }
+  }, [selectedImageIndex, galleryItems.length]);
+
+  const handlePrev = useCallback(() => {
+    if (selectedImageIndex !== null) {
+      setSelectedImageIndex((prevIndex) => (prevIndex! - 1 + galleryItems.length) % galleryItems.length);
+    }
+  }, [selectedImageIndex, galleryItems.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (selectedImageIndex === null) return;
+      if (e.key === 'ArrowRight') {
+        handleNext();
+      } else if (e.key === 'ArrowLeft') {
+        handlePrev();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedImageIndex, handleNext, handlePrev]);
 
   return (
     <section id="gallery" className="w-full py-12 md:py-24 lg:py-32 bg-background">
@@ -52,38 +90,22 @@ export function Gallery({ landingPageImages }: GalleryProps) {
               <CarouselContent className="-ml-2">
                 {galleryItems.map((image, index) => (
                   <CarouselItem key={index} className="basis-11/12 pl-2">
-                      <Dialog>
-                          <DialogTrigger asChild>
-                              <Card className="overflow-hidden cursor-pointer transform transition-transform hover:scale-105">
-                                  <CardContent className="p-0">
-                                  <Image
-                                      src={image.src}
-                                      alt={image.alt}
-                                      width={600}
-                                      height={400}
-                                      className="aspect-[3/2] w-full object-cover"
-                                      data-ai-hint={image.hint}
-                                      sizes="90vw"
-                                  />
-                                  </CardContent>
-                              </Card>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-4xl h-auto p-0 border-0 bg-transparent shadow-none">
-                              <DialogHeader className="sr-only">
-                                  <DialogTitle>Visualização da Imagem: {image.alt}</DialogTitle>
-                                  <DialogDescription>Imagem ampliada da galeria. {image.alt}.</DialogDescription>
-                              </DialogHeader>
-                              <Image
-                                  src={image.src}
-                                  alt={image.alt}
-                                  width={1200}
-                                  height={800}
-                                  className="w-full h-auto object-contain rounded-lg"
-                                  data-ai-hint={image.hint}
-                                  sizes="100vw"
-                              />
-                          </DialogContent>
-                      </Dialog>
+                    <Card
+                      className="overflow-hidden cursor-pointer transform transition-transform hover:scale-105"
+                      onClick={() => handleOpenModal(index)}
+                    >
+                      <CardContent className="p-0">
+                        <Image
+                          src={image.src}
+                          alt={image.alt}
+                          width={600}
+                          height={400}
+                          className="aspect-[3/2] w-full object-cover"
+                          data-ai-hint={image.hint}
+                          sizes="90vw"
+                        />
+                      </CardContent>
+                    </Card>
                   </CarouselItem>
                 ))}
               </CarouselContent>
@@ -93,43 +115,71 @@ export function Gallery({ landingPageImages }: GalleryProps) {
           {/* Desktop Grid View */}
           <div className="hidden md:grid grid-cols-3 gap-4">
             {galleryItems.map((image, index) => (
-              <Dialog key={index}>
-                  <DialogTrigger asChild>
-                      <Card className="overflow-hidden cursor-pointer group">
-                          <CardContent className="p-0 relative">
-                          <Image
-                              src={image.src}
-                              alt={image.alt}
-                              width={600}
-                              height={400}
-                              className="aspect-[3/2] w-full object-cover transition-transform duration-300 group-hover:scale-110"
-                              data-ai-hint={image.hint}
-                              sizes="(max-width: 768px) 90vw, 33vw"
-                          />
-                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors duration-300" />
-                          </CardContent>
-                      </Card>
-                  </DialogTrigger>
-                  <DialogContent className="max-w-4xl h-auto p-0 border-0 bg-transparent shadow-none">
-                      <DialogHeader className="sr-only">
-                          <DialogTitle>Visualização da Imagem: {image.alt}</DialogTitle>
-                          <DialogDescription>Imagem ampliada da galeria. {image.alt}.</DialogDescription>
-                      </DialogHeader>
-                      <Image
-                          src={image.src}
-                          alt={image.alt}
-                          width={1200}
-                          height={800}
-                          className="w-full h-auto object-contain rounded-lg"
-                          data-ai-hint={image.hint}
-                          sizes="100vw"
-                      />
-                  </DialogContent>
-              </Dialog>
+              <Card
+                key={index}
+                className="overflow-hidden cursor-pointer group"
+                onClick={() => handleOpenModal(index)}
+              >
+                <CardContent className="p-0 relative">
+                  <Image
+                    src={image.src}
+                    alt={image.alt}
+                    width={600}
+                    height={400}
+                    className="aspect-[3/2] w-full object-cover transition-transform duration-300 group-hover:scale-110"
+                    data-ai-hint={image.hint}
+                    sizes="(max-width: 768px) 90vw, 33vw"
+                  />
+                  <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors duration-300" />
+                </CardContent>
+              </Card>
             ))}
           </div>
         </ScrollReveal>
       </div>
+
+      <Dialog open={selectedImageIndex !== null} onOpenChange={(open) => !open && handleCloseModal()}>
+        <DialogContent className="max-w-5xl w-full h-auto p-2 border-0 bg-transparent shadow-none flex items-center justify-center">
+            {selectedImageIndex !== null && (
+                <>
+                    <DialogHeader className="sr-only">
+                        <DialogTitle>Visualização da Imagem: {galleryItems[selectedImageIndex].alt}</DialogTitle>
+                        <DialogDescription>Imagem ampliada da galeria.</DialogDescription>
+                    </DialogHeader>
+                    
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute left-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
+                        onClick={handlePrev}
+                    >
+                        <ChevronLeft className="h-6 w-6" />
+                    </Button>
+
+                    <div className="relative w-full h-full max-h-[90vh]">
+                        <Image
+                            src={galleryItems[selectedImageIndex].src}
+                            alt={galleryItems[selectedImageIndex].alt}
+                            width={1200}
+                            height={800}
+                            className="w-full h-full object-contain"
+                            data-ai-hint={galleryItems[selectedImageIndex].hint}
+                            sizes="90vw"
+                        />
+                    </div>
+                    
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-0 top-1/2 -translate-y-1/2 z-10 h-12 w-12 rounded-full bg-white/20 hover:bg-white/40 text-white"
+                        onClick={handleNext}
+                    >
+                        <ChevronRight className="h-6 w-6" />
+                    </Button>
+                </>
+            )}
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
