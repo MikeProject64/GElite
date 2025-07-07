@@ -11,13 +11,23 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, ShieldCheck, CheckCircle } from 'lucide-react';
 import { createCheckoutSession, checkEmailExists } from './actions';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Plan } from '@/types';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const featureMap: Record<string, string> = {
+  servicos: 'Gestão de Serviços',
+  orcamentos: 'Criação de Orçamentos',
+  prazos: 'Controle de Prazos',
+  atividades: 'Histórico de Atividades',
+  clientes: 'Base de Clientes (CRM)',
+  colaboradores: 'Equipes e Colaboradores',
+  inventario: 'Controle de Inventário',
+};
 
 const formSchema = z.object({
   name: z.string().min(3, { message: 'O nome completo é obrigatório.' }),
@@ -129,6 +139,24 @@ function SignupForm() {
                         </div>
                         <p className="font-bold text-lg">{formatCurrency(interval === 'month' ? selectedPlan?.monthlyPrice || 0 : selectedPlan?.yearlyPrice || 0)}</p>
                     </div>
+
+                    <div>
+                        <h4 className="text-sm font-semibold mb-2">Recursos inclusos:</h4>
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                            {selectedPlan && Object.entries(selectedPlan.features).map(([key, value]) => {
+                                if (value) {
+                                    return (
+                                        <li key={key} className="flex items-center gap-2">
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                            <span>{featureMap[key as keyof typeof featureMap] || key}</span>
+                                        </li>
+                                    );
+                                }
+                                return null;
+                            })}
+                        </ul>
+                    </div>
+
                      <div className="flex items-center text-sm text-muted-foreground gap-2 border-t pt-4">
                         <ShieldCheck className="h-5 w-5 text-green-500"/>
                         <span>Pagamento seguro via <span className='font-bold'>Stripe</span>.</span>
