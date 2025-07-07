@@ -80,6 +80,7 @@ export function Features({ landingPageImages }: FeaturesProps) {
                     height={450}
                     className="mx-auto aspect-video overflow-hidden rounded-xl object-cover shadow-lg"
                     data-ai-hint={feature.imageHint}
+                    sizes="(max-width: 768px) 100vw, 50vw"
                 />
               </div>
             </div>

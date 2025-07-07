@@ -46,6 +46,7 @@ export function Hero({ landingPageImages }: HeroProps) {
               className="mx-auto aspect-[6/5] overflow-hidden rounded-xl object-contain"
               data-ai-hint="data analytics"
               priority
+              sizes="(max-width: 1024px) 100vw, 50vw"
             />
           </div>
         </div>

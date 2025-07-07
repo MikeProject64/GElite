@@ -61,6 +61,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
                                     height={400}
                                     className="aspect-[3/2] w-full object-cover"
                                     data-ai-hint={image.hint}
+                                    sizes="90vw"
                                 />
                                 </CardContent>
                             </Card>
@@ -77,6 +78,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
                                 height={800}
                                 className="w-full h-auto object-contain rounded-lg"
                                 data-ai-hint={image.hint}
+                                sizes="100vw"
                             />
                         </DialogContent>
                     </Dialog>
@@ -100,6 +102,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
                             height={400}
                             className="aspect-[3/2] w-full object-cover transition-transform duration-300 group-hover:scale-110"
                             data-ai-hint={image.hint}
+                            sizes="(max-width: 768px) 90vw, 33vw"
                         />
                          <div className="absolute inset-0 bg-black/10 group-hover:bg-black/30 transition-colors duration-300" />
                         </CardContent>
@@ -117,6 +120,7 @@ export function Gallery({ landingPageImages }: GalleryProps) {
                         height={800}
                         className="w-full h-auto object-contain rounded-lg"
                         data-ai-hint={image.hint}
+                        sizes="100vw"
                     />
                 </DialogContent>
             </Dialog>
