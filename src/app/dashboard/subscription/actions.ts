@@ -2,7 +2,7 @@
 'use server';
 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { SubscriptionDetails } from '@/types';
@@ -17,25 +17,33 @@ async function getStripeInstance(): Promise<Stripe> {
     return new Stripe(stripeSecretKey);
 }
 
-async function getStripeCustomerId(): Promise<string> {
-    const firebaseUser = auth.currentUser;
-    if (!firebaseUser) throw new Error('Usuário não autenticado.');
-
-    const userDocRef = doc(db, 'users', firebaseUser.uid);
+async function getStripeCustomerId(uid: string): Promise<string> {
+    if (!uid) {
+        throw new Error('ID do usuário não fornecido.');
+    }
+    
+    const userDocRef = doc(db, 'users', uid);
     const userDocSnap = await getDoc(userDocRef);
 
-    if (!userDocSnap.exists()) throw new Error('Documento do usuário não encontrado.');
+    if (!userDocSnap.exists()) {
+        throw new Error('Documento do usuário não encontrado.');
+    }
     
     const stripeCustomerId = userDocSnap.data().stripeCustomerId;
-    if (!stripeCustomerId) throw new Error('ID de cliente do Stripe não encontrado para este usuário.');
+    if (!stripeCustomerId) {
+        throw new Error('ID de cliente do Stripe não encontrado para este usuário.');
+    }
     
     return stripeCustomerId;
 }
 
-export async function getSubscriptionDetails(): Promise<{ success: boolean; data?: SubscriptionDetails; message?: string }> {
+export async function getSubscriptionDetails(uid: string): Promise<{ success: boolean; data?: SubscriptionDetails; message?: string }> {
+    if (!uid) {
+        return { success: false, message: 'Usuário não autenticado.' };
+    }
     try {
         const stripe = await getStripeInstance();
-        const customerId = await getStripeCustomerId();
+        const customerId = await getStripeCustomerId(uid);
 
         const subscriptions = await stripe.subscriptions.list({
             customer: customerId,
@@ -45,7 +53,7 @@ export async function getSubscriptionDetails(): Promise<{ success: boolean; data
         });
 
         if (subscriptions.data.length === 0) {
-            return { success: false, message: 'Nenhuma assinatura encontrada.' };
+            return { success: true, data: undefined, message: 'Nenhuma assinatura encontrada.' };
         }
 
         const sub = subscriptions.data[0];
@@ -70,8 +78,9 @@ export async function getSubscriptionDetails(): Promise<{ success: boolean; data
 }
 
 
-export async function cancelSubscriptionAction(subscriptionId: string): Promise<{ success: boolean; message?: string }> {
+export async function cancelSubscriptionAction(uid: string, subscriptionId: string): Promise<{ success: boolean; message?: string }> {
      if (!subscriptionId) return { success: false, message: 'ID da assinatura não fornecido.' };
+     if (!uid) return { success: false, message: 'Usuário não autenticado.' };
     
     try {
         const stripe = await getStripeInstance();
@@ -79,12 +88,8 @@ export async function cancelSubscriptionAction(subscriptionId: string): Promise<
             cancel_at_period_end: true,
         });
 
-        // Also update our local record
-        const firebaseUser = auth.currentUser;
-        if(firebaseUser) {
-            const userDocRef = doc(db, 'users', firebaseUser.uid);
-            await updateDoc(userDocRef, { subscriptionStatus: 'canceled' });
-        }
+        const userDocRef = doc(db, 'users', uid);
+        await updateDoc(userDocRef, { subscriptionStatus: 'canceled' });
 
         return { success: true };
     } catch (error: any) {
@@ -94,10 +99,13 @@ export async function cancelSubscriptionAction(subscriptionId: string): Promise<
 }
 
 
-export async function createStripePortalSession(): Promise<{ success: boolean; url?: string; message?: string; }> {
+export async function createStripePortalSession(uid: string): Promise<{ success: boolean; url?: string; message?: string; }> {
+    if (!uid) {
+        return { success: false, message: 'Usuário não autenticado.' };
+    }
     try {
         const stripe = await getStripeInstance();
-        const customerId = await getStripeCustomerId();
+        const customerId = await getStripeCustomerId(uid);
         const origin = headers().get('origin') || 'http://localhost:3000';
 
         const portalSession = await stripe.billingPortal.sessions.create({

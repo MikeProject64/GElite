@@ -103,22 +103,22 @@ function SubscriptionPageContent() {
     const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
 
     useEffect(() => {
-        if (authLoading) return;
+        if (authLoading || !systemUser) return;
         
         const fetchInitialData = async () => {
             setIsLoading(true);
-            if (systemUser?.planId) {
+            if (systemUser.planId) {
                 const planRef = doc(db, 'plans', systemUser.planId);
-                const subDetailsResult = await getSubscriptionDetails();
+                const subDetailsResult = await getSubscriptionDetails(systemUser.uid);
 
                 const planSnap = await getDoc(planRef);
                 if (planSnap.exists()) {
                     setPlan({ id: planSnap.id, ...planSnap.data() } as Plan);
                 }
 
-                if (subDetailsResult.success && subDetailsResult.data) {
-                    setSubscription(subDetailsResult.data);
-                } else if (!subDetailsResult.success) {
+                if (subDetailsResult.success) {
+                    setSubscription(subDetailsResult.data || null);
+                } else {
                     toast({ variant: 'destructive', title: 'Erro', description: subDetailsResult.message });
                 }
             }
@@ -129,8 +129,9 @@ function SubscriptionPageContent() {
     }, [systemUser, authLoading, toast]);
 
     const handleManagePayment = async () => {
+        if (!systemUser) return;
         setIsRedirecting(true);
-        const result = await createStripePortalSession();
+        const result = await createStripePortalSession(systemUser.uid);
 
         if (result.success && result.url) {
             router.push(result.url);
@@ -145,17 +146,16 @@ function SubscriptionPageContent() {
     };
 
     const handleCancelSubscription = async () => {
-        if (!subscription?.id) return;
+        if (!subscription?.id || !systemUser) return;
 
         setIsCanceling(true);
-        const result = await cancelSubscriptionAction(subscription.id);
+        const result = await cancelSubscriptionAction(systemUser.uid, subscription.id);
         
         if (result.success) {
             toast({ title: 'Sucesso', description: 'Sua assinatura foi agendada para cancelamento.' });
-            // Refresh data
-            const updatedSub = await getSubscriptionDetails();
-            if (updatedSub.success && updatedSub.data) {
-                setSubscription(updatedSub.data);
+            const updatedSub = await getSubscriptionDetails(systemUser.uid);
+            if (updatedSub.success) {
+                setSubscription(updatedSub.data || null);
             }
         } else {
             toast({ variant: 'destructive', title: 'Erro', description: result.message });
@@ -165,7 +165,9 @@ function SubscriptionPageContent() {
     };
     
     const getStatusInfo = () => {
-        if (!subscription) return { text: 'Carregando...', variant: 'secondary' as const, icon: <Loader2 className="h-4 w-4 animate-spin" />, description: 'Buscando informações da sua assinatura...' };
+        if (isLoading) return { text: 'Carregando...', variant: 'secondary' as const, icon: <Loader2 className="h-4 w-4 animate-spin" />, description: 'Buscando informações da sua assinatura...' };
+        
+        if (!subscription) return { text: 'Inativa', variant: 'destructive' as const, icon: <XCircle className="h-4 w-4" />, description: 'Não encontramos uma assinatura ativa no Stripe. Se você acabou de pagar, aguarde alguns minutos.' };
 
         if (subscription.cancelAtPeriodEnd) {
             return {
@@ -188,7 +190,7 @@ function SubscriptionPageContent() {
         }
     };
 
-    if (isLoading) {
+    if (authLoading) {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
@@ -236,7 +238,7 @@ function SubscriptionPageContent() {
                 <CardFooter className="flex flex-wrap gap-2">
                      {systemUser.stripeCustomerId && (
                         <Button onClick={handleManagePayment} disabled={isRedirecting} variant="outline">
-                            {isRedirecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CreditCard className="mr-2 h-4 w-4" />}
+                            {isRedirecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
                             Gerenciar Pagamento
                         </Button>
                      )}
