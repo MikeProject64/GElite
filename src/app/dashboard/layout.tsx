@@ -4,10 +4,12 @@
 import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
+import { TrialBanner } from '@/components/trial-banner';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
+import { cn } from '@/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -75,11 +77,16 @@ export default function DashboardLayout({
     }
   }
 
+  const isOnTrial = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
 
   return (
     <>
       <DynamicLayoutEffects />
-      <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+      <TrialBanner />
+      <div className={cn(
+        "grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
+        isOnTrial && "pt-14"
+      )}>
         <DashboardSidebar />
         <div className="flex flex-col overflow-hidden">
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
