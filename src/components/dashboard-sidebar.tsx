@@ -2,6 +2,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
@@ -22,118 +23,40 @@ import {
   Briefcase,
   Bell,
   CreditCard,
+  ChevronsLeft,
+  Sun,
+  Moon,
+  Laptop
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
-import { collection, query, where, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
-import { RecentActivity } from '@/types';
-import { useEffect, useState } from 'react';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import Image from 'next/image';
+import { useTheme } from 'next-themes';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+} from './ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
-function NotificationBell() {
-    const { user } = useAuth();
-    const router = useRouter();
-    const [notifications, setNotifications] = useState<RecentActivity[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        if (!user) return;
-        setIsLoading(true);
-        
-        const queries = [
-            query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
-            query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
-            query(collection(db, 'quotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(5)),
-        ];
-
-        const fetchCombinedActivity = async () => {
-            try {
-                const [ordersSnap, customersSnap, quotesSnap] = await Promise.all([
-                    getDocs(queries[0]),
-                    getDocs(queries[1]),
-                    getDocs(queries[2])
-                ]);
-                
-                const ordersActivity: RecentActivity[] = ordersSnap.docs.map(doc => ({ id: doc.id, type: 'serviço', description: `Nova OS: ${doc.data().serviceType}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/servicos/${doc.id}`}));
-                const customersActivity: RecentActivity[] = customersSnap.docs.map(doc => ({ id: doc.id, type: 'cliente', description: `Novo cliente: ${doc.data().name}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/base-de-clientes/${doc.id}`}));
-                const quotesActivity: RecentActivity[] = quotesSnap.docs.map(doc => ({ id: doc.id, type: 'orçamento', description: `Orçamento para ${doc.data().clientName}`, timestamp: doc.data().createdAt.toDate(), href: `/dashboard/orcamentos/${doc.id}`}));
-        
-                const combined = [...ordersActivity, ...customersActivity, ...quotesActivity]
-                    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-                    .slice(0, 5);
-                
-                setNotifications(combined);
-            } catch (error) {
-                console.error("Error fetching notifications", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        const unsubscribes = queries.map(q => onSnapshot(q, () => {
-            fetchCombinedActivity();
-        }));
-        
-        fetchCombinedActivity();
-
-        return () => unsubscribes.forEach(unsub => unsub());
-
-    }, [user]);
-
-    const getIcon = (type: RecentActivity['type']) => {
-        switch (type) {
-            case 'cliente': return <Users className="h-4 w-4" />;
-            case 'serviço': return <Wrench className="h-4 w-4" />;
-            case 'orçamento': return <FileText className="h-4 w-4" />;
-            default: return null;
-        }
-    };
-
-    return (
-        <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                    <Bell className="h-4 w-4"/>
-                    {!isLoading && notifications.length > 0 && (
-                        <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                        </span>
-                    )}
-                </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel>Notificações Recentes</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {isLoading ? (
-                    <DropdownMenuItem disabled>Carregando...</DropdownMenuItem>
-                ) : notifications.length > 0 ? (
-                    notifications.map(n => (
-                        <DropdownMenuItem key={n.id} className="flex items-start gap-2" onSelect={() => router.push(n.href)}>
-                            <div className='text-muted-foreground mt-1'>{getIcon(n.type)}</div>
-                            <div className='flex flex-col'>
-                                <span className='text-sm whitespace-normal'>{n.description}</span>
-                                <span className='text-xs text-muted-foreground'>{formatDistanceToNow(n.timestamp, { addSuffix: true, locale: ptBR })}</span>
-                            </div>
-                        </DropdownMenuItem>
-                    ))
-                ) : (
-                    <DropdownMenuItem disabled>Nenhuma notificação recente.</DropdownMenuItem>
-                )}
-            </DropdownMenuContent>
-        </DropdownMenu>
-    );
+interface NavContentProps {
+  isCollapsed: boolean;
+  toggleSidebar?: () => void;
+  isMobile?: boolean;
 }
 
-function NavContent() {
+function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContentProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { settings } = useSettings();
+  const { setTheme } = useTheme();
 
   const navItems = [
     { href: '/dashboard', label: 'Painel', icon: Home },
@@ -144,8 +67,6 @@ function NavContent() {
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
     { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase, flag: 'colaboradores' },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
-    { href: '/dashboard/subscription', label: 'Assinatura', icon: CreditCard },
-    { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
   const handleLogout = async () => {
@@ -161,63 +82,126 @@ function NavContent() {
   const siteName = settings.siteName || 'Gestor Elite';
   const logoURL = settings.logoURL;
 
-  return (
-    <div className="flex h-full max-h-screen flex-col gap-2">
-      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-        <Link href="/" className="flex items-center gap-2 font-semibold">
-           {logoURL ? (
-            <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
-          ) : (
-            <Icon className="h-6 w-6 text-primary" />
-          )}
-          <span className="">{siteName}</span>
-        </Link>
-      </div>
-      <div className="flex-1 overflow-y-auto">
-        <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-2">
-          {navItems.map(({ href, label, icon: Icon, flag }) => {
-            const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+  const mainNav = (
+    <nav className={cn("grid items-start text-sm font-medium mt-2", isCollapsed ? "px-2" : "px-2 lg:px-4")}>
+      {navItems.map(({ href, label, icon: NavIcon, flag }) => {
+        const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+        if (!showFeature) return null;
 
-            if (!showFeature) {
-                return null;
-            }
+        const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
 
-            const isActive = (href.length > '/dashboard'.length && pathname.startsWith(href)) || pathname === href;
-            return (
+        if (isCollapsed && !isMobile) {
+          return (
+            <Tooltip key={href}>
+              <TooltipTrigger asChild>
                 <Link
-                key={href}
-                href={href}
-                className={cn(
-                    'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                    isActive ? 'bg-muted text-primary' : ''
-                )}
+                  href={href}
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8',
+                    isActive && 'bg-accent text-accent-foreground'
+                  )}
                 >
-                <Icon className="h-4 w-4" />
-                {label}
+                  <NavIcon className="h-5 w-5" />
+                  <span className="sr-only">{label}</span>
                 </Link>
-            )
-          })}
-        </nav>
+              </TooltipTrigger>
+              <TooltipContent side="right">{label}</TooltipContent>
+            </Tooltip>
+          );
+        }
+
+        return (
+          <Link
+            key={href}
+            href={href}
+            className={cn(
+              'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+              isActive && 'bg-muted text-primary'
+            )}
+          >
+            <NavIcon className="h-4 w-4" />
+            {!isCollapsed && <span>{label}</span>}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+
+  return (
+    <TooltipProvider delayDuration={0}>
+      <div className="flex h-full max-h-screen flex-col">
+        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+          <Link href="/" className="flex items-center gap-2 font-semibold">
+            {logoURL ? (
+                <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
+            ) : (
+                <Icon className="h-6 w-6 text-primary" />
+            )}
+            {(!isCollapsed || isMobile) && <span className="">{siteName}</span>}
+          </Link>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          {mainNav}
+        </div>
+        <div className="mt-auto p-4 border-t">
+          <DropdownMenu>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="w-full flex items-center gap-2"
+                    style={{ justifyContent: (isCollapsed && !isMobile) ? 'center' : 'flex-start', paddingLeft: (isCollapsed && !isMobile) ? 0 : undefined, paddingRight: (isCollapsed && !isMobile) ? 0 : undefined }}
+                  >
+                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary font-bold shrink-0">
+                      {user?.email?.charAt(0).toUpperCase()}
+                    </div>
+                    {(!isCollapsed || isMobile) && <span className="text-sm font-medium truncate">{user?.email}</span>}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              {(isCollapsed && !isMobile) && <TooltipContent side="right">Minha Conta</TooltipContent>}
+            </Tooltip>
+            <DropdownMenuContent align="end" className="w-56" side="top" sideOffset={8}>
+              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => router.push('/dashboard/subscription')}>
+                <CreditCard className="mr-2 h-4 w-4" />
+                <span>Assinatura</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => router.push('/dashboard/configuracoes')}>
+                <Settings className="mr-2 h-4 w-4" />
+                <span>Configurações</span>
+              </DropdownMenuItem>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                    <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span>Alterar Tema</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent>
+                    <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:bg-destructive focus:text-destructive-foreground">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Sair</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {!isMobile && (
+            <Button onClick={toggleSidebar} variant="outline" size="icon" className="w-full mt-2">
+                <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+            </Button>
+          )}
+        </div>
       </div>
-      <div className="mt-auto p-4 border-t">
-          <div className="flex items-center justify-between gap-2 mb-4">
-            <div className="flex items-center gap-2 overflow-hidden">
-              <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary font-bold shrink-0">
-                  {user?.email?.charAt(0).toUpperCase()}
-              </div>
-              <span className="text-sm font-medium truncate">{user?.email}</span>
-            </div>
-            <NotificationBell />
-          </div>
-          <Button variant="ghost" className="w-full justify-start" onClick={handleLogout}>
-             <LogOut className="mr-2 h-4 w-4" /> Sair
-          </Button>
-      </div>
-    </div>
+    </TooltipProvider>
   );
 }
 
-export function DashboardSidebar() {
+export function DashboardSidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, toggleSidebar: () => void }) {
   const { settings } = useSettings();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
@@ -225,31 +209,31 @@ export function DashboardSidebar() {
 
   return (
     <>
-      <div className="hidden border-r bg-card md:block">
-        <NavContent />
+      <div className={cn("hidden border-r bg-card md:block", isCollapsed ? "transition-all duration-300" : "transition-all duration-300")}>
+        <NavContent isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
       </div>
       <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 md:hidden">
-         <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon" className="shrink-0">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="flex flex-col p-0">
-              <SheetTitle className="sr-only">Menu Principal</SheetTitle>
-              <SheetDescription className="sr-only">Navegue pelas diferentes seções do aplicativo.</SheetDescription>
-              <NavContent />
-            </SheetContent>
-          </Sheet>
-           <div className="flex items-center gap-2 font-semibold">
-              {logoURL ? (
-                <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
-              ) : (
-                <Icon className="h-6 w-6 text-primary" />
-              )}
-             <span className="">{siteName}</span>
-           </div>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="shrink-0">
+              <Menu className="h-5 w-5" />
+              <span className="sr-only">Toggle navigation menu</span>
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="flex flex-col p-0">
+            <SheetTitle className="sr-only">Menu Principal</SheetTitle>
+            <SheetDescription className="sr-only">Navegue pelas diferentes seções do aplicativo.</SheetDescription>
+            <NavContent isCollapsed={false} isMobile={true} />
+          </SheetContent>
+        </Sheet>
+        <div className="flex items-center gap-2 font-semibold">
+          {logoURL ? (
+              <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
+          ) : (
+              <Icon className="h-6 w-6 text-primary" />
+          )}
+          <span className="">{siteName}</span>
+        </div>
       </header>
     </>
   );

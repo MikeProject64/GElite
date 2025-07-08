@@ -7,7 +7,7 @@ import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { TrialBanner } from '@/components/trial-banner';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 import { cn } from '@/lib/utils';
 
@@ -19,6 +19,24 @@ export default function DashboardLayout({
   const { user, systemUser, isAdmin, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const storedState = localStorage.getItem('sidebar-collapsed');
+    if (storedState) {
+      setIsCollapsed(JSON.parse(storedState));
+    }
+  }, []);
+
+  const toggleSidebar = () => {
+    setIsCollapsed(prevState => {
+      const newState = !prevState;
+      localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
+      return newState;
+    });
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -53,7 +71,7 @@ export default function DashboardLayout({
 
   }, [user, systemUser, isAdmin, loading, router, pathname]);
 
-  if (loading || !user) {
+  if (loading || !user || !isMounted) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -84,10 +102,11 @@ export default function DashboardLayout({
       <DynamicLayoutEffects />
       <TrialBanner />
       <div className={cn(
-        "grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
+        "grid h-screen w-full transition-all duration-300 ease-in-out",
+        isCollapsed ? "md:grid-cols-[72px_1fr]" : "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
         isOnTrial && "pt-14"
       )}>
-        <DashboardSidebar />
+        <DashboardSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
         <div className="flex flex-col overflow-hidden">
           <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
             {children}

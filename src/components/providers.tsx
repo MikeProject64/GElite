@@ -7,6 +7,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { ReactNode, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import * as gtag from '@/lib/utils';
+import { ThemeProvider } from 'next-themes';
 
 const AnalyticsTracker = () => {
   const pathname = usePathname();
@@ -24,14 +25,21 @@ const AnalyticsTracker = () => {
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <SettingsProvider>
-        <Suspense fallback={null}>
-          <AnalyticsTracker />
-        </Suspense>
-        {children}
-        <Toaster />
-      </SettingsProvider>
-    </AuthProvider>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+    >
+      <AuthProvider>
+        <SettingsProvider>
+          <Suspense fallback={null}>
+            <AnalyticsTracker />
+          </Suspense>
+          {children}
+          <Toaster />
+        </SettingsProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
