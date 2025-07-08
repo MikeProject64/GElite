@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, GripVertical, ChevronDown, Activity, Layout } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, ChevronDown, Activity, Layout, GripVertical } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -20,22 +20,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { QuickActions } from '@/components/dashboard/quick-actions';
 import { useSettings } from '@/components/settings-provider';
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -88,9 +74,12 @@ interface SortablePanelProps {
   id: string;
   children: React.ReactNode;
   className?: string;
+  title: string;
+  isCollapsed: boolean;
+  onToggleCollapse: (isOpen: boolean) => void;
 }
 
-const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, className }) => {
+const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, className, title, isCollapsed, onToggleCollapse }) => {
   const { isDragging, attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
   const style = {
@@ -100,28 +89,29 @@ const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, 
   };
   
   return (
-    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "ring-2 ring-primary opacity-75 shadow-2xl")}>
-       <div {...attributes} {...listeners} className="h-full">
-         {children}
-       </div>
+    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "opacity-60 shadow-2xl")}>
+       <Collapsible open={!isCollapsed} onOpenChange={onToggleCollapse}>
+         <div {...attributes} {...listeners} className={cn("h-full", isDragging && "cursor-grabbing")}>
+           {children}
+         </div>
+       </Collapsible>
     </div>
   );
 };
 
 
-const initialPanelOrder = ['quick-actions', 'order-status-chart', 'monthly-revenue-chart', 'recent-activity', 'quick-search'];
-
+const initialPanelOrder = ['quick-actions', 'quick-search', 'order-status-chart', 'monthly-revenue-chart', 'recent-activity'];
 const initialPanelVisibility = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: true }), {});
+const initialPanelCollapse = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: false }), {});
 
 
 const DashboardSkeleton: React.FC = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
-        <Skeleton className="lg:col-span-4 md:col-span-2 h-64" />
-        <Skeleton className="lg:col-span-2 md:col-span-1 h-64" />
-        <Skeleton className="lg:col-span-3 md:col-span-1 h-80" />
-        <Skeleton className="lg:col-span-3 md:col-span-1 h-80" />
-        <Skeleton className="lg:col-span-4 md:col-span-2 h-72" />
-        <Skeleton className="lg:col-span-2 md:col-span-1 h-72" />
+    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
+        <Skeleton className="lg:col-span-4 md:col-span-4 h-64" />
+        <Skeleton className="lg:col-span-2 md:col-span-4 h-64" />
+        <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
+        <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
+        <Skeleton className="lg:col-span-6 md:col-span-4 h-72" />
     </div>
 );
 
@@ -148,6 +138,7 @@ export default function DashboardPage() {
   // Layout state
   const [panelOrder, setPanelOrder] = useState<string[]>(initialPanelOrder);
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
+  const [collapsedPanels, setCollapsedPanels] = useState<Record<string, boolean>>(initialPanelCollapse);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -161,25 +152,17 @@ export default function DashboardPage() {
         if (validOrder.length > 0) setPanelOrder([...validOrder, ...newPanels]);
       }
       const storedVisible = localStorage.getItem('dashboard-visible-panels');
-      if (storedVisible) {
-        setVisiblePanels(JSON.parse(storedVisible));
-      }
+      if (storedVisible) setVisiblePanels(JSON.parse(storedVisible));
+      const storedCollapsed = localStorage.getItem('dashboard-collapsed-panels');
+      if (storedCollapsed) setCollapsedPanels(JSON.parse(storedCollapsed));
     } catch(e) {
         console.error("Failed to load layout from localStorage", e);
     }
   }, []);
 
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('dashboard-panel-order', JSON.stringify(panelOrder));
-    }
-  }, [panelOrder, isMounted]);
-
-  useEffect(() => {
-    if (isMounted) {
-      localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels));
-    }
-  }, [visiblePanels, isMounted]);
+  useEffect(() => { if (isMounted) localStorage.setItem('dashboard-panel-order', JSON.stringify(panelOrder)); }, [panelOrder, isMounted]);
+  useEffect(() => { if (isMounted) localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels)); }, [visiblePanels, isMounted]);
+  useEffect(() => { if (isMounted) localStorage.setItem('dashboard-collapsed-panels', JSON.stringify(collapsedPanels)); }, [collapsedPanels, isMounted]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -300,29 +283,33 @@ export default function DashboardPage() {
     }
   };
 
-  const handleToggleVisibility = (panelId: string) => {
-    setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]}));
-  };
+  const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
+  const handleToggleCollapse = (panelId: string, isOpen: boolean) => { setCollapsedPanels(prev => ({...prev, [panelId]: !isOpen})); };
 
   const panels = useMemo(() => ({
     'quick-actions': {
       title: 'Ações Rápidas',
-      className: 'lg:col-span-4 md:col-span-3 col-span-6',
+      className: 'lg:col-span-4 md:col-span-4',
       content: <QuickActions stats={stats} loading={loading} deadlines={criticalDeadlines} />,
+    },
+    'quick-search': {
+      title: 'Busca Rápida',
+      className: 'lg:col-span-2 md:col-span-4',
+      content: <Card className="h-full"><CardHeader><CardTitle className="flex items-center gap-2"><Search /> Busca Rápida</CardTitle><CardDescription>Encontre clientes, serviços e orçamentos.</CardDescription></CardHeader><CardContent><Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}><PopoverTrigger asChild className='w-full'><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" /><Input placeholder="Buscar em todo o sistema..." className="w-full pl-10" value={searchTerm} onChange={(e) => { const term = e.target.value; setSearchTerm(term); if (term.length > 1) { setIsPopoverOpen(true); } else { setIsPopoverOpen(false); }}}/></div></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}><ScrollArea className="h-60">{searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}{!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (<p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>)}{searchResults.length > 0 && (searchResults.map((result) => (<Button variant="ghost" key={result.id} className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto" onClick={() => { router.push(result.href); setIsPopoverOpen(false); setSearchTerm('');}}>{getSearchIcon(result.type)}<div className='ml-2 text-left'><p className='font-medium'>{result.title}</p><p className="text-xs text-muted-foreground">{result.description}</p></div></Button>)))}</ScrollArea></PopoverContent></Popover></CardContent></Card>
     },
     'order-status-chart': {
       title: 'Ordens por Status',
-      className: 'lg:col-span-3 md:col-span-3 col-span-6',
-      content: loading ? <CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent> : <OrderStatusChart data={chartData.orderStatus} />
+      className: 'lg:col-span-3 md:col-span-2',
+      content: loading ? <Card><CardHeader><Skeleton className="h-5 w-3/5" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent className="flex justify-center items-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card> : <OrderStatusChart data={chartData.orderStatus} />
     },
     'monthly-revenue-chart': {
       title: 'Faturamento Mensal',
-      className: 'lg:col-span-3 md:col-span-3 col-span-6',
-      content: loading ? <CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent> : <MonthlyRevenueChart data={chartData.monthlyRevenue} />
+      className: 'lg:col-span-3 md:col-span-2',
+      content: loading ? <Card><CardHeader><Skeleton className="h-5 w-3/5" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent className="flex justify-center items-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card> : <MonthlyRevenueChart data={chartData.monthlyRevenue} />
     },
     'recent-activity': {
       title: 'Atividade Recente',
-      className: 'lg:col-span-4 md:col-span-3 col-span-6',
+      className: 'lg:col-span-6 md:col-span-4',
       content: (
         <Card className='h-full flex flex-col'>
           <CardHeader>
@@ -331,26 +318,6 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className='flex-grow'>{loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (recentActivity.length > 0 ? (<ul className="space-y-4">{recentActivity.map(activity => (<li key={activity.id} className="flex items-start gap-3"><div className="mt-1">{getSearchIcon(activity.type === 'serviço' ? 'Serviço' : activity.type === 'orçamento' ? 'Orçamento' : 'Cliente')}</div><div className="flex-1"><Link href={activity.href} className="hover:underline"><p className="text-sm">{activity.description}</p></Link><p className="text-xs text-muted-foreground">{formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}</p></div></li>))}</ul>) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>)}</CardContent>
           <CardFooter><Button asChild variant="secondary" className="w-full"><Link href="/dashboard/atividades">Ver todo o histórico</Link></Button></CardFooter>
-        </Card>
-      )
-    },
-    'quick-search': {
-      title: 'Busca Rápida',
-      className: 'lg:col-span-2 md:col-span-3 col-span-6',
-      content: (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Search /> Busca Rápida</CardTitle>
-            <CardDescription>Encontre clientes, serviços e orçamentos.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-              <PopoverTrigger asChild className='w-full'><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" /><Input placeholder="Buscar em todo o sistema..." className="w-full pl-10" value={searchTerm} onChange={(e) => { const term = e.target.value; setSearchTerm(term); if (term.length > 1) { setIsPopoverOpen(true); } else { setIsPopoverOpen(false); }}}/></div></PopoverTrigger>
-              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
-                <ScrollArea className="h-60">{searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}{!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (<p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>)}{searchResults.length > 0 && (searchResults.map((result) => (<Button variant="ghost" key={result.id} className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto" onClick={() => { router.push(result.href); setIsPopoverOpen(false); setSearchTerm('');}}>{getSearchIcon(result.type)}<div className='ml-2 text-left'><p className='font-medium'>{result.title}</p><p className="text-xs text-muted-foreground">{result.description}</p></div></Button>)))}</ScrollArea>
-              </PopoverContent>
-            </Popover>
-          </CardContent>
         </Card>
       )
     },
@@ -372,9 +339,7 @@ export default function DashboardPage() {
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Personalizar Painel</DialogTitle>
-                        <DialogDescription>
-                            Selecione os painéis que você deseja exibir. As mudanças são salvas automaticamente.
-                        </DialogDescription>
+                        <DialogDescription>Selecione os painéis que você deseja exibir. Arraste-os na tela principal para reordenar.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         {initialPanelOrder.map(panelId => {
@@ -383,11 +348,7 @@ export default function DashboardPage() {
                             return (
                                 <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
                                     <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                                    <Switch
-                                        id={`switch-${panelId}`}
-                                        checked={visiblePanels[panelId]}
-                                        onCheckedChange={() => handleToggleVisibility(panelId)}
-                                    />
+                                    <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId]} onCheckedChange={() => handleToggleVisibility(panelId)} />
                                 </div>
                             )
                         })}
@@ -398,7 +359,7 @@ export default function DashboardPage() {
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {panelOrder.map(panelId => {
                 const panel = (panels as any)[panelId];
                 if (!panel || !visiblePanels[panelId]) return null;
@@ -408,6 +369,9 @@ export default function DashboardPage() {
                     key={panelId}
                     id={panelId}
                     className={panel.className}
+                    title={panel.title}
+                    isCollapsed={collapsedPanels[panelId]}
+                    onToggleCollapse={(isOpen) => handleToggleCollapse(panelId, isOpen)}
                 >
                     {panel.content}
                 </SortableCollapsiblePanel>
