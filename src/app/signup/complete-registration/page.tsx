@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CheckCircle, Rocket } from 'lucide-react';
 import { verifyCheckoutAndCreateUser } from './actions';
+import * as gtag from '@/lib/utils';
 
 function CompleteRegistrationContent() {
   const router = useRouter();
@@ -51,6 +52,19 @@ function CompleteRegistrationContent() {
             return;
         }
         
+        // Fire Google Ads event for purchase
+        if (result.value && result.currency) {
+            gtag.event({
+                action: 'conversion',
+                params: {
+                    send_to: `${gtag.GA_TRACKING_ID}/PURCHASE_LABEL`, // IMPORTANT: Replace PURCHASE_LABEL with your actual conversion label from Google Ads
+                    transaction_id: result.transaction_id,
+                    value: result.value,
+                    currency: result.currency,
+                }
+            });
+        }
+
         // Cleanup localStorage
         localStorage.removeItem('signup_name');
         localStorage.removeItem('signup_email');

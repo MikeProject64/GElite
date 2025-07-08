@@ -116,6 +116,10 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
         if (!planId) {
             throw new Error('ID do plano não encontrado nos metadados da assinatura.');
         }
+        
+        const price = subscription.items.data[0].price;
+        const value = price.unit_amount ? price.unit_amount / 100 : 0;
+        const currency = price.currency.toUpperCase();
 
         // 1. Create Firebase Auth user
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -149,7 +153,7 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             console.error("Erro no processo de envio de e-mail de notificação:", emailError);
         }
 
-        return { success: true, email: user.email };
+        return { success: true, email: user.email, value, currency, transaction_id: subscription.id };
 
     } catch (error: any) {
         let errorMessage = error.message || 'Ocorreu um erro desconhecido.';

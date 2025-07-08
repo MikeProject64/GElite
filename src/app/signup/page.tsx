@@ -25,6 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
+import * as gtag from '@/lib/utils';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -89,6 +90,14 @@ function TrialSignupForm() {
         const result = await createTrialUser(values);
 
         if (result.success && result.email) {
+            // Fire Google Ads event for trial signup
+            gtag.event({
+                action: 'conversion',
+                params: {
+                    send_to: `${gtag.GA_TRACKING_ID}/TRIAL_LABEL`, // IMPORTANT: Replace TRIAL_LABEL with your actual conversion label from Google Ads
+                }
+            });
+
             await signInWithEmailAndPassword(auth, result.email, values.password);
             toast({ title: "Bem-vindo(a)!", description: "Sua conta de teste foi criada com sucesso." });
             router.push('/dashboard');
@@ -271,12 +280,13 @@ function SignupPageContent() {
     const planId = searchParams.get('planId');
     const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
 
-    // Redirect logged in users to dashboard
+    // Redirect logged in users to dashboard, unless they are trying to subscribe
     useEffect(() => {
-        if (!loading && user) {
+        const planIdParam = searchParams.get('planId');
+        if (!loading && user && !planIdParam) {
             router.push('/dashboard');
         }
-    }, [user, loading, router]);
+    }, [user, loading, router, searchParams]);
     
     // Redirect to pricing if no params are present and user is not logged in
     useEffect(() => {
@@ -288,7 +298,7 @@ function SignupPageContent() {
     }, [isTrial, planId, router, user, loading]);
 
     // Show a loader while auth state is resolving or if user is logged in (before redirect)
-    if (loading || user) {
+    if (loading || (user && !searchParams.get('planId'))) {
         return <div className='flex justify-center items-center h-48'><Loader2 className='h-8 w-8 animate-spin' /></div>;
     }
 
@@ -315,3 +325,5 @@ export default function SignupPage() {
         </main>
     );
 }
+
+    
