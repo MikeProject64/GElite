@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, Suspense, useEffect, useCallback, useRef } from 'react';
@@ -89,8 +90,11 @@ function TrialSignupForm() {
         const result = await createTrialUser(values);
 
         if (result.success && result.email) {
-            // Fire Google Ads event for trial signup
-            gtag.event('Trial_Gestor_Elite');
+            // Fire GA4 event for lead generation
+            gtag.event({ action: 'generate_lead', params: {
+              currency: "BRL",
+              value: 0
+            }});
 
             await signInWithEmailAndPassword(auth, result.email, values.password);
             toast({ title: "Bem-vindo(a)!", description: "Sua conta de teste foi criada com sucesso." });
@@ -319,5 +323,3 @@ export default function SignupPage() {
         </main>
     );
 }
-
-    

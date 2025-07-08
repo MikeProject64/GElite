@@ -1,3 +1,4 @@
+
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
@@ -33,7 +34,7 @@ export default function RootLayout({
         new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
         j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-        })(window,document,'script','dataLayer','GTM-N73C2JGT');`}}></script>
+        })(window,document,'script','dataLayer','GT-P3NGQJ5T');`}}></script>
         {/* End Google Tag Manager */}
 
         {/* Google Ads Tag */}
@@ -86,7 +87,7 @@ fbq('track', 'PageView');
         fontSans.variable
       )}>
         {/* Google Tag Manager (noscript) */}
-        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-N73C2JGT"
+        <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GT-P3NGQJ5T"
         height="0" width="0" style={{display:'none',visibility:'hidden'}}></iframe></noscript>
         {/* End Google Tag Manager (noscript) */}
         <Providers>

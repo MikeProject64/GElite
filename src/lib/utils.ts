@@ -1,3 +1,4 @@
+
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -6,8 +7,8 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // --- Google Ads Conversion Tracking ---
-// NOTE: Please replace 'AW-XXXXXXXXX' with your actual Google Ads Measurement ID.
-export const GA_TRACKING_ID = process.env.NEXT_PUBLIC_GA_TRACKING_ID || 'AW-XXXXXXXXX';
+// NOTE: This is your Google Analytics 4 Measurement ID.
+export const GA_TRACKING_ID = 'G-RHYYBST6H5';
 
 // https://developers.google.com/analytics/devguides/collection/gtagjs/pages
 export const pageview = (url: string) => {

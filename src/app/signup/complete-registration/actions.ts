@@ -138,11 +138,12 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             subscriptionId: subscription.id,
         });
         
+        let planData: Plan | null = null;
         try {
             const planRef = doc(db, 'plans', planId);
             const planSnap = await getDoc(planRef);
             if(planSnap.exists()){
-                const planData = { id: planSnap.id, ...planSnap.data() } as Plan;
+                planData = { id: planSnap.id, ...planSnap.data() } as Plan;
                 await sendNewSubscriptionNotification({
                     newUser: { name, email },
                     plan: planData,
@@ -153,7 +154,15 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             console.error("Erro no processo de envio de e-mail de notificação:", emailError);
         }
 
-        return { success: true, email: user.email, value, currency, transaction_id: subscription.id };
+        return { 
+            success: true, 
+            email: user.email, 
+            value, 
+            currency, 
+            transaction_id: subscription.id,
+            planId: planData?.id,
+            planName: planData?.name,
+        };
 
     } catch (error: any) {
         let errorMessage = error.message || 'Ocorreu um erro desconhecido.';

@@ -52,13 +52,19 @@ function CompleteRegistrationContent() {
             return;
         }
         
-        // Fire Google Ads event for purchase
-        if (result.value && result.currency) {
-            gtag.event("Assinatura_Plano_Gestor_Elite", {
+        // Fire GA4 event for purchase
+        if (result.value && result.currency && result.transaction_id && result.planId && result.planName) {
+            gtag.event({ action: "purchase", params: {
                 transaction_id: result.transaction_id,
                 value: result.value,
                 currency: result.currency,
-            });
+                items: [{
+                    item_id: result.planId,
+                    item_name: result.planName,
+                    price: result.value,
+                    quantity: 1
+                }]
+            }});
         }
 
         // Cleanup localStorage
