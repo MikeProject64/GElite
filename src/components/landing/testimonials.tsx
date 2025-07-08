@@ -3,6 +3,7 @@
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent } from '@/components/ui/card';
+import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import type { UserSettings } from '@/types';
 import { ScrollReveal } from './scroll-reveal';
 
@@ -47,10 +48,43 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
             Empresas reais, resultados reais. Veja como o Gestor Elite está fazendo a diferença.
           </p>
         </ScrollReveal>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+        {/* Mobile Carousel */}
+        <ScrollReveal delay={200} className="md:hidden">
+          <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
+            <CarouselContent className="-ml-2">
+              {testimonials.map((testimonial, index) => (
+                <CarouselItem key={index} className="basis-11/12 pl-2">
+                  <div className="p-1 h-full flex">
+                    <Card className="p-6 shadow-sm h-full">
+                      <CardContent className="p-0">
+                        <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
+                          “{testimonial.quote}”
+                        </blockquote>
+                        <div className="flex items-center gap-4">
+                          <Avatar>
+                            <AvatarImage src={testimonial.image} alt={testimonial.name} data-ai-hint="person portrait" />
+                            <AvatarFallback>{testimonial.avatar}</AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold">{testimonial.name}</p>
+                            <p className="text-sm text-muted-foreground">{testimonial.title}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
+        </ScrollReveal>
+
+        {/* Desktop Grid */}
+        <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <ScrollReveal key={index} delay={index * 100}>
-              <Card className="p-6 shadow-sm">
+            <ScrollReveal key={index} delay={index * 100} className="h-full">
+              <Card className="p-6 shadow-sm h-full">
                 <CardContent className="p-0">
                   <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
                     “{testimonial.quote}”

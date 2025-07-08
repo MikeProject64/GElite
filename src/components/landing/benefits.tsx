@@ -40,12 +40,12 @@ export function Benefits() {
         </ScrollReveal>
         
         {/* Mobile Carousel View */}
-        <div className="md:hidden">
+        <ScrollReveal delay={200} className="md:hidden">
           <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
             <CarouselContent className="-ml-2">
               {benefits.map((benefit, index) => (
                 <CarouselItem key={index} className="basis-11/12 pl-2">
-                  <ScrollReveal className="p-1 h-full flex" delay={index * 100}>
+                  <div className="p-1 h-full flex">
                     <Card className="flex flex-col text-center p-4 shadow-sm h-full bg-card">
                       <CardContent className="flex flex-col items-center flex-grow pt-6">
                         <div className="p-4 bg-primary/10 rounded-full mb-4">
@@ -55,12 +55,12 @@ export function Benefits() {
                         <p className="text-muted-foreground flex-grow font-body">{benefit.description}</p>
                       </CardContent>
                     </Card>
-                  </ScrollReveal>
+                  </div>
                 </CarouselItem>
               ))}
             </CarouselContent>
           </Carousel>
-        </div>
+        </ScrollReveal>
 
         {/* Desktop Grid View */}
         <div className="hidden md:grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
