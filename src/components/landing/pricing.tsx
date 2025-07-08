@@ -67,6 +67,18 @@ export function Pricing() {
     });
   };
 
+  const handleIntervalChange = (checked: boolean) => {
+    const newInterval = checked ? 'year' : 'month';
+    setInterval(newInterval);
+    gtag.event({
+      action: 'select_content',
+      params: {
+        content_type: 'billing_interval',
+        item_id: newInterval,
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <section id="pricing" className="w-full py-12 md:py-24 lg:py-32">
@@ -118,7 +130,7 @@ export function Pricing() {
             <Switch
                 id="interval-switch"
                 checked={interval === 'year'}
-                onCheckedChange={(checked) => setInterval(checked ? 'year' : 'month')}
+                onCheckedChange={handleIntervalChange}
                 aria-label="Alternar entre cobrança mensal e anual"
             />
             <Label htmlFor="interval-switch" className={interval === 'year' ? 'text-primary font-bold' : 'text-muted-foreground'}>
