@@ -174,6 +174,11 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         }
 
         const userDocRef = doc(db, 'users', uid);
+        const userDocSnap = await getDoc(userDocRef);
+        
+        // Check if user was on trial BEFORE updating the document
+        const wasOnTrial = userDocSnap.exists() && userDocSnap.data().subscriptionStatus === 'trialing';
+
         await updateDoc(userDocRef, {
             planId: planId,
             stripeCustomerId: customerId,
@@ -183,7 +188,27 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
             trialEndsAt: null,
         });
 
-        return { success: true };
+        // Get plan details for the event
+        const planRef = doc(db, 'plans', planId);
+        const planSnap = await getDoc(planRef);
+        let planData: Plan | null = null;
+        if(planSnap.exists()){
+            planData = { id: planSnap.id, ...planSnap.data() } as Plan;
+        }
+        
+        const price = subscription.items.data[0].price;
+        const value = price.unit_amount ? price.unit_amount / 100 : 0;
+        const currency = price.currency.toUpperCase();
+
+        return { 
+            success: true, 
+            wasOnTrial,
+            value, 
+            currency, 
+            transaction_id: subscription.id,
+            planId: planData?.id,
+            planName: planData?.name,
+        };
 
     } catch (error: any) {
         console.error("Error verifying subscription and upgrading user:", error);

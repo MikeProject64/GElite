@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -9,6 +10,7 @@ import type { Plan, SubscriptionDetails } from '@/types';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import * as gtag from '@/lib/utils';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -157,6 +159,40 @@ function SubscriptionPageContent() {
                         title: 'Assinatura Ativada!',
                         description: 'Seu plano foi atualizado com sucesso. Bem-vindo!',
                     });
+
+                    // Fire GA4 conversion events
+                    if (result.wasOnTrial) {
+                        gtag.event({
+                            action: 'trial_to_plan',
+                            params: {
+                                currency: result.currency,
+                                value: result.value,
+                                transaction_id: result.transaction_id,
+                                items: [{
+                                    item_id: result.planId,
+                                    item_name: result.planName,
+                                    price: result.value,
+                                    quantity: 1,
+                                }]
+                            }
+                        });
+                    } else {
+                        gtag.event({
+                            action: 'plano_contratado',
+                             params: {
+                                currency: result.currency,
+                                value: result.value,
+                                transaction_id: result.transaction_id,
+                                items: [{
+                                    item_id: result.planId,
+                                    item_name: result.planName,
+                                    price: result.value,
+                                    quantity: 1,
+                                }]
+                            }
+                        });
+                    }
+
                     // Clear URL params and trigger a re-fetch of subscription data
                     router.replace('/dashboard/subscription', { scroll: false });
                 } else {
