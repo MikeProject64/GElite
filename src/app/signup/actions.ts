@@ -1,11 +1,13 @@
 
 'use server';
 
-import { doc, getDoc, updateDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { db, auth } from '@/lib/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan } from '@/types';
+import { addDays } from 'date-fns';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -28,8 +30,6 @@ export async function checkEmailExists(email: string): Promise<{ exists: boolean
         return { exists: !querySnapshot.empty };
     } catch (error: any) {
         console.error("Error checking email existence: ", error);
-        // This might be a permissions error if rules don't allow unauthenticated reads.
-        // Returning `exists: false` allows the flow to continue to payment, where the final check will happen.
         return { exists: false, error: "Não foi possível verificar o e-mail no momento. A verificação final ocorrerá ao criar a conta." };
     }
 }
@@ -40,7 +40,6 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
         const stripe = await getStripeInstance();
         const origin = headers().get('origin') || 'http://localhost:3000';
 
-        // 1. Get Plan details from Firestore
         const planRef = doc(db, 'plans', planId);
         const planSnap = await getDoc(planRef);
 
@@ -49,7 +48,6 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
         }
         const plan = { id: planSnap.id, ...planSnap.data() } as Plan;
 
-        // 2. Get pre-configured Stripe Price ID
         const isYearly = interval === 'year';
         const priceId = isYearly ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
 
@@ -57,11 +55,10 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
             throw new Error('Este plano não está configurado para pagamentos. Por favor, contate o administrador.');
         }
 
-        // 3. Create Stripe Checkout Session
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             mode: 'subscription',
-            customer_email: email, // Pre-fill customer email
+            customer_email: email,
             line_items: [{ price: priceId, quantity: 1 }],
             success_url: `${origin}/signup/complete-registration?session_id={CHECKOUT_SESSION_ID}`,
             cancel_url: `${origin}/signup?planId=${planId}&interval=${interval}`,
@@ -79,5 +76,51 @@ export async function createCheckoutSession(planId: string, interval: 'month' | 
     } catch (error: any) {
         console.error("Error creating checkout session:", error);
         return { success: false, message: error.message || "Ocorreu um erro desconhecido." };
+    }
+}
+
+
+export async function createTrialUser(details: {
+  name: string;
+  email: string;
+  phone: string;
+  companyName: string;
+  password: string;
+}) {
+    if (!details.email || !details.password || !details.name) {
+        return { success: false, message: 'Dados de cadastro ausentes.' };
+    }
+
+    try {
+        const emailCheck = await checkEmailExists(details.email);
+        if (emailCheck.exists) {
+            throw new Error('Este e-mail já foi utilizado para criar uma conta.');
+        }
+
+        const userCredential = await createUserWithEmailAndPassword(auth, details.email, details.password);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            name: details.name,
+            email: user.email,
+            phone: details.phone,
+            companyName: details.companyName,
+            createdAt: Timestamp.now(),
+            role: 'user',
+            subscriptionStatus: 'trialing',
+            trialStartedAt: Timestamp.now(),
+            trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
+        });
+        
+        return { success: true, email: user.email };
+
+    } catch (error: any) {
+        let errorMessage = error.message || 'Ocorreu um erro desconhecido.';
+        if(error.code === 'auth/email-already-in-use') {
+            errorMessage = 'Este e-mail já foi utilizado para criar uma conta. Faça login para acessar seu painel.';
+        }
+        console.error("Error creating trial user:", error);
+        return { success: false, message: errorMessage };
     }
 }

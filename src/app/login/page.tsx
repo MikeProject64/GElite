@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import Link from 'next/link';
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
@@ -212,6 +214,12 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full" disabled={isLoginButtonDisabled}>
                   {isLoading ? <Loader2 className="animate-spin" /> : 'Entrar'}
                 </Button>
+                 <div className="mt-4 text-center text-sm">
+                    Não tem uma conta?{" "}
+                    <Link href="/#pricing" className="underline">
+                        Cadastre-se
+                    </Link>
+                </div>
               </form>
             </Form>
           </CardContent>

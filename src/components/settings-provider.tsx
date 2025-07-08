@@ -48,6 +48,14 @@ export interface UserSettings {
     testimonial2Image?: string;
     testimonial3Image?: string;
   };
+  whatsappNumber?: string;
+  whatsappMessage?: string;
+  smtpHost?: string;
+  smtpPort?: number;
+  smtpUser?: string;
+  smtpPassword?: string;
+  emailRecipients?: string[];
+  notifyOnNewSubscription?: boolean;
 }
 
 interface SettingsContextType {
@@ -110,7 +118,6 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Deep merge of settings to ensure defaults are kept for nested objects
         const newGlobalSettings = {
           ...defaultSettings,
           ...data,
@@ -145,9 +152,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         if (storedSettings) {
           setUserSettings(JSON.parse(storedSettings));
         }
-      } catch (e) {
-        console.error("Could not read user settings from localStorage", e);
-      }
+      } catch (e) { console.error("Could not read user settings from localStorage", e); }
 
       const userSettingsRef = doc(db, 'userSettings', user.uid);
       const unsubscribe = onSnapshot(userSettingsRef, (docSnap) => {
@@ -155,13 +160,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         setUserSettings(newUserSettings);
         try {
           localStorage.setItem(storageKey, JSON.stringify(newUserSettings));
-        } catch (e) {
-          console.error("Could not save user settings to localStorage", e);
-        }
+        } catch (e) { console.error("Could not save user settings to localStorage", e); }
       });
       return () => unsubscribe();
     } else {
-      setUserSettings({}); // Clear user settings on logout
+      setUserSettings({});
     }
   }, [user]);
 
@@ -190,25 +193,31 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     return () => unsubscribe();
   }, [systemUser?.planId]);
 
-  // Effect to merge all settings
+  // Effect to merge all settings and determine feature flags
   useEffect(() => {
-    const finalSettings: UserSettings = {
-      ...globalSettings,
-      ...userSettings,
-    };
-
+    const baseSettings: UserSettings = { ...globalSettings, ...userSettings };
     const finalFeatureFlags: UserSettings['featureFlags'] = { ...defaultSettings.featureFlags };
-    const globalFlags = globalSettings.featureFlags || {};
-    const planFeatures = activePlan?.features || {};
+    
+    const isTrialing = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
 
-    for (const key in finalFeatureFlags) {
-        const flagKey = key as keyof typeof finalFeatureFlags;
-        finalFeatureFlags[flagKey] = !!(globalFlags[flagKey] && planFeatures[flagKey]);
+    if (isTrialing) {
+        // Grant all features during trial
+        for (const key in finalFeatureFlags) {
+            (finalFeatureFlags as any)[key] = true;
+        }
+    } else {
+        const globalFlags = globalSettings.featureFlags || {};
+        const planFeatures = activePlan?.features || {};
+        for (const key in finalFeatureFlags) {
+            const flagKey = key as keyof typeof finalFeatureFlags;
+            finalFeatureFlags[flagKey] = !!(globalFlags[flagKey] && planFeatures[flagKey]);
+        }
     }
-    finalSettings.featureFlags = finalFeatureFlags;
+    
+    baseSettings.featureFlags = finalFeatureFlags;
+    setMergedSettings(baseSettings);
 
-    setMergedSettings(finalSettings);
-  }, [globalSettings, userSettings, activePlan]);
+  }, [globalSettings, userSettings, activePlan, systemUser]);
 
 
   const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
@@ -220,16 +229,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const storageKey = `gestor-elite-settings-${user.uid}`;
     try {
         localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
-    } catch (e) {
-        console.error("Could not optimistic update to localStorage", e);
-    }
+    } catch (e) { console.error("Could not optimistic update to localStorage", e); }
     
     const settingsRef = doc(db, 'userSettings', user.uid);
     try {
         await setDoc(settingsRef, newSettings, { merge: true });
-    } catch(error) {
-        console.error("Failed to update user settings in Firestore", error);
-    }
+    } catch(error) { console.error("Failed to update user settings in Firestore", error); }
   }, [user, userSettings]);
 
   const loadingSettings = loadingGlobal || loadingPlan;

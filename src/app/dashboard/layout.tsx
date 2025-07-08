@@ -26,14 +26,19 @@ export default function DashboardLayout({
       return;
     }
 
-    // Only apply subscription gatekeeping to regular users
     if (!isAdmin && systemUser) {
-      // If user has no plan, redirect them to the subscription page to choose one.
+      const isOnTrial = systemUser.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
+
+      if (isOnTrial) {
+        return; // User is on a valid trial, allow full access
+      }
+      
+      // If user has no plan (e.g., trial expired), redirect to subscription page.
       if (!systemUser.planId) {
         if (pathname !== '/dashboard/subscription') {
           router.push('/dashboard/subscription');
         }
-        return; // Stop further checks
+        return;
       }
 
       // If user has a plan but it's not active, also redirect to subscription management.
@@ -46,7 +51,6 @@ export default function DashboardLayout({
 
   }, [user, systemUser, isAdmin, loading, router, pathname]);
 
-  // Show a loader while auth state is resolving for any user
   if (loading || !user) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -54,18 +58,24 @@ export default function DashboardLayout({
       </div>
     );
   }
+  
+  if (!isAdmin && systemUser) {
+    const isOnTrial = systemUser.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
+    const hasActivePlan = systemUser.planId && systemUser.subscriptionStatus === 'active';
+    const isSubscriptionPage = pathname === '/dashboard/subscription';
 
-  // If a regular user is being redirected to subscription, show a loader to prevent content flash.
-  if (!isAdmin && systemUser && (!systemUser.planId || systemUser.subscriptionStatus !== 'active') && pathname !== '/dashboard/subscription') {
-     return (
-       <div className="flex items-center justify-center h-screen bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className='ml-4'>Verificando assinatura...</p>
-      </div>
-     )
+    // If user is not on trial and doesn't have an active plan, show loader while redirecting
+    if (!isOnTrial && !hasActivePlan && !isSubscriptionPage) {
+       return (
+         <div className="flex items-center justify-center h-screen bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className='ml-4'>Verificando assinatura...</p>
+        </div>
+       )
+    }
   }
 
-  // If all checks pass for a regular user or an admin, render the dashboard.
+
   return (
     <>
       <DynamicLayoutEffects />

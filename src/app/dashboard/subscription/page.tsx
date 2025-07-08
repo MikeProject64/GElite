@@ -21,6 +21,16 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
+const featureMap: Record<string, string> = {
+  servicos: 'Gestão de Serviços',
+  orcamentos: 'Criação de Orçamentos',
+  prazos: 'Controle de Prazos',
+  atividades: 'Histórico de Atividades',
+  clientes: 'Base de Clientes (CRM)',
+  colaboradores: 'Equipes e Colaboradores',
+  inventario: 'Controle de Inventário',
+};
+
 function NoPlanView() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -46,7 +56,7 @@ function NoPlanView() {
         <Card>
             <CardHeader>
                 <CardTitle>Escolha seu Plano</CardTitle>
-                <CardDescription>Para começar a usar o sistema, você precisa escolher um plano de assinatura.</CardDescription>
+                <CardDescription>Para continuar a usar o sistema, por favor, escolha um plano de assinatura.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {plans.map((plan) => (
@@ -68,7 +78,7 @@ function NoPlanView() {
                             enabled &&
                             <li key={feature} className="flex items-center gap-2">
                                 <CheckCircle className="w-5 h-5 text-green-500" />
-                                <span className='capitalize'>{feature}</span>
+                                <span className='capitalize'>{featureMap[feature as keyof typeof featureMap] || feature}</span>
                             </li>
                         ))}
                         </ul>
@@ -167,6 +177,15 @@ function SubscriptionPageContent() {
     const getStatusInfo = () => {
         if (isLoading) return { text: 'Carregando...', variant: 'secondary' as const, icon: <Loader2 className="h-4 w-4 animate-spin" />, description: 'Buscando informações da sua assinatura...' };
         
+        if (systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt) {
+            return {
+                text: 'Em Teste Gratuito',
+                variant: 'secondary' as const,
+                icon: <CheckCircle className="h-4 w-4 text-blue-500" />,
+                description: `Seu período de teste termina em ${format(systemUser.trialEndsAt.toDate(), 'dd/MM/yyyy', { locale: ptBR })}.`
+            };
+        }
+        
         if (!subscription) return { text: 'Inativa', variant: 'destructive' as const, icon: <XCircle className="h-4 w-4" />, description: 'Não encontramos uma assinatura ativa no Stripe. Se você acabou de pagar, aguarde alguns minutos.' };
 
         if (subscription.cancelAtPeriodEnd) {
@@ -181,8 +200,6 @@ function SubscriptionPageContent() {
         switch (subscription.status) {
             case 'active':
                 return { text: 'Ativa', variant: 'default' as const, icon: <CheckCircle className="h-4 w-4" />, description: 'Sua assinatura está em dia. Você tem acesso a todos os recursos do seu plano.' };
-            case 'trialing':
-                return { text: 'Em Teste', variant: 'secondary' as const, icon: <CheckCircle className="h-4 w-4" />, description: `Seu período de teste termina em ${format(new Date(subscription.currentPeriodEnd), 'dd/MM/yyyy', { locale: ptBR })}.` };
              case 'past_due':
                 return { text: 'Pagamento Pendente', variant: 'destructive' as const, icon: <CreditCard className="h-4 w-4" />, description: 'Houve um problema com seu pagamento. Por favor, atualize seus dados.' };
             default:
@@ -194,22 +211,24 @@ function SubscriptionPageContent() {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
-    if (!plan || !systemUser?.planId) {
+    if (!plan && systemUser?.subscriptionStatus !== 'trialing') {
         return <NoPlanView />
     }
 
     const statusInfo = getStatusInfo();
+    const isTrialing = systemUser?.subscriptionStatus === 'trialing';
 
     return (
         <>
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center justify-between">
-                        <span>Meu Plano: {plan.name}</span>
+                        <span>Meu Plano: {isTrialing ? 'Teste Gratuito' : (plan?.name || 'N/A')}</span>
                         <Badge variant={statusInfo.variant} className='gap-2'><span className='hidden sm:inline'>{statusInfo.icon}</span>{statusInfo.text}</Badge>
                     </CardTitle>
                     <CardDescription>{statusInfo.description}</CardDescription>
                 </CardHeader>
+                {!isTrialing && (
                 <CardContent className="space-y-6">
                     {subscription && (
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
@@ -223,26 +242,29 @@ function SubscriptionPageContent() {
                             </div>
                         </div>
                     )}
-                    <div className="p-4 bg-muted/50 rounded-lg">
-                        <h4 className="font-semibold mb-2">Recursos Inclusos:</h4>
-                        <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
-                            {Object.entries(plan.features).map(([key, value]) => value && (
-                                <li key={key} className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                    <span className="capitalize">{key}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </div>
+                    {plan && (
+                        <div className="p-4 bg-muted/50 rounded-lg">
+                            <h4 className="font-semibold mb-2">Recursos Inclusos:</h4>
+                            <ul className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
+                                {Object.entries(plan.features).map(([key, value]) => value && (
+                                    <li key={key} className="flex items-center gap-2">
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                        <span className="capitalize">{featureMap[key as keyof typeof featureMap] || key}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                 </CardContent>
+                )}
                 <CardFooter className="flex flex-wrap gap-2">
-                     {systemUser.stripeCustomerId && (
+                     {!isTrialing && systemUser?.stripeCustomerId && (
                         <Button onClick={handleManagePayment} disabled={isRedirecting} variant="outline">
                             {isRedirecting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-2 h-4 w-4" />}
                             Gerenciar Pagamento
                         </Button>
                      )}
-                     {subscription?.status === 'active' && !subscription.cancelAtPeriodEnd && (
+                     {!isTrialing && subscription?.status === 'active' && !subscription.cancelAtPeriodEnd && (
                         <Button onClick={() => setIsCancelAlertOpen(true)} disabled={isCanceling} variant="destructive">
                             {isCanceling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <XCircle className="mr-2 h-4 w-4" />}
                             Cancelar Assinatura

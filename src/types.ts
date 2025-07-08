@@ -63,6 +63,10 @@ export interface SystemUser {
   stripeCustomerId?: string;
   subscriptionStatus?: 'active' | 'incomplete' | 'canceled' | 'past_due' | 'incomplete_expired' | 'trialing';
   subscriptionId?: string;
+  companyName?: string;
+  phone?: string;
+  trialStartedAt?: Timestamp;
+  trialEndsAt?: Timestamp;
 }
 
 export interface Plan {
