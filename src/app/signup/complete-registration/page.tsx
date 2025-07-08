@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, Suspense, useEffect } from 'react';
@@ -54,14 +53,10 @@ function CompleteRegistrationContent() {
         
         // Fire Google Ads event for purchase
         if (result.value && result.currency) {
-            gtag.event({
-                action: 'conversion',
-                params: {
-                    send_to: `${gtag.GA_TRACKING_ID}/PURCHASE_LABEL`, // IMPORTANT: Replace PURCHASE_LABEL with your actual conversion label from Google Ads
-                    transaction_id: result.transaction_id,
-                    value: result.value,
-                    currency: result.currency,
-                }
+            gtag.event("purchase", {
+                transaction_id: result.transaction_id,
+                value: result.value,
+                currency: result.currency,
             });
         }
 
