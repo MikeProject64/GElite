@@ -1,5 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 import { CheckCircle, XCircle } from 'lucide-react';
 import { ScrollReveal } from './scroll-reveal';
 
@@ -44,38 +45,69 @@ export function Comparison() {
           </p>
         </ScrollReveal>
         <ScrollReveal delay={200}>
-            <Card>
-            <CardContent className="p-0">
-                <Table>
-                <TableHeader>
-                    <TableRow>
-                    <TableHead className="w-[200px] font-headline">Funcionalidade</TableHead>
-                    <TableHead className="font-headline">Com Planilhas e Papel</TableHead>
-                    <TableHead className="font-headline text-primary">Com o Gestor Elite</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {comparisonData.map((item) => (
-                    <TableRow key={item.feature}>
-                        <TableCell className="font-semibold font-body">{item.feature}</TableCell>
-                        <TableCell>
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                            <XCircle className="w-5 h-5 text-destructive" />
-                            <span className='font-body'>{item.oldWay}</span>
-                        </div>
-                        </TableCell>
-                        <TableCell>
-                        <div className="flex items-center gap-2 font-medium">
-                            <CheckCircle className="w-5 h-5 text-green-500" />
-                            <span className='font-body'>{item.newWay}</span>
-                        </div>
-                        </TableCell>
-                    </TableRow>
-                    ))}
-                </TableBody>
-                </Table>
-            </CardContent>
-            </Card>
+            {/* Mobile View */}
+            <div className="md:hidden space-y-4">
+              {comparisonData.map((item, index) => (
+                <Card key={index}>
+                  <CardHeader>
+                    <CardTitle className="font-body text-lg">{item.feature}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <h4 className="font-semibold text-muted-foreground mb-1">Com Planilhas e Papel</h4>
+                      <div className="flex items-start gap-2 text-muted-foreground">
+                          <XCircle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
+                          <span className='font-body'>{item.oldWay}</span>
+                      </div>
+                    </div>
+                    <Separator />
+                    <div>
+                       <h4 className="font-semibold text-primary mb-1">Com o Gestor Elite</h4>
+                       <div className="flex items-start gap-2 font-medium">
+                          <CheckCircle className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
+                          <span className='font-body'>{item.newWay}</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+
+            {/* Desktop View */}
+            <div className="hidden md:block">
+              <Card>
+                <CardContent className="p-0">
+                    <Table>
+                    <TableHeader>
+                        <TableRow>
+                        <TableHead className="w-[200px] font-headline">Funcionalidade</TableHead>
+                        <TableHead className="font-headline">Com Planilhas e Papel</TableHead>
+                        <TableHead className="font-headline text-primary">Com o Gestor Elite</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {comparisonData.map((item) => (
+                        <TableRow key={item.feature}>
+                            <TableCell className="font-semibold font-body">{item.feature}</TableCell>
+                            <TableCell>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                                <XCircle className="w-5 h-5 text-destructive" />
+                                <span className='font-body'>{item.oldWay}</span>
+                            </div>
+                            </TableCell>
+                            <TableCell>
+                            <div className="flex items-center gap-2 font-medium">
+                                <CheckCircle className="w-5 h-5 text-green-500" />
+                                <span className='font-body'>{item.newWay}</span>
+                            </div>
+                            </TableCell>
+                        </TableRow>
+                        ))}
+                    </TableBody>
+                    </Table>
+                </CardContent>
+              </Card>
+            </div>
         </ScrollReveal>
       </div>
     </section>
