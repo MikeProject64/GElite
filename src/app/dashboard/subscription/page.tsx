@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Suspense, useEffect, useState } from 'react';
@@ -17,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, XCircle, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { createStripePortalSession, getSubscriptionDetails, cancelSubscriptionAction } from './actions';
-import { createCheckoutSession } from '../signup/actions';
+import { createCheckoutSession } from '@/app/signup/actions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
