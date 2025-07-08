@@ -5,10 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import {
   ClipboardList,
   Home,
@@ -26,7 +25,6 @@ import {
   ChevronsLeft,
   Sun,
   Moon,
-  Laptop
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -36,14 +34,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
+import { Separator } from './ui/separator';
 
 interface NavContentProps {
   isCollapsed: boolean;
@@ -130,7 +125,8 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
   return (
     <TooltipProvider delayDuration={0}>
       <div className="flex h-full max-h-screen flex-col">
-        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        {/* === HEADER === */}
+        <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px] lg:px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             {logoURL ? (
                 <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
@@ -139,62 +135,87 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
             )}
             {(!isCollapsed || isMobile) && <span className="">{siteName}</span>}
           </Link>
+          {!isMobile && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button onClick={toggleSidebar} variant="outline" size="icon" className="h-8 w-8">
+                  <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{isCollapsed ? 'Expandir Menu' : 'Recolher Menu'}</TooltipContent>
+            </Tooltip>
+          )}
         </div>
+
+        {/* === MAIN NAV === */}
         <div className="flex-1 overflow-y-auto">
           {mainNav}
         </div>
-        <div className="mt-auto p-4 border-t">
-          <DropdownMenu>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="w-full flex items-center gap-2"
-                    style={{ justifyContent: (isCollapsed && !isMobile) ? 'center' : 'flex-start', paddingLeft: (isCollapsed && !isMobile) ? 0 : undefined, paddingRight: (isCollapsed && !isMobile) ? 0 : undefined }}
-                  >
-                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-primary font-bold shrink-0">
-                      {user?.email?.charAt(0).toUpperCase()}
-                    </div>
-                    {(!isCollapsed || isMobile) && <span className="text-sm font-medium truncate">{user?.email}</span>}
-                  </Button>
-                </DropdownMenuTrigger>
-              </TooltipTrigger>
-              {(isCollapsed && !isMobile) && <TooltipContent side="right">Minha Conta</TooltipContent>}
-            </Tooltip>
-            <DropdownMenuContent align="end" className="w-56" side="top" sideOffset={8}>
-              <DropdownMenuLabel>Minha Conta</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => router.push('/dashboard/subscription')}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                <span>Assinatura</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem onSelect={() => router.push('/dashboard/configuracoes')}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Configurações</span>
-              </DropdownMenuItem>
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>
-                    <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                    <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span>Alterar Tema</span>
-                </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={handleLogout} className="text-destructive focus:bg-destructive focus:text-destructive-foreground">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Sair</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {!isMobile && (
-            <Button onClick={toggleSidebar} variant="outline" size="icon" className="w-full mt-2">
-                <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
-            </Button>
-          )}
+
+        {/* === BOTTOM NAV === */}
+        <div className="mt-auto border-t">
+          <div className={cn("grid items-start text-sm font-medium", isCollapsed ? "p-2 space-y-1" : "p-4 space-y-1")}>
+            
+            {/* --- Configurações --- */}
+            {isCollapsed && !isMobile ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/dashboard/configuracoes" className={cn('flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8', pathname.startsWith('/dashboard/configuracoes') && 'bg-accent text-accent-foreground')}><Settings className="h-5 w-5" /><span className="sr-only">Configurações</span></Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">Configurações</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Link href="/dashboard/configuracoes" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/configuracoes') && 'bg-muted text-primary')}><Settings className="h-4 w-4" /><span>Configurações</span></Link>
+            )}
+
+            {/* --- Assinatura --- */}
+            {isCollapsed && !isMobile ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Link href="/dashboard/subscription" className={cn('flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8', pathname.startsWith('/dashboard/subscription') && 'bg-accent text-accent-foreground')}><CreditCard className="h-5 w-5" /><span className="sr-only">Assinatura</span></Link>
+                </TooltipTrigger>
+                <TooltipContent side="right">Assinatura</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Link href="/dashboard/subscription" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/subscription') && 'bg-muted text-primary')}><CreditCard className="h-4 w-4" /><span>Assinatura</span></Link>
+            )}
+            
+            <Separator className="my-2" />
+
+            {/* --- Theme Switcher --- */}
+            <DropdownMenu>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className={cn('flex items-center gap-3 px-3 py-2 justify-start text-muted-foreground transition-all hover:text-primary', isCollapsed && !isMobile && "h-9 w-9 justify-center p-0 md:h-8 md:w-8")}>
+                      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      {(!isCollapsed || isMobile) && <span className="ml-0">Alterar Tema</span>}
+                      <span className="sr-only">Alterar Tema</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                {(isCollapsed && !isMobile) && <TooltipContent side="right">Alterar Tema</TooltipContent>}
+              </Tooltip>
+              <DropdownMenuContent align="end" side="top" sideOffset={12}>
+                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* --- Logout Button --- */}
+            {isCollapsed && !isMobile ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" onClick={handleLogout} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8 p-0"><LogOut className="h-5 w-5" /><span className="sr-only">Sair</span></Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Sair</TooltipContent>
+              </Tooltip>
+            ) : (
+              <Button variant="ghost" onClick={handleLogout} className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary justify-start')}><LogOut className="h-4 w-4" /><span>Sair</span></Button>
+            )}
+          </div>
         </div>
       </div>
     </TooltipProvider>
