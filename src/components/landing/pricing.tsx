@@ -16,6 +16,7 @@ import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { cn } from '@/lib/utils';
 import { ScrollReveal } from './scroll-reveal';
+import * as gtag from '@/lib/utils';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -47,6 +48,24 @@ export function Pricing() {
     });
     return () => unsubscribe();
   }, []);
+
+  const handleSubscriptionClick = (plan: Plan, selectedInterval: 'month' | 'year') => {
+    const price = selectedInterval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
+    
+    gtag.event({
+      action: 'begin_checkout',
+      params: {
+        currency: 'BRL',
+        value: price,
+        items: [{
+          item_id: plan.id,
+          item_name: `${plan.name} - ${selectedInterval}`,
+          price: price,
+          quantity: 1,
+        }]
+      }
+    });
+  };
 
   if (isLoading) {
     return (
@@ -148,7 +167,7 @@ export function Pricing() {
                           </CardContent>
                           <CardFooter className='flex-col gap-2'>
                               <Button asChild className={`w-full`}>
-                              <Link href={`/signup?planId=${plan.id}&interval=${interval}`}>Contratar Plano</Link>
+                              <Link href={`/signup?planId=${plan.id}&interval=${interval}`} onClick={() => handleSubscriptionClick(plan, interval)}>Contratar Plano</Link>
                               </Button>
                           </CardFooter>
                         </Card>
@@ -198,7 +217,7 @@ export function Pricing() {
                 </CardContent>
                 <CardFooter className='flex-col gap-2'>
                     <Button asChild className={`w-full`}>
-                    <Link href={`/signup?planId=${plan.id}&interval=${interval}`}>Contratar Plano</Link>
+                    <Link href={`/signup?planId=${plan.id}&interval=${interval}`} onClick={() => handleSubscriptionClick(plan, interval)}>Contratar Plano</Link>
                     </Button>
                 </CardFooter>
                 </Card>

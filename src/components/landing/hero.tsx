@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -6,6 +7,7 @@ import Link from 'next/link';
 import type { UserSettings } from '@/types';
 import NetworkAnimation from './network-animation';
 import { ScrollReveal } from './scroll-reveal';
+import * as gtag from '@/lib/utils';
 
 interface HeroProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -13,6 +15,13 @@ interface HeroProps {
 
 export function Hero({ landingPageImages }: HeroProps) {
   const heroImage = landingPageImages?.heroImage || "https://placehold.co/600x550.png";
+
+  const handleCTAClick = (ctaName: string) => {
+    gtag.event({
+      action: 'cta_click',
+      params: { cta_name: ctaName },
+    });
+  };
 
   return (
     <section className="w-full py-20 md:py-32 lg:py-40 relative overflow-hidden">
@@ -33,10 +42,14 @@ export function Hero({ landingPageImages }: HeroProps) {
             </div>
             <div className="flex flex-col sm:flex-row flex-wrap gap-4">
               <Button size="lg" asChild>
-                <Link href="/#pricing">Comece Agora</Link>
+                <Link href="/#pricing" onClick={() => handleCTAClick('hero_comece_agora')}>
+                  Comece Agora
+                </Link>
               </Button>
               <Button size="lg" variant="outline" asChild>
-                <Link href="/#free-trial">Teste Grátis por 7 dias</Link>
+                <Link href="/#free-trial" onClick={() => handleCTAClick('hero_teste_gratis')}>
+                  Teste Grátis por 7 dias
+                </Link>
               </Button>
             </div>
           </ScrollReveal>

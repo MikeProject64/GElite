@@ -1,11 +1,21 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
 import { ShieldCheck, CheckCircle, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollReveal } from './scroll-reveal';
+import * as gtag from '@/lib/utils';
 
 export function FreeTrial() {
+  
+  const handleCTAClick = () => {
+    gtag.event({
+      action: 'cta_click',
+      params: { cta_name: 'free_trial_section_cta' },
+    });
+  };
+
   return (
     <section id="free-trial" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
@@ -37,7 +47,7 @@ export function FreeTrial() {
               <div className="md:col-span-2 flex flex-col items-center justify-center text-center gap-4 mt-6 md:mt-0">
                  <Rocket className="h-20 w-20 text-primary-foreground/20" />
                  <Button size="lg" variant="secondary" className="w-full" asChild>
-                    <Link href="/signup?trial=true">
+                    <Link href="/signup?trial=true" onClick={handleCTAClick}>
                         Iniciar Teste Gratuito Agora
                     </Link>
                   </Button>
