@@ -93,7 +93,7 @@ function TrialSignupForm() {
             // Fire GA4 event for lead generation
             gtag.event({ action: 'generate_lead', params: {
               currency: "BRL",
-              value: 0
+              value: 1
             }});
 
             await signInWithEmailAndPassword(auth, result.email, values.password);
