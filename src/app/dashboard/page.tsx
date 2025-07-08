@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, GripVertical, ChevronDown } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, GripVertical, ChevronDown, Activity } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -32,6 +32,7 @@ import {
 import {
   arrayMove,
   SortableContext,
+  sortableKeyboardCoordinates,
   useSortable,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
