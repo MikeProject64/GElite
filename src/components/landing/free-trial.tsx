@@ -1,39 +1,50 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { Rocket } from 'lucide-react';
+import { ShieldCheck, CheckCircle, Rocket } from 'lucide-react';
 import Link from 'next/link';
 import { ScrollReveal } from './scroll-reveal';
-import { Card } from '../ui/card';
 
 export function FreeTrial() {
   return (
     <section id="free-trial" className="w-full py-12 md:py-24 lg:py-32">
       <div className="container px-4 md:px-6 lg:px-24 mx-auto">
         <ScrollReveal>
-          <Card className="bg-muted/50 border-primary border-2 shadow-lg">
-            <div className="grid md:grid-cols-2 items-center gap-6">
-              <div className="p-8 md:p-12">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline text-primary">
-                  Experimente Todas as Funcionalidades
+          <div className="rounded-lg bg-primary text-primary-foreground p-8 md:p-12 shadow-2xl">
+            <div className="grid md:grid-cols-5 gap-8 items-center">
+              <div className="md:col-span-3">
+                <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl xl:text-5xl font-headline">
+                  Comece a otimizar hoje, sem compromisso.
                 </h2>
-                <p className="max-w-[600px] text-muted-foreground md:text-lg mt-4 font-body">
-                  Teste o Gestor Elite com acesso total, **grátis por 7 dias**. Sem compromisso e sem necessidade de cartão de crédito. Comece a otimizar sua gestão agora mesmo.
+                <p className="max-w-[600px] text-primary-foreground/80 md:text-lg mt-4 font-body">
+                  Descubra como o Gestor Elite pode transformar sua operação com um teste gratuito de 7 dias.
                 </p>
-                <div className="mt-6">
-                  <Button size="lg" asChild>
+                <ul className="mt-6 space-y-3 font-body">
+                  <li className="flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                    <span>Acesso a <strong>todas as funcionalidades</strong> premium.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-green-400" />
+                    <span>Suporte prioritário durante o período de teste.</span>
+                  </li>
+                  <li className="flex items-center gap-3">
+                    <ShieldCheck className="h-5 w-5 text-green-400" />
+                    <span><strong>Sem necessidade de cartão de crédito.</strong> Início imediato.</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="md:col-span-2 flex flex-col items-center justify-center text-center gap-4 mt-6 md:mt-0">
+                 <Rocket className="h-20 w-20 text-primary-foreground/20" />
+                 <Button size="lg" variant="secondary" className="w-full" asChild>
                     <Link href="/signup?trial=true">
-                        <Rocket className="mr-2 h-5 w-5" />
-                        Iniciar Teste Gratuito
+                        Iniciar Teste Gratuito Agora
                     </Link>
                   </Button>
-                </div>
-              </div>
-              <div className="hidden md:flex justify-center items-center p-8">
-                 <Rocket className="w-32 h-32 text-primary/20" />
+                  <p className="text-xs text-primary-foreground/60">Cancele a qualquer momento.</p>
               </div>
             </div>
-          </Card>
+          </div>
         </ScrollReveal>
       </div>
     </section>
