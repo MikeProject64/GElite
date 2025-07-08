@@ -17,7 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail, Send } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
-import { createTestChargeAction, createTestSubscriptionAction, sendTestEmailAction } from './actions';
+import { createTestChargeAction, createTestSubscriptionAction, sendTestEmailAction, sendWhatsAppTestMessageAction } from './actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 
@@ -53,6 +53,17 @@ const testSubscriptionFormSchema = z.object({
   amount: z.coerce.number().positive({ message: 'O valor deve ser maior que zero.' }),
 });
 type TestSubscriptionFormValues = z.infer<typeof testSubscriptionFormSchema>;
+
+const whatsappApiFormSchema = z.object({
+  whatsAppBusinessAccountId: z.string().optional(),
+  whatsAppAccessToken: z.string().optional(),
+});
+type WhatsAppApiFormValues = z.infer<typeof whatsappApiFormSchema>;
+
+const testWhatsAppFormSchema = z.object({
+  phoneNumber: z.string().min(10, { message: 'Número de telefone inválido.' }),
+});
+type TestWhatsAppFormValues = z.infer<typeof testWhatsAppFormSchema>;
 
 
 function StripeSettingsForm() {
@@ -477,7 +488,7 @@ function EmailSettingsForm() {
                     <FormField control={form.control} name="emailRecipients" render={({ field }) => (
                         <FormItem>
                             <FormLabel>Destinatários de Notificação</FormLabel>
-                            <FormControl><Textarea placeholder="email1@exemplo.com&#10;email2@exemplo.com" {...field} rows={4} /></FormControl>
+                            <FormControl><Textarea placeholder="email1@exemplo.com\nemail2@exemplo.com" {...field} rows={4} /></FormControl>
                             <FormDescription>
                                 Uma lista de e-mails que receberão notificações do sistema. Insira um e-mail por linha.
                             </FormDescription>
@@ -529,6 +540,145 @@ function EmailSettingsForm() {
     );
 }
 
+function WhatsAppApiSettingsForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+
+    const form = useForm<WhatsAppApiFormValues>({
+        resolver: zodResolver(whatsappApiFormSchema),
+        defaultValues: {
+            whatsAppBusinessAccountId: '',
+            whatsAppAccessToken: '',
+        },
+    });
+
+    const testForm = useForm<TestWhatsAppFormValues>({
+        resolver: zodResolver(testWhatsAppFormSchema),
+        defaultValues: { phoneNumber: '5511961891302' },
+    });
+
+    useEffect(() => {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                form.reset({
+                    whatsAppBusinessAccountId: data.whatsAppBusinessAccountId || '',
+                    whatsAppAccessToken: data.whatsAppAccessToken || '',
+                });
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [form]);
+
+    const onSubmit = async (data: WhatsAppApiFormValues) => {
+        setIsSaving(true);
+        try {
+            const settingsRef = doc(db, 'siteConfig', 'main');
+            await setDoc(settingsRef, data, { merge: true });
+            toast({
+                title: 'Sucesso!',
+                description: 'Suas credenciais do WhatsApp API foram salvas.',
+            });
+        } catch (error) {
+            console.error('Error updating WhatsApp API settings:', error);
+            toast({
+                variant: 'destructive',
+                title: 'Erro',
+                description: 'Não foi possível salvar as credenciais.',
+            });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const onTestSubmit = async (data: TestWhatsAppFormValues) => {
+        const result = await sendWhatsAppTestMessageAction(data.phoneNumber);
+        if (result.success) {
+            toast({ title: 'Sucesso!', description: result.message });
+        } else {
+            toast({ variant: 'destructive', title: 'Erro no Teste', description: result.message });
+        }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-8">
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+      );
+    }
+
+    return (
+        <>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                    <FormField
+                        control={form.control}
+                        name="whatsAppBusinessAccountId"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>ID da Conta Empresarial do WhatsApp</FormLabel>
+                                <FormControl><Input placeholder="Ex: 123456789012345" {...field} /></FormControl>
+                                <FormDescription>Encontrado no seu Gerenciador de Negócios da Meta.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={form.control}
+                        name="whatsAppAccessToken"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Token de Acesso Permanente</FormLabel>
+                                <FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl>
+                                <FormDescription>Gere um token de acesso permanente para sua aplicação.</FormDescription>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <Button type="submit" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Salvar Credenciais
+                    </Button>
+                </form>
+            </Form>
+            <Separator className="my-8" />
+            <div className="space-y-4">
+                <h3 className="text-lg font-medium">Testar API</h3>
+                <p className="text-sm text-muted-foreground">
+                    Envie uma mensagem de modelo ("hello_world") para verificar sua configuração.
+                </p>
+                <Form {...testForm}>
+                    <form onSubmit={testForm.handleSubmit(onTestSubmit)} className="flex flex-col sm:flex-row sm:items-end gap-4">
+                        <FormField
+                            control={testForm.control}
+                            name="phoneNumber"
+                            render={({ field }) => (
+                                <FormItem className="flex-grow">
+                                    <FormLabel>Número de Destino</FormLabel>
+                                    <FormControl>
+                                        <Input placeholder="5511999998888" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                        <Button type="submit" disabled={testForm.formState.isSubmitting} className="w-full sm:w-auto">
+                            {testForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Enviar Teste
+                        </Button>
+                    </form>
+                </Form>
+            </div>
+        </>
+    );
+}
+
 export default function AdminIntegrationsPage() {
   return (
     <div className="flex flex-col gap-6">
@@ -540,6 +690,9 @@ export default function AdminIntegrationsPage() {
           </TabsTrigger>
           <TabsTrigger value="whatsapp">
             <MessageSquare className="mr-2 h-4 w-4" /> Suporte WhatsApp
+          </TabsTrigger>
+          <TabsTrigger value="whatsapp-api">
+            <MessageSquare className="mr-2 h-4 w-4" /> WhatsApp (API)
           </TabsTrigger>
            <TabsTrigger value="email">
             <Mail className="mr-2 h-4 w-4" /> E-mail
@@ -564,6 +717,17 @@ export default function AdminIntegrationsPage() {
               </CardHeader>
               <CardContent>
                   <WhatsAppSettingsForm />
+              </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="whatsapp-api">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Configuração do WhatsApp Business API</CardTitle>
+                  <CardDescription>Conecte a API Oficial do WhatsApp para enviar notificações e mensagens ativas.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <WhatsAppApiSettingsForm />
               </CardContent>
           </Card>
         </TabsContent>

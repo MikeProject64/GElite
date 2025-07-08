@@ -212,3 +212,57 @@ export async function sendTestEmailAction(): Promise<ActionResult> {
     return { success: false, message: `Falha ao enviar e-mail: ${error.message}` };
   }
 }
+
+/**
+ * Sends a test WhatsApp message using the official API.
+ */
+export async function sendWhatsAppTestMessageAction(phoneNumber: string): Promise<ActionResult> {
+  try {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const settingsSnap = await getDoc(settingsRef);
+
+    if (!settingsSnap.exists()) {
+      throw new Error('Configurações do site não encontradas.');
+    }
+
+    const { whatsAppBusinessAccountId, whatsAppAccessToken } = settingsSnap.data();
+
+    if (!whatsAppBusinessAccountId || !whatsAppAccessToken) {
+      return { success: false, message: 'ID da conta e Token de Acesso do WhatsApp não estão configurados.' };
+    }
+    
+    const apiUrl = `https://graph.facebook.com/v20.0/${whatsAppBusinessAccountId}/messages`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${whatsAppAccessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: "whatsapp",
+        to: phoneNumber,
+        type: "template",
+        template: {
+          name: "hello_world",
+          language: {
+            code: "en_US"
+          }
+        }
+      })
+    });
+
+    const responseData = await response.json();
+
+    if (!response.ok) {
+        const errorMessage = responseData?.error?.message || `Erro desconhecido (HTTP ${response.status})`;
+        console.error('WhatsApp API Error:', responseData);
+        throw new Error(errorMessage);
+    }
+    
+    return { success: true, message: `Mensagem de teste enviada com sucesso para ${phoneNumber}.` };
+  } catch (error: any) {
+    console.error('Send WhatsApp Test Message Error:', error);
+    return { success: false, message: `Falha ao enviar mensagem: ${error.message}` };
+  }
+}
