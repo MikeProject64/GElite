@@ -13,6 +13,7 @@ import type { UserSettings } from '@/types';
 import { TargetAudience } from '@/components/landing/target-audience';
 import { Testimonials } from '@/components/landing/testimonials';
 import { Comparison } from '@/components/landing/comparison';
+import { FreeTrial } from '@/components/landing/free-trial';
 
 // Force dynamic rendering to ensure fresh data on every request.
 export const revalidate = 0;
@@ -51,6 +52,7 @@ export default async function Home() {
         <Benefits />
         <Testimonials landingPageImages={landingPageImages} />
         <Comparison />
+        <FreeTrial />
         <Pricing />
         <Guarantee />
         <Gallery landingPageImages={landingPageImages} />

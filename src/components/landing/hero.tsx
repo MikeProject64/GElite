@@ -1,4 +1,3 @@
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -32,9 +31,12 @@ export function Hero({ landingPageImages }: HeroProps) {
                 Centralize ordens de serviço, clientes e inventário em um só lugar. Aumente a eficiência e a satisfação do cliente com o Gestor Elite.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
               <Button size="lg" asChild>
                 <Link href="/#pricing">Comece Agora</Link>
+              </Button>
+              <Button size="lg" variant="outline" asChild>
+                <Link href="/#free-trial">Teste Grátis por 7 dias</Link>
               </Button>
             </div>
           </ScrollReveal>
