@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, Suspense, useEffect } from 'react';
@@ -53,7 +54,7 @@ function CompleteRegistrationContent() {
         
         // Fire Google Ads event for purchase
         if (result.value && result.currency) {
-            gtag.event("purchase", {
+            gtag.event("Assinatura_Plano_Gestor_Elite", {
                 transaction_id: result.transaction_id,
                 value: result.value,
                 currency: result.currency,
