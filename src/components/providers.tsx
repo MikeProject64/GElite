@@ -1,9 +1,10 @@
+
 'use client';
 
 import { AuthProvider } from '@/components/auth-provider';
 import { SettingsProvider } from '@/components/settings-provider';
 import { Toaster } from '@/components/ui/toaster';
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import * as gtag from '@/lib/utils';
 
@@ -25,7 +26,9 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <SettingsProvider>
-        <AnalyticsTracker />
+        <Suspense fallback={null}>
+          <AnalyticsTracker />
+        </Suspense>
         {children}
         <Toaster />
       </SettingsProvider>
