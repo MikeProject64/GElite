@@ -17,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, XCircle, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { createStripePortalSession, getSubscriptionDetails, cancelSubscriptionAction } from './actions';
+import { createCheckoutSession } from '../signup/actions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -34,6 +35,10 @@ const featureMap: Record<string, string> = {
 function NoPlanView() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRedirecting, setIsRedirecting] = useState<string | null>(null);
+    const { user } = useAuth();
+    const router = useRouter();
+    const { toast } = useToast();
 
     useEffect(() => {
         const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
@@ -48,6 +53,23 @@ function NoPlanView() {
         return () => unsubscribe();
     }, []);
 
+    const handleSubscribe = async (planId: string, interval: 'month' | 'year') => {
+        if (!user || !user.email) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não encontrado. Por favor, faça login novamente.' });
+            return;
+        }
+        setIsRedirecting(planId + interval);
+        const result = await createCheckoutSession(planId, interval, user.email);
+        
+        if (result.success && result.url) {
+            router.push(result.url);
+        } else {
+            toast({ variant: 'destructive', title: 'Erro', description: result.message || 'Falha ao iniciar o processo de assinatura.' });
+            setIsRedirecting(null);
+        }
+    };
+
+
     if (isLoading) {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
@@ -56,7 +78,7 @@ function NoPlanView() {
         <Card>
             <CardHeader>
                 <CardTitle>Escolha seu Plano</CardTitle>
-                <CardDescription>Para continuar a usar o sistema, por favor, escolha um plano de assinatura.</CardDescription>
+                <CardDescription>Escolha o plano ideal para suas necessidades e desbloqueie todo o potencial do sistema.</CardDescription>
             </CardHeader>
             <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-6">
                  {plans.map((plan) => (
@@ -84,12 +106,21 @@ function NoPlanView() {
                         </ul>
                     </CardContent>
                     <CardFooter className='flex-col gap-2'>
-                        <Button asChild className={`w-full`}>
-                        <Link href={`/signup?planId=${plan.id}&interval=month`}>Contratar Mensal</Link>
+                        <Button
+                          onClick={() => handleSubscribe(plan.id, 'month')}
+                          disabled={!!isRedirecting}
+                          className={`w-full`}
+                        >
+                            {isRedirecting === `${plan.id}month` ? <Loader2 className="animate-spin" /> : 'Contratar Mensal'}
                         </Button>
                         {plan.yearlyPrice > 0 && (
-                        <Button asChild variant="outline" className={`w-full`}>
-                            <Link href={`/signup?planId=${plan.id}&interval=year`}>Contratar Anual</Link>
+                        <Button
+                           onClick={() => handleSubscribe(plan.id, 'year')}
+                           disabled={!!isRedirecting}
+                           variant="outline"
+                           className={`w-full`}
+                        >
+                           {isRedirecting === `${plan.id}year` ? <Loader2 className="animate-spin" /> : 'Contratar Anual'}
                         </Button>
                         )}
                     </CardFooter>
@@ -211,7 +242,7 @@ function SubscriptionPageContent() {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
     }
 
-    if (!plan && systemUser?.subscriptionStatus !== 'trialing') {
+    if (!systemUser?.planId && systemUser?.subscriptionStatus !== 'trialing') {
         return <NoPlanView />
     }
 
@@ -272,6 +303,13 @@ function SubscriptionPageContent() {
                      )}
                 </CardFooter>
             </Card>
+
+            {isTrialing && (
+                <div className="mt-6">
+                    <NoPlanView />
+                </div>
+            )}
+
             <AlertDialog open={isCancelAlertOpen} onOpenChange={setIsCancelAlertOpen}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
