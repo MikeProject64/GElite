@@ -117,7 +117,7 @@ export function Pricing() {
                   const savings = plan.yearlyPrice > 0 ? (plan.monthlyPrice * 12) - plan.yearlyPrice : 0;
                   
                   return (
-                    <CarouselItem key={plan.id} className="basis-11/12 pl-2">
+                    <CarouselItem key={plan.id} className="basis-11/12 pl-2 pt-4">
                       <div className="p-1 h-full flex">
                         <Card className={cn('relative flex flex-col h-full shadow-sm w-full', index === 1 && 'border-primary')}>
                           {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
