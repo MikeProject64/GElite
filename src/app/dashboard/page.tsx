@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, GripVertical, ChevronDown, Activity } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, GripVertical, ChevronDown, Activity, Layout } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -38,6 +38,9 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -83,16 +86,12 @@ const getStatusColor = (status: string) => {
 
 interface SortablePanelProps {
   id: string;
-  title: string;
-  Icon?: React.ElementType;
   children: React.ReactNode;
   className?: string;
-  isCollapsed: boolean;
-  onToggleCollapse: () => void;
 }
 
-const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, title, Icon, children, className, isCollapsed, onToggleCollapse }) => {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, className }) => {
+  const { isDragging, attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -100,51 +99,20 @@ const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, title, Ico
     zIndex: isDragging ? 10 : undefined,
   };
   
-  // The content of the panel is passed as children. We can inspect it to extract
-  // the CardHeader description and the rest of the content.
-  const cardElement = React.Children.only(children) as React.ReactElement;
-  const cardHeader = React.Children.toArray(cardElement.props.children).find(
-    (child: any) => child.type === CardHeader
-  ) as React.ReactElement | undefined;
-  
-  const cardContent = React.Children.toArray(cardElement.props.children).filter(
-    (child: any) => child.type !== CardHeader
-  );
-
-  const description = cardHeader?.props.children.find((c: any) => c.type === CardDescription)?.props.children;
-  
   return (
-    <div ref={setNodeRef} style={style} className={className}>
-      <Card>
-        <Collapsible open={!isCollapsed} onOpenChange={onToggleCollapse}>
-          <CardHeader className="relative pr-20">
-            <CardTitle className="flex items-center gap-2">
-              {Icon && <Icon className="h-5 w-5 text-muted-foreground" />}
-              {title}
-            </CardTitle>
-            {description && <CardDescription>{description}</CardDescription>}
-            <div className="absolute top-3 right-2 flex items-center">
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8">
-                  <ChevronDown className={cn("h-4 w-4 transition-transform", !isCollapsed && "rotate-180")} />
-                  <span className="sr-only">Recolher painel</span>
-                </Button>
-              </CollapsibleTrigger>
-              <Button variant="ghost" size="icon" {...attributes} {...listeners} className="cursor-grab h-8 w-8">
-                <GripVertical className="h-4 w-4" />
-                <span className="sr-only">Arrastar painel</span>
-              </Button>
-            </div>
-          </CardHeader>
-          <CollapsibleContent>{cardContent}</CollapsibleContent>
-        </Collapsible>
-      </Card>
+    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "ring-2 ring-primary opacity-75 shadow-2xl")}>
+       <div {...attributes} {...listeners} className="h-full">
+         {children}
+       </div>
     </div>
   );
 };
 
 
-const initialPanelOrder = ['quick-actions', 'active-orders', 'total-customers', 'order-status-chart', 'monthly-revenue-chart', 'recent-activity', 'quick-search'];
+const initialPanelOrder = ['quick-actions', 'order-status-chart', 'monthly-revenue-chart', 'recent-activity', 'quick-search'];
+
+const initialPanelVisibility = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: true }), {});
+
 
 const DashboardSkeleton: React.FC = () => (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6">
@@ -179,7 +147,7 @@ export default function DashboardPage() {
   
   // Layout state
   const [panelOrder, setPanelOrder] = useState<string[]>(initialPanelOrder);
-  const [collapsedPanels, setCollapsedPanels] = useState<Record<string, boolean>>({});
+  const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -187,15 +155,14 @@ export default function DashboardPage() {
     try {
       const storedOrder = localStorage.getItem('dashboard-panel-order');
       if (storedOrder) {
-        // Validate stored order against initialPanelOrder to prevent missing/extra panels
         const parsedOrder = JSON.parse(storedOrder);
         const validOrder = initialPanelOrder.filter(p => parsedOrder.includes(p));
         const newPanels = initialPanelOrder.filter(p => !parsedOrder.includes(p));
         if (validOrder.length > 0) setPanelOrder([...validOrder, ...newPanels]);
       }
-      const storedCollapsed = localStorage.getItem('dashboard-collapsed-panels');
-      if (storedCollapsed) {
-        setCollapsedPanels(JSON.parse(storedCollapsed));
+      const storedVisible = localStorage.getItem('dashboard-visible-panels');
+      if (storedVisible) {
+        setVisiblePanels(JSON.parse(storedVisible));
       }
     } catch(e) {
         console.error("Failed to load layout from localStorage", e);
@@ -210,9 +177,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (isMounted) {
-      localStorage.setItem('dashboard-collapsed-panels', JSON.stringify(collapsedPanels));
+      localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels));
     }
-  }, [collapsedPanels, isMounted]);
+  }, [visiblePanels, isMounted]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -333,72 +300,58 @@ export default function DashboardPage() {
     }
   };
 
-  const handleToggleCollapse = (panelId: string) => {
-    setCollapsedPanels(prev => ({...prev, [panelId]: !prev[panelId]}));
+  const handleToggleVisibility = (panelId: string) => {
+    setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]}));
   };
 
   const panels = useMemo(() => ({
     'quick-actions': {
-      id: 'quick-actions',
       title: 'Ações Rápidas',
-      Icon: Activity,
       className: 'lg:col-span-4 md:col-span-3 col-span-6',
       content: <QuickActions stats={stats} loading={loading} deadlines={criticalDeadlines} />,
     },
-    'active-orders': {
-      id: 'active-orders',
-      title: 'Ordens de Serviço Ativas',
-      Icon: Wrench,
-      className: 'lg:col-span-2 md:col-span-3 col-span-6',
-      content: <CardContent>{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.activeOrders}</div>}<p className="text-xs text-muted-foreground">Ordens pendentes ou em andamento.</p></CardContent>
-    },
-    'total-customers': {
-      id: 'total-customers',
-      title: 'Clientes Cadastrados',
-      Icon: Users,
-      className: 'lg:col-span-2 md:col-span-3 col-span-6',
-      content: <CardContent>{loading ? <Loader2 className="h-6 w-6 animate-spin" /> : <div className="text-2xl font-bold">{stats.totalCustomers}</div>}<p className="text-xs text-muted-foreground">Total de clientes em sua base.</p></CardContent>
-    },
     'order-status-chart': {
-      id: 'order-status-chart',
       title: 'Ordens por Status',
-      Icon: Wrench,
       className: 'lg:col-span-3 md:col-span-3 col-span-6',
       content: loading ? <CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent> : <OrderStatusChart data={chartData.orderStatus} />
     },
     'monthly-revenue-chart': {
-      id: 'monthly-revenue-chart',
       title: 'Faturamento Mensal',
-      Icon: FileText,
       className: 'lg:col-span-3 md:col-span-3 col-span-6',
       content: loading ? <CardContent className="p-6 flex justify-center items-center h-[300px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent> : <MonthlyRevenueChart data={chartData.monthlyRevenue} />
     },
     'recent-activity': {
-      id: 'recent-activity',
       title: 'Atividade Recente',
-      Icon: History,
       className: 'lg:col-span-4 md:col-span-3 col-span-6',
       content: (
-        <>
+        <Card className='h-full flex flex-col'>
+          <CardHeader>
+              <CardTitle className="flex items-center gap-2"><History /> Atividade Recente</CardTitle>
+              <CardDescription>Últimas movimentações no sistema.</CardDescription>
+          </CardHeader>
           <CardContent className='flex-grow'>{loading ? <div className='flex justify-center items-center h-full'><Loader2 className="h-6 w-6 animate-spin" /></div> : (recentActivity.length > 0 ? (<ul className="space-y-4">{recentActivity.map(activity => (<li key={activity.id} className="flex items-start gap-3"><div className="mt-1">{getSearchIcon(activity.type === 'serviço' ? 'Serviço' : activity.type === 'orçamento' ? 'Orçamento' : 'Cliente')}</div><div className="flex-1"><Link href={activity.href} className="hover:underline"><p className="text-sm">{activity.description}</p></Link><p className="text-xs text-muted-foreground">{formatDistanceToNow(activity.timestamp, { addSuffix: true, locale: ptBR })}</p></div></li>))}</ul>) : <p className="text-sm text-center text-muted-foreground py-4">Nenhuma atividade recente.</p>)}</CardContent>
           <CardFooter><Button asChild variant="secondary" className="w-full"><Link href="/dashboard/atividades">Ver todo o histórico</Link></Button></CardFooter>
-        </>
+        </Card>
       )
     },
     'quick-search': {
-      id: 'quick-search',
       title: 'Busca Rápida',
-      Icon: Search,
       className: 'lg:col-span-2 md:col-span-3 col-span-6',
       content: (
-        <CardContent>
-          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-            <PopoverTrigger asChild className='w-full'><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" /><Input placeholder="Buscar em todo o sistema..." className="w-full pl-10" value={searchTerm} onChange={(e) => { const term = e.target.value; setSearchTerm(term); if (term.length > 1) { setIsPopoverOpen(true); } else { setIsPopoverOpen(false); }}}/></div></PopoverTrigger>
-            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
-              <ScrollArea className="h-60">{searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}{!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (<p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>)}{searchResults.length > 0 && (searchResults.map((result) => (<Button variant="ghost" key={result.id} className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto" onClick={() => { router.push(result.href); setIsPopoverOpen(false); setSearchTerm('');}}>{getSearchIcon(result.type)}<div className='ml-2 text-left'><p className='font-medium'>{result.title}</p><p className="text-xs text-muted-foreground">{result.description}</p></div></Button>)))}</ScrollArea>
-            </PopoverContent>
-          </Popover>
-        </CardContent>
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Search /> Busca Rápida</CardTitle>
+            <CardDescription>Encontre clientes, serviços e orçamentos.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+              <PopoverTrigger asChild className='w-full'><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" /><Input placeholder="Buscar em todo o sistema..." className="w-full pl-10" value={searchTerm} onChange={(e) => { const term = e.target.value; setSearchTerm(term); if (term.length > 1) { setIsPopoverOpen(true); } else { setIsPopoverOpen(false); }}}/></div></PopoverTrigger>
+              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
+                <ScrollArea className="h-60">{searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}{!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (<p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>)}{searchResults.length > 0 && (searchResults.map((result) => (<Button variant="ghost" key={result.id} className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto" onClick={() => { router.push(result.href); setIsPopoverOpen(false); setSearchTerm('');}}>{getSearchIcon(result.type)}<div className='ml-2 text-left'><p className='font-medium'>{result.title}</p><p className="text-xs text-muted-foreground">{result.description}</p></div></Button>)))}</ScrollArea>
+              </PopoverContent>
+            </Popover>
+          </CardContent>
+        </Card>
       )
     },
   }), [stats, loading, criticalDeadlines, chartData, recentActivity, isPopoverOpen, searchTerm, searchResults, searchLoading, router]);
@@ -406,40 +359,63 @@ export default function DashboardPage() {
   if (!isMounted) return <DashboardSkeleton />;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
-          {panelOrder.map(panelId => {
-            const panel = (panels as any)[panelId];
-            if (!panel) return null;
-            
-            // This is a bit of a hack to recreate the original Card component structure for the panel
-            const cardChildren = (
-              <Card>
-                <CardHeader>
-                  <CardTitle>{panel.title}</CardTitle>
-                  <CardDescription>{panel.description}</CardDescription>
-                </CardHeader>
-                {panel.content}
-              </Card>
-            );
-
-            return (
-              <SortableCollapsiblePanel
-                key={panelId}
-                id={panelId}
-                title={panel.title}
-                Icon={panel.Icon}
-                className={panel.className}
-                isCollapsed={!!collapsedPanels[panelId]}
-                onToggleCollapse={() => handleToggleCollapse(panelId)}
-              >
-                {cardChildren}
-              </SortableCollapsiblePanel>
-            );
-          })}
+    <div className='flex flex-col gap-4'>
+        <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
+             <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Layout className="mr-2 h-4 w-4" />
+                        Personalizar Layout
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Personalizar Painel</DialogTitle>
+                        <DialogDescription>
+                            Selecione os painéis que você deseja exibir. As mudanças são salvas automaticamente.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        {initialPanelOrder.map(panelId => {
+                            const panel = (panels as any)[panelId];
+                            if (!panel) return null;
+                            return (
+                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                    <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                    <Switch
+                                        id={`switch-${panelId}`}
+                                        checked={visiblePanels[panelId]}
+                                        onCheckedChange={() => handleToggleVisibility(panelId)}
+                                    />
+                                </div>
+                            )
+                        })}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
-      </SortableContext>
-    </DndContext>
+
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+            {panelOrder.map(panelId => {
+                const panel = (panels as any)[panelId];
+                if (!panel || !visiblePanels[panelId]) return null;
+                
+                return (
+                <SortableCollapsiblePanel
+                    key={panelId}
+                    id={panelId}
+                    className={panel.className}
+                >
+                    {panel.content}
+                </SortableCollapsiblePanel>
+                );
+            })}
+            </div>
+        </SortableContext>
+        </DndContext>
+    </div>
   );
 }
