@@ -15,8 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, XCircle, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
-import { createStripePortalSession, getSubscriptionDetails, cancelSubscriptionAction } from './actions';
-import { createCheckoutSession } from '@/app/signup/actions';
+import { createStripePortalSession, getSubscriptionDetails, cancelSubscriptionAction, createSubscriptionCheckoutSession, verifySubscriptionAndUpgradeUser } from './actions';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -35,7 +34,7 @@ function NoPlanView() {
     const [plans, setPlans] = useState<Plan[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRedirecting, setIsRedirecting] = useState<string | null>(null);
-    const { user } = useAuth();
+    const { user, systemUser } = useAuth();
     const router = useRouter();
     const { toast } = useToast();
 
@@ -58,7 +57,7 @@ function NoPlanView() {
             return;
         }
         setIsRedirecting(planId + interval);
-        const result = await createCheckoutSession(planId, interval, user.email);
+        const result = await createSubscriptionCheckoutSession(planId, interval, user.uid, user.email, systemUser?.stripeCustomerId);
         
         if (result.success && result.url) {
             router.push(result.url);
@@ -131,7 +130,7 @@ function NoPlanView() {
 }
 
 function SubscriptionPageContent() {
-    const { systemUser, loading: authLoading } = useAuth();
+    const { systemUser, user, loading: authLoading } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
 
@@ -141,9 +140,40 @@ function SubscriptionPageContent() {
     const [isRedirecting, setIsRedirecting] = useState(false);
     const [isCanceling, setIsCanceling] = useState(false);
     const [isCancelAlertOpen, setIsCancelAlertOpen] = useState(false);
+    const [isVerifying, setIsVerifying] = useState(false);
 
     useEffect(() => {
-        if (authLoading || !systemUser) return;
+        // This effect handles the user returning from Stripe checkout
+        const searchParams = new URLSearchParams(window.location.search);
+        const sessionId = searchParams.get('session_id');
+        const success = searchParams.get('success');
+
+        if (success && sessionId && user) {
+            setIsVerifying(true);
+            const upgradeUser = async () => {
+                const result = await verifySubscriptionAndUpgradeUser(sessionId, user.uid);
+                if (result.success) {
+                    toast({
+                        title: 'Assinatura Ativada!',
+                        description: 'Seu plano foi atualizado com sucesso. Bem-vindo!',
+                    });
+                    // Clear URL params and trigger a re-fetch of subscription data
+                    router.replace('/dashboard/subscription', { scroll: false });
+                } else {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Erro na Ativação',
+                        description: result.message || 'Não foi possível verificar sua assinatura. Contate o suporte.',
+                    });
+                }
+                setIsVerifying(false);
+            };
+            upgradeUser();
+        }
+    }, [user, router, toast]);
+
+    useEffect(() => {
+        if (authLoading || !systemUser || isVerifying) return;
         
         const fetchInitialData = async () => {
             setIsLoading(true);
@@ -166,7 +196,7 @@ function SubscriptionPageContent() {
         };
         
         fetchInitialData();
-    }, [systemUser, authLoading, toast]);
+    }, [systemUser, authLoading, toast, isVerifying]);
 
     const handleManagePayment = async () => {
         if (!systemUser) return;
@@ -239,6 +269,18 @@ function SubscriptionPageContent() {
 
     if (authLoading) {
         return <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+    }
+
+    if (isVerifying) {
+        return (
+            <Card>
+                <CardHeader className="items-center text-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <CardTitle>Verificando sua Assinatura...</CardTitle>
+                    <CardDescription>Aguarde um momento enquanto ativamos seu plano.</CardDescription>
+                </CardHeader>
+            </Card>
+        );
     }
 
     if (!systemUser?.planId && systemUser?.subscriptionStatus !== 'trialing') {

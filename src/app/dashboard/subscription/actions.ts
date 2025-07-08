@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
-import type { SubscriptionDetails } from '@/types';
+import type { Plan, SubscriptionDetails } from '@/types';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -96,5 +96,97 @@ export async function createStripePortalSession(stripeCustomerId: string | undef
     } catch (error: any) {
         console.error("Error creating Stripe portal session:", error);
         return { success: false, message: error.message || 'Ocorreu um erro desconhecido.' };
+    }
+}
+
+
+export async function createSubscriptionCheckoutSession(planId: string, interval: 'month' | 'year', uid: string, email: string, stripeCustomerId: string | undefined) {
+    if (!planId || !uid || !email) {
+        return { success: false, message: 'Informações do plano ou do usuário ausentes.' };
+    }
+
+    try {
+        const stripe = await getStripeInstance();
+        const origin = headers().get('origin') || 'http://localhost:3000';
+
+        const planRef = doc(db, 'plans', planId);
+        const planSnap = await getDoc(planRef);
+        if (!planSnap.exists()) {
+            throw new Error('Plano selecionado não foi encontrado.');
+        }
+        const plan = planSnap.data() as Plan;
+        const priceId = interval === 'year' ? plan.stripeYearlyPriceId : plan.stripeMonthlyPriceId;
+
+        if (!priceId) {
+            throw new Error('ID de preço para o intervalo selecionado não encontrado.');
+        }
+
+        const checkoutSessionParams: Stripe.Checkout.SessionCreateParams = {
+            payment_method_types: ['card'],
+            mode: 'subscription',
+            line_items: [{ price: priceId, quantity: 1 }],
+            success_url: `${origin}/dashboard/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/dashboard/subscription`,
+            client_reference_id: uid, // Associate checkout with Firebase UID
+            subscription_data: {
+                metadata: { planId: planId, interval: interval, uid: uid }
+            }
+        };
+
+        if (stripeCustomerId) {
+            checkoutSessionParams.customer = stripeCustomerId;
+        } else {
+            checkoutSessionParams.customer_email = email;
+        }
+
+        const session = await stripe.checkout.sessions.create(checkoutSessionParams);
+        
+        return { success: true, url: session.url };
+        
+    } catch (error: any) {
+        console.error("Error creating subscription checkout session:", error);
+        return { success: false, message: error.message || "Ocorreu um erro desconhecido." };
+    }
+}
+
+
+export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: string) {
+    if (!sessionId || !uid) {
+        return { success: false, message: 'ID da sessão ou do usuário ausente.' };
+    }
+
+    try {
+        const stripe = await getStripeInstance();
+        const session = await stripe.checkout.sessions.retrieve(sessionId, {
+            expand: ['subscription', 'customer'],
+        });
+        
+        if (session.client_reference_id !== uid || session.status !== 'complete') {
+             throw new Error('Sessão de checkout inválida ou não concluída.');
+        }
+
+        const subscription = session.subscription as Stripe.Subscription;
+        const customerId = (session.customer as Stripe.Customer)?.id;
+        const planId = subscription.metadata.planId;
+
+        if (!subscription || !customerId || !planId) {
+            throw new Error('Dados da assinatura incompletos na sessão do Stripe.');
+        }
+
+        const userDocRef = doc(db, 'users', uid);
+        await updateDoc(userDocRef, {
+            planId: planId,
+            stripeCustomerId: customerId,
+            subscriptionId: subscription.id,
+            subscriptionStatus: 'active',
+            trialStartedAt: null,
+            trialEndsAt: null,
+        });
+
+        return { success: true };
+
+    } catch (error: any) {
+        console.error("Error verifying subscription and upgrading user:", error);
+        return { success: false, message: error.message || "Ocorreu um erro desconhecido." };
     }
 }
