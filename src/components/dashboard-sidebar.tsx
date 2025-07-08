@@ -12,7 +12,6 @@ import {
   ClipboardList,
   Home,
   LogOut,
-  Menu,
   Users,
   Wrench,
   CalendarClock,
@@ -22,7 +21,6 @@ import {
   Briefcase,
   Bell,
   CreditCard,
-  ChevronsLeft,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -37,16 +35,14 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle, SheetDescription } from './ui/sheet';
 import { Separator } from './ui/separator';
 
 interface NavContentProps {
   isCollapsed: boolean;
-  toggleSidebar?: () => void;
   isMobile?: boolean;
 }
 
-function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContentProps) {
+function NavContent({ isCollapsed, isMobile = false }: NavContentProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -124,9 +120,8 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex h-full max-h-screen flex-col">
-        {/* === HEADER === */}
-        <div className="flex h-14 items-center justify-between border-b px-4 lg:h-[60px] lg:px-6">
+      <div className="flex h-full max-h-screen flex-col border-r bg-card">
+        <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
           <Link href="/" className="flex items-center gap-2 font-semibold">
             {logoURL ? (
                 <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
@@ -135,28 +130,15 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
             )}
             {(!isCollapsed || isMobile) && <span className="">{siteName}</span>}
           </Link>
-          {!isMobile && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button onClick={toggleSidebar} variant="outline" size="icon" className="h-8 w-8">
-                  <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{isCollapsed ? 'Expandir Menu' : 'Recolher Menu'}</TooltipContent>
-            </Tooltip>
-          )}
         </div>
 
-        {/* === MAIN NAV === */}
         <div className="flex-1 overflow-y-auto">
           {mainNav}
         </div>
 
-        {/* === BOTTOM NAV === */}
         <div className="mt-auto border-t">
           <div className={cn("grid items-start text-sm font-medium", isCollapsed ? "p-2 space-y-1" : "p-4 space-y-1")}>
             
-            {/* --- Configurações --- */}
             {isCollapsed && !isMobile ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -165,10 +147,9 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
                 <TooltipContent side="right">Configurações</TooltipContent>
               </Tooltip>
             ) : (
-              <Link href="/dashboard/configuracoes" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/configuracoes') && 'bg-muted text-primary')}><Settings className="h-4 w-4" /><span>Configurações</span></Link>
+              <Link href="/dashboard/configuracoes" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/configuracoes') && 'bg-muted text-primary')}><Settings className="h-4 w-4" />{!isCollapsed && <span>Configurações</span>}</Link>
             )}
 
-            {/* --- Assinatura --- */}
             {isCollapsed && !isMobile ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -177,12 +158,11 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
                 <TooltipContent side="right">Assinatura</TooltipContent>
               </Tooltip>
             ) : (
-              <Link href="/dashboard/subscription" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/subscription') && 'bg-muted text-primary')}><CreditCard className="h-4 w-4" /><span>Assinatura</span></Link>
+              <Link href="/dashboard/subscription" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/subscription') && 'bg-muted text-primary')}><CreditCard className="h-4 w-4" />{!isCollapsed && <span>Assinatura</span>}</Link>
             )}
             
             <Separator className="my-2" />
 
-            {/* --- Theme Switcher --- */}
             <DropdownMenu>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -197,14 +177,13 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
                 </TooltipTrigger>
                 {(isCollapsed && !isMobile) && <TooltipContent side="right">Alterar Tema</TooltipContent>}
               </Tooltip>
-              <DropdownMenuContent align="end" side="top" sideOffset={12}>
+              <DropdownMenuContent align="end" side={isMobile ? "top" : "right"} sideOffset={12}>
                 <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {/* --- Logout Button --- */}
             {isCollapsed && !isMobile ? (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -213,7 +192,7 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
                 <TooltipContent side="right">Sair</TooltipContent>
               </Tooltip>
             ) : (
-              <Button variant="ghost" onClick={handleLogout} className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary justify-start')}><LogOut className="h-4 w-4" /><span>Sair</span></Button>
+              <Button variant="ghost" onClick={handleLogout} className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary justify-start')}><LogOut className="h-4 w-4" />{!isCollapsed && <span>Sair</span>}</Button>
             )}
           </div>
         </div>
@@ -222,40 +201,13 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
   );
 }
 
-export function DashboardSidebar({ isCollapsed, toggleSidebar }: { isCollapsed: boolean, toggleSidebar: () => void }) {
-  const { settings } = useSettings();
-  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'Gestor Elite';
-  const logoURL = settings.logoURL;
-
+export function DashboardSidebar({ isCollapsed, isMobile = false }: { isCollapsed: boolean, isMobile?: boolean }) {
   return (
-    <>
-      <div className={cn("hidden border-r bg-card md:block", isCollapsed ? "transition-all duration-300" : "transition-all duration-300")}>
-        <NavContent isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-      </div>
-      <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6 md:hidden">
-        <Sheet>
-          <SheetTrigger asChild>
-            <Button variant="outline" size="icon" className="shrink-0">
-              <Menu className="h-5 w-5" />
-              <span className="sr-only">Toggle navigation menu</span>
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="flex flex-col p-0">
-            <SheetTitle className="sr-only">Menu Principal</SheetTitle>
-            <SheetDescription className="sr-only">Navegue pelas diferentes seções do aplicativo.</SheetDescription>
-            <NavContent isCollapsed={false} isMobile={true} />
-          </SheetContent>
-        </Sheet>
-        <div className="flex items-center gap-2 font-semibold">
-          {logoURL ? (
-              <Image src={logoURL} alt="Logo" width={24} height={24} className="h-6 w-6" />
-          ) : (
-              <Icon className="h-6 w-6 text-primary" />
-          )}
-          <span className="">{siteName}</span>
-        </div>
-      </header>
-    </>
+    <aside className={cn(
+      "transition-all duration-300 ease-in-out",
+      isMobile ? "w-full" : (isCollapsed ? "w-[72px]" : "w-[220px] lg:w-[280px]")
+    )}>
+      <NavContent isCollapsed={isCollapsed} isMobile={isMobile} />
+    </aside>
   );
 }

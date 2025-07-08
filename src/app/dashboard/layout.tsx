@@ -5,11 +5,13 @@ import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { TrialBanner } from '@/components/trial-banner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ChevronsLeft, Menu } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export default function DashboardLayout({
   children,
@@ -53,7 +55,6 @@ export default function DashboardLayout({
         return; // User is on a valid trial, allow full access
       }
       
-      // If user has no plan (e.g., trial expired), redirect to subscription page.
       if (!systemUser.planId) {
         if (pathname !== '/dashboard/subscription') {
           router.push('/dashboard/subscription');
@@ -61,14 +62,12 @@ export default function DashboardLayout({
         return;
       }
 
-      // If user has a plan but it's not active, also redirect to subscription management.
       if (systemUser.subscriptionStatus !== 'active') {
         if (pathname !== '/dashboard/subscription') {
           router.push('/dashboard/subscription');
         }
       }
     }
-
   }, [user, systemUser, isAdmin, loading, router, pathname]);
 
   if (loading || !user || !isMounted) {
@@ -84,7 +83,6 @@ export default function DashboardLayout({
     const hasActivePlan = systemUser.planId && systemUser.subscriptionStatus === 'active';
     const isSubscriptionPage = pathname === '/dashboard/subscription';
 
-    // If user is not on trial and doesn't have an active plan, show loader while redirecting
     if (!isOnTrial && !hasActivePlan && !isSubscriptionPage) {
        return (
          <div className="flex items-center justify-center h-screen bg-background">
@@ -101,16 +99,32 @@ export default function DashboardLayout({
     <>
       <DynamicLayoutEffects />
       <TrialBanner />
-      <div className={cn(
-        "grid h-screen w-full transition-all duration-300 ease-in-out",
-        isCollapsed ? "md:grid-cols-[72px_1fr]" : "md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]",
-        isOnTrial && "pt-14"
-      )}>
-        <DashboardSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-        <div className="flex flex-col overflow-hidden">
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50 overflow-y-auto">
-            {children}
-          </main>
+      <div className={cn("h-screen w-full flex", isOnTrial && "pt-12")}>
+        <div className="hidden md:block">
+            <DashboardSidebar isCollapsed={isCollapsed} />
+        </div>
+        <div className="flex-1 flex flex-col overflow-hidden">
+            <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
+                <div className="md:hidden">
+                    <Sheet>
+                        <SheetTrigger asChild>
+                            <Button variant="outline" size="icon" className="shrink-0">
+                                <Menu className="h-5 w-5" />
+                                <span className="sr-only">Toggle navigation menu</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent side="left" className="flex flex-col p-0">
+                            <DashboardSidebar isCollapsed={false} isMobile={true} />
+                        </SheetContent>
+                    </Sheet>
+                </div>
+                <Button onClick={toggleSidebar} variant="outline" size="icon" className="h-8 w-8 hidden md:flex">
+                    <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+                </Button>
+            </header>
+            <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+              {children}
+            </main>
         </div>
       </div>
       <WhatsAppSupportButton />
