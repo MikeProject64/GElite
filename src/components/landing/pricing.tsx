@@ -108,7 +108,7 @@ export function Pricing() {
         </ScrollReveal>
 
         {/* Mobile Carousel View */}
-        <div className="md:hidden">
+        <ScrollReveal delay={200} className="md:hidden">
             <Carousel opts={{ align: "start" }} className="w-full max-w-md mx-auto">
               <CarouselContent className="-ml-2">
                 {plans.map((plan, index) => {
@@ -118,7 +118,7 @@ export function Pricing() {
                   
                   return (
                     <CarouselItem key={plan.id} className="basis-11/12 pl-2">
-                      <ScrollReveal className="p-1 h-full flex" delay={index * 100}>
+                      <div className="p-1 h-full flex">
                         <Card className={cn('relative flex flex-col h-full shadow-sm w-full', index === 1 && 'border-primary')}>
                           {index === 1 && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2">Mais Popular</Badge>}
                           <CardHeader className="text-center">
@@ -152,13 +152,13 @@ export function Pricing() {
                               </Button>
                           </CardFooter>
                         </Card>
-                      </ScrollReveal>
+                      </div>
                     </CarouselItem>
                   )
                 })}
               </CarouselContent>
             </Carousel>
-        </div>
+        </ScrollReveal>
 
         {/* Desktop Grid View */}
         <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
