@@ -14,14 +14,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ShieldCheck, CheckCircle } from 'lucide-react';
-import { createCheckoutSession, checkEmailExists, createTrialUser } from './actions';
+import { createCheckoutSession, checkEmailExists, createTrialUser } from '@/app/signup/actions';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Plan } from '@/types';
-import { Skeleton } from '../ui/skeleton';
-import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
-import { Badge } from '../ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
@@ -316,3 +316,5 @@ export default function SignupPage() {
         </main>
     );
 }
+
+    
