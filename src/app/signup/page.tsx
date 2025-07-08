@@ -24,6 +24,7 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/components/auth-provider';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -263,17 +264,35 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
 
 function SignupPageContent() {
     const searchParams = useSearchParams();
+    const router = useRouter();
+    const { user, loading } = useAuth();
+
     const isTrial = searchParams.get('trial') === 'true';
     const planId = searchParams.get('planId');
     const interval = searchParams.get('interval') as 'month' | 'year' | null || 'month';
-    const router = useRouter();
 
+    // Redirect logged in users to dashboard
     useEffect(() => {
-        if (!isTrial && !planId) {
-            router.push('/#pricing');
+        if (!loading && user) {
+            router.push('/dashboard');
         }
-    }, [isTrial, planId, router]);
+    }, [user, loading, router]);
+    
+    // Redirect to pricing if no params are present and user is not logged in
+    useEffect(() => {
+        if (!loading && !user) {
+            if (!isTrial && !planId) {
+                router.push('/#pricing');
+            }
+        }
+    }, [isTrial, planId, router, user, loading]);
 
+    // Show a loader while auth state is resolving or if user is logged in (before redirect)
+    if (loading || user) {
+        return <div className='flex justify-center items-center h-48'><Loader2 className='h-8 w-8 animate-spin' /></div>;
+    }
+
+    // Once auth is resolved and we know there's no user, render the correct form
     if (isTrial) {
         return <TrialSignupForm />;
     }
@@ -282,6 +301,7 @@ function SignupPageContent() {
         return <PaidSignupForm planId={planId} interval={interval} />;
     }
     
+    // Fallback loader while redirecting to pricing page if needed
     return <div className='flex justify-center items-center h-48'><Loader2 className='h-8 w-8 animate-spin' /></div>;
 }
 
