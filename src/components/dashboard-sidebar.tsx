@@ -23,6 +23,7 @@ import {
   CreditCard,
   Sun,
   Moon,
+  ChevronsLeft,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -39,10 +40,11 @@ import { Separator } from './ui/separator';
 
 interface NavContentProps {
   isCollapsed: boolean;
+  toggleSidebar: () => void;
   isMobile?: boolean;
 }
 
-function NavContent({ isCollapsed, isMobile = false }: NavContentProps) {
+function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContentProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
@@ -130,6 +132,11 @@ function NavContent({ isCollapsed, isMobile = false }: NavContentProps) {
             )}
             {(!isCollapsed || isMobile) && <span className="">{siteName}</span>}
           </Link>
+          {!isMobile && (
+            <Button onClick={toggleSidebar} variant="ghost" size="icon" className={cn("h-8 w-8 ml-auto", isCollapsed && "ml-2")}>
+              <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+            </Button>
+          )}
         </div>
 
         <div className="flex-1 overflow-y-auto">
@@ -201,13 +208,13 @@ function NavContent({ isCollapsed, isMobile = false }: NavContentProps) {
   );
 }
 
-export function DashboardSidebar({ isCollapsed, isMobile = false }: { isCollapsed: boolean, isMobile?: boolean }) {
+export function DashboardSidebar({ isCollapsed, toggleSidebar, isMobile = false }: { isCollapsed: boolean, toggleSidebar: () => void, isMobile?: boolean }) {
   return (
     <aside className={cn(
       "transition-all duration-300 ease-in-out",
       isMobile ? "w-full" : (isCollapsed ? "w-[72px]" : "w-[220px] lg:w-[280px]")
     )}>
-      <NavContent isCollapsed={isCollapsed} isMobile={isMobile} />
+      <NavContent isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} isMobile={isMobile} />
     </aside>
   );
 }

@@ -101,26 +101,21 @@ export default function DashboardLayout({
       <TrialBanner />
       <div className={cn("h-screen w-full flex", isOnTrial && "pt-12")}>
         <div className="hidden md:block">
-            <DashboardSidebar isCollapsed={isCollapsed} />
+            <DashboardSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
         </div>
         <div className="flex-1 flex flex-col overflow-hidden">
-            <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] lg:px-6">
-                <div className="md:hidden">
-                    <Sheet>
-                        <SheetTrigger asChild>
-                            <Button variant="outline" size="icon" className="shrink-0">
-                                <Menu className="h-5 w-5" />
-                                <span className="sr-only">Toggle navigation menu</span>
-                            </Button>
-                        </SheetTrigger>
-                        <SheetContent side="left" className="flex flex-col p-0">
-                            <DashboardSidebar isCollapsed={false} isMobile={true} />
-                        </SheetContent>
-                    </Sheet>
-                </div>
-                <Button onClick={toggleSidebar} variant="outline" size="icon" className="h-8 w-8 hidden md:flex">
-                    <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
-                </Button>
+            <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] md:hidden">
+                 <Sheet>
+                    <SheetTrigger asChild>
+                        <Button variant="outline" size="icon" className="shrink-0">
+                            <Menu className="h-5 w-5" />
+                            <span className="sr-only">Toggle navigation menu</span>
+                        </Button>
+                    </SheetTrigger>
+                    <SheetContent side="left" className="flex flex-col p-0">
+                        <DashboardSidebar isCollapsed={false} toggleSidebar={() => {}} isMobile={true} />
+                    </SheetContent>
+                </Sheet>
             </header>
             <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
               {children}
