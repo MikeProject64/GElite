@@ -15,7 +15,6 @@ import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
 import { MonthlyRevenueChart } from '@/components/dashboard/monthly-revenue-chart';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/components/settings-provider';
@@ -256,14 +255,35 @@ export default function DashboardPage() {
         content: (
             <Card className="h-full flex flex-col">
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Activity /> Ações Rápidas</CardTitle>
+                    <CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5" /> Ações Rápidas</CardTitle>
                     <CardDescription>Crie novos registros com um clique.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col flex-grow justify-center">
-                    <div className="flex flex-col gap-2">
-                        <Button asChild><Link href="/dashboard/servicos/criar"><PlusCircle /> Nova O.S.</Link></Button>
-                        <Button asChild variant="secondary"><Link href="/dashboard/orcamentos/criar"><FilePlus /> Novo Orçamento</Link></Button>
-                        <Button asChild variant="secondary"><Link href="/dashboard/base-de-clientes"><UserPlus /> Novo Cliente</Link></Button>
+                    <div className="grid grid-cols-2 gap-4">
+                        <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
+                            <Link href="/dashboard/servicos/criar">
+                                <PlusCircle className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium">Nova O.S.</span>
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
+                            <Link href="/dashboard/orcamentos/criar">
+                                <FilePlus className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium">Novo Orçamento</span>
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
+                            <Link href="/dashboard/base-de-clientes">
+                                <UserPlus className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium">Novo Cliente</span>
+                            </Link>
+                        </Button>
+                        <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
+                            <Link href="/dashboard/colaboradores">
+                                <Briefcase className="h-8 w-8 text-primary" />
+                                <span className="text-sm font-medium">Novo Colaborador</span>
+                            </Link>
+                        </Button>
                     </div>
                 </CardContent>
             </Card>
@@ -335,103 +355,104 @@ export default function DashboardPage() {
     <div className='flex flex-col gap-6'>
         <div className="flex items-center justify-between gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
-            <div className="flex items-center gap-2 ml-auto">
-               <div className="relative w-full max-w-sm hidden md:block">
-                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
-                      <PopoverTrigger asChild>
-                          <div className="relative">
-                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                              <Input
-                                  placeholder="Buscar em todo o sistema..."
-                                  className="w-full pl-10"
-                                  value={searchTerm}
-                                  onChange={(e) => {
-                                      const term = e.target.value;
-                                      setSearchTerm(term);
-                                      if (term.length > 1) {
-                                      setIsPopoverOpen(true);
-                                      } else {
-                                      setIsPopoverOpen(false);
-                                      }
-                                  }}
-                              />
-                          </div>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
-                          <ScrollArea className="h-60">
-                              {searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}
-                              {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
-                                  <p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>
-                              )}
-                              {searchResults.length > 0 && (
-                                  searchResults.map((result) => (
-                                      <Button
-                                          variant="ghost"
-                                          key={result.id}
-                                          className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto"
-                                          onClick={() => {
-                                              router.push(result.href);
-                                              setIsPopoverOpen(false);
-                                              setSearchTerm('');
-                                          }}
-                                      >
-                                          {getSearchIcon(result.type)}
-                                          <div className='ml-2 text-left'>
-                                              <p className='font-medium'>{result.title}</p>
-                                              <p className="text-xs text-muted-foreground">{result.description}</p>
-                                          </div>
-                                      </Button>
-                                  ))
-                              )}
-                          </ScrollArea>
-                      </PopoverContent>
-                  </Popover>
-               </div>
-                <Dialog>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm">
-                            <Layout className="mr-2 h-4 w-4" />
-                            Personalizar
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Personalizar Painel</DialogTitle>
-                            <DialogDescription>Selecione os painéis que você deseja exibir.</DialogDescription>
-                        </DialogHeader>
-                        <div className="space-y-4 py-4">
-                          <h3 className="mb-2 font-semibold text-lg">Métricas Rápidas</h3>
-                          <div className="space-y-2">
-                            {smallPanelIds.map(panelId => {
-                              const panel = (panels as any)[panelId];
-                              if (!panel) return null;
-                              return (
-                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                                  <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                                  <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                                </div>
-                              )
-                            })}
-                          </div>
-                          <Separator />
-                          <h3 className="mb-2 font-semibold text-lg">Painéis Detalhados</h3>
-                          <div className="space-y-2">
-                             {largePanelIds.map(panelId => {
-                              const panel = (panels as any)[panelId];
-                              if (!panel) return null;
-                              return (
-                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                                  <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                                  <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            </div>
+            <Dialog>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <Layout className="mr-2 h-4 w-4" />
+                        Personalizar
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Personalizar Painel</DialogTitle>
+                        <DialogDescription>Selecione os painéis que você deseja exibir.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                      <h3 className="mb-2 font-semibold text-lg">Métricas Rápidas</h3>
+                      <div className="space-y-2">
+                        {smallPanelIds.map(panelId => {
+                          const panel = (panels as any)[panelId];
+                          if (!panel) return null;
+                          return (
+                            <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                              <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                              <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <Separator />
+                      <h3 className="mb-2 font-semibold text-lg">Painéis Detalhados</h3>
+                      <div className="space-y-2">
+                         {largePanelIds.map(panelId => {
+                          const panel = (panels as any)[panelId];
+                          if (!panel) return null;
+                          return (
+                            <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                              <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                              <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
+
+        <div className="relative w-full" ref={popoverRef}>
+            <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                <Input
+                    placeholder="Buscar em todo o sistema (clientes, serviços, orçamentos...)"
+                    className="w-full pl-12 h-14 text-base rounded-xl shadow-sm"
+                    value={searchTerm}
+                    onChange={(e) => {
+                        const term = e.target.value;
+                        setSearchTerm(term);
+                        if (term.length > 1) {
+                        setIsPopoverOpen(true);
+                        } else {
+                        setIsPopoverOpen(false);
+                        }
+                    }}
+                    onFocus={() => { if (searchTerm.length > 1) setIsPopoverOpen(true); }}
+                />
+            </div>
+            {isPopoverOpen && searchTerm.length > 1 && (
+                <Card className="absolute z-20 w-full mt-1 shadow-lg border">
+                    <CardContent className="p-0">
+                        <ScrollArea className="h-60">
+                            {searchLoading && <div className="p-4 text-center text-sm flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>Buscando...</div>}
+                            {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
+                                <p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>
+                            )}
+                            {searchResults.length > 0 && (
+                                searchResults.map((result) => (
+                                    <Button
+                                        variant="ghost"
+                                        key={result.id + result.type}
+                                        className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto border-b last:border-b-0"
+                                        onClick={() => {
+                                            router.push(result.href);
+                                            setIsPopoverOpen(false);
+                                            setSearchTerm('');
+                                        }}
+                                    >
+                                        {getSearchIcon(result.type)}
+                                        <div className='ml-3 text-left'>
+                                            <p className='font-medium'>{result.title}</p>
+                                            <p className="text-xs text-muted-foreground">{result.description}</p>
+                                        </div>
+                                    </Button>
+                                ))
+                            )}
+                        </ScrollArea>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+
 
         {loading ? <DashboardSkeleton /> : (
           <div className="space-y-6">
