@@ -3,26 +3,26 @@
 import { PieChart, Pie, Cell, Tooltip } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChartConfig, ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Wrench } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import React from 'react';
 
-interface OrderStatusChartProps {
+interface ServiceTypeChartProps {
   data: {
-    status: string;
+    type: string;
     count: number;
     fill: string;
   }[];
 }
 
-export function OrderStatusChart({ data }: OrderStatusChartProps) {
+export function ServiceTypeChart({ data }: ServiceTypeChartProps) {
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       count: { label: 'Ordens de Serviço' },
     };
     if (data) {
         data.forEach(item => {
-        config[item.status] = {
-            label: item.status,
+        config[item.type] = {
+            label: item.type,
             color: item.fill,
         };
         });
@@ -33,8 +33,8 @@ export function OrderStatusChart({ data }: OrderStatusChartProps) {
   return (
     <Card className="flex flex-col h-full">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Wrench /> Ordens por Status</CardTitle>
-        <CardDescription>Distribuição de todas as ordens de serviço cadastradas.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><SlidersHorizontal /> Serviços por Tipo</CardTitle>
+        <CardDescription>Distribuição dos tipos de serviço mais comuns.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -44,21 +44,21 @@ export function OrderStatusChart({ data }: OrderStatusChartProps) {
           <PieChart>
             <Tooltip
               cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="status" />}
+              content={<ChartTooltipContent hideLabel nameKey="type" />}
             />
             <Pie
               data={data}
               dataKey="count"
-              nameKey="status"
+              nameKey="type"
               innerRadius={60}
               strokeWidth={5}
             >
               {data.map((entry) => (
-                <Cell key={`cell-${entry.status}`} fill={entry.fill} />
+                <Cell key={`cell-${entry.type}`} fill={entry.fill} />
               ))}
             </Pie>
             <ChartLegend
-              content={<ChartLegendContent nameKey="status" />}
+              content={<ChartLegendContent nameKey="type" />}
               className="-mt-4"
             />
           </PieChart>

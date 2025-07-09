@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, SlidersHorizontal } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -15,6 +15,7 @@ import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
 import { MonthlyRevenueChart } from '@/components/dashboard/monthly-revenue-chart';
+import { ServiceTypeChart } from '@/components/dashboard/service-type-chart';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/components/settings-provider';
@@ -37,6 +38,7 @@ interface SearchResult {
 interface ChartData {
   orderStatus: { status: string; count: number; fill: string; }[];
   monthlyRevenue: { month: string; total: number; }[];
+  serviceTypes: { type: string; count: number; fill: string; }[];
 }
 
 interface DashboardStats {
@@ -46,17 +48,17 @@ interface DashboardStats {
     pendingQuotes: number;
 }
 
-const STATUS_COLORS: { [key: string]: string } = {
-  'Pendente': 'hsl(var(--chart-1))',
-  'Em Andamento': 'hsl(var(--chart-2))',
-  'Concluída': 'hsl(var(--chart-4))',
-  'Cancelada': 'hsl(var(--chart-5))',
-};
-
 const getStatusColor = (status: string) => {
+    const STATUS_COLORS: { [key: string]: string } = {
+      'Pendente': 'hsl(var(--destructive))',
+      'Em Andamento': 'hsl(var(--chart-4))',
+      'Concluída': 'hsl(var(--chart-2))',
+      'Cancelada': 'hsl(var(--chart-5))',
+    };
     if (STATUS_COLORS[status]) {
         return STATUS_COLORS[status];
     }
+    // Fallback for custom statuses
     let hash = 0;
     for (let i = 0; i < status.length; i++) {
         hash = status.charCodeAt(i) + ((hash << 5) - hash);
@@ -66,7 +68,7 @@ const getStatusColor = (status: string) => {
 };
 
 const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'total-customers'];
-const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart'];
+const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
 const allPanelIds = [...smallPanelIds, ...largePanelIds];
 
 const initialPanelVisibility = allPanelIds.reduce((acc, id) => ({ ...acc, [id]: true }), {});
@@ -90,7 +92,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0 });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [] });
+  const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [], serviceTypes: [] });
   const [criticalDeadlines, setCriticalDeadlines] = useState<ServiceOrder[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
@@ -164,7 +166,19 @@ export default function DashboardPage() {
             const monthKey = format(date, 'yyyy-MM');
             return { month: format(date, 'MMM/yy', { locale: ptBR }), total: monthlyRevenueMap[monthKey] || 0 };
         });
-        setChartData({ orderStatus, monthlyRevenue });
+
+        const serviceTypeCounts = allOrders.reduce((acc, order) => {
+            const type = order.serviceType || 'Não especificado';
+            acc[type] = (acc[type] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        const serviceTypes = Object.entries(serviceTypeCounts).map(([type, count], index) => ({
+            type,
+            count,
+            fill: `hsl(var(--chart-${(index % 5) + 1}))`
+        })).sort((a, b) => b.count - a.count);
+
+        setChartData({ orderStatus, monthlyRevenue, serviceTypes });
 
         const recentOrders = [...allOrders].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         const recentCustomers = [...allCustomers].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
@@ -334,6 +348,10 @@ export default function DashboardPage() {
       title: 'Faturamento Mensal',
       content: <MonthlyRevenueChart data={chartData.monthlyRevenue} />
     },
+    'service-type-chart': {
+        title: 'Serviços por Tipo',
+        content: <ServiceTypeChart data={chartData.serviceTypes} />
+    },
     'recent-activity': {
       title: 'Atividade Recente',
       content: (
@@ -481,3 +499,4 @@ export default function DashboardPage() {
   );
 }
 
+    
