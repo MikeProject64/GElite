@@ -1,4 +1,3 @@
-
 rules_version = '2';
 
 service cloud.firestore {
@@ -28,13 +27,6 @@ service cloud.firestore {
     match /siteConfig/{configId} {
       allow read: if true;
       allow write: if isAdmin();
-    }
-
-    // --- Custom Pages ---
-    // Admins have full access. Public can read individual public pages.
-    match /customPages/{pageId} {
-      allow create, update, delete, list: if isAdmin();
-      allow get: if resource.data.isPublic == true || isAdmin();
     }
 
     // --- User Accounts ---
@@ -85,6 +77,14 @@ service cloud.firestore {
     }
      match /userSettings/{userId} {
       allow create, update, read: if isOwner(userId) || isAdmin();
+    }
+
+    // --- Public Custom Pages ---
+    match /customPages/{pageId} {
+      // Anyone can read a page if it's public. Admins can read any page.
+      allow read: if resource.data.isPublic == true || isAdmin();
+      // Only admins can create, update, or delete pages.
+      allow write: if isAdmin();
     }
   }
 }
