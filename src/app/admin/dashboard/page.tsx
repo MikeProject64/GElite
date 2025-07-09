@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, orderBy, limit, where, getDocs } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
@@ -10,25 +10,24 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Users, CreditCard, Package } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SystemUser, Plan } from '@/types';
+import { getActiveSubscriptionCount } from './actions';
+import { useToast } from '@/hooks/use-toast';
 
 export default function AdminDashboardPage() {
   const [stats, setStats] = useState({ totalUsers: 0, activeSubscriptions: 0, totalPlans: 0 });
   const [recentUsers, setRecentUsers] = useState<SystemUser[]>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
+    // Firestore listeners
     const usersQuery = query(collection(db, 'users'));
-    const activeSubsQuery = query(collection(db, 'users'), where('subscriptionStatus', '==', 'active'));
     const plansQuery = query(collection(db, 'plans'));
     const recentUsersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(5));
 
     const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
       setStats(prev => ({ ...prev, totalUsers: snapshot.size }));
-    });
-
-    const unsubActiveSubs = onSnapshot(activeSubsQuery, (snapshot) => {
-      setStats(prev => ({ ...prev, activeSubscriptions: snapshot.size }));
     });
 
     const unsubPlans = onSnapshot(plansQuery, (snapshot) => {
@@ -42,14 +41,33 @@ export default function AdminDashboardPage() {
       setRecentUsers(usersData);
     });
 
-    // Handle initial loading state
+    // Stripe API call
+    const fetchStripeData = async () => {
+        try {
+            const result = await getActiveSubscriptionCount();
+            if (result.success) {
+                setStats(prev => ({ ...prev, activeSubscriptions: result.count ?? 0 }));
+            } else {
+                console.error("Failed to fetch Stripe active subs:", result.message);
+                toast({
+                    variant: 'destructive',
+                    title: 'Erro de API do Stripe',
+                    description: result.message || 'Não foi possível carregar as assinaturas ativas.',
+                });
+            }
+        } catch (error) {
+            console.error("Error calling getActiveSubscriptionCount:", error);
+        }
+    };
+
     const initialLoad = async () => {
+        setLoading(true);
         try {
             await Promise.all([
                 getDocs(usersQuery),
-                getDocs(activeSubsQuery),
                 getDocs(plansQuery),
-                getDocs(recentUsersQuery)
+                getDocs(recentUsersQuery),
+                fetchStripeData()
             ]);
         } catch (error) {
             console.error("Error during initial data fetch:", error);
@@ -62,11 +80,10 @@ export default function AdminDashboardPage() {
 
     return () => {
       unsubUsers();
-      unsubActiveSubs();
       unsubPlans();
       unsubRecentUsers();
     };
-  }, []);
+  }, [toast]);
 
   const getPlanName = (planId?: string) => {
     if (!planId) return 'N/A';
@@ -100,12 +117,12 @@ export default function AdminDashboardPage() {
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assinaturas Ativas</CardTitle>
+            <CardTitle className="text-sm font-medium">Assinaturas Ativas (Stripe)</CardTitle>
             <CreditCard className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {loading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>}
-            <p className="text-xs text-muted-foreground">Usuários com um plano pago ativo.</p>
+            <p className="text-xs text-muted-foreground">Contagem real de assinaturas no Stripe.</p>
           </CardContent>
         </Card>
         <Card>
