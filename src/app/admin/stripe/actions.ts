@@ -32,8 +32,10 @@ export interface StripeDashboardData {
     mrr?: number;
     revenueLast30Days?: number;
     activeSubscriptions?: number;
+    avgRevenuePerUser?: number;
     recentCharges?: { id: string; amount: number; currency: string; created: number; customerEmail: string | null; receipt_url: string | null }[];
     dailyRevenue?: { date: string; total: number; }[];
+    subscriptionBreakdown?: { name: string; count: number; }[];
 }
 
 
@@ -43,12 +45,13 @@ export async function getStripeDashboardData(): Promise<StripeDashboardData> {
         
         let mrr = 0;
         let activeSubscriptions = 0;
+        const subscriptionBreakdownMap = new Map<string, number>();
         const endDate = new Date();
         const startDate = subDays(endDate, 29);
         const thirtyDaysAgoTimestamp = Math.floor(startDate.getTime() / 1000);
 
-        // 1. Calculate MRR and Active Subscriptions
-        for await (const subscription of stripe.subscriptions.list({ status: 'active', limit: 100, expand: ['data.plan'] })) {
+        // 1. Calculate MRR, Active Subscriptions, and Breakdown
+        for await (const subscription of stripe.subscriptions.list({ status: 'active', limit: 100, expand: ['data.plan.product'] })) {
             activeSubscriptions++;
             const plan = subscription.plan;
             if (plan && plan.amount) {
@@ -58,7 +61,13 @@ export async function getStripeDashboardData(): Promise<StripeDashboardData> {
                     mrr += plan.amount;
                 }
             }
+             // Subscription Breakdown Calculation
+            const productName = (plan.product as Stripe.Product)?.name || 'Plano Desconhecido';
+            subscriptionBreakdownMap.set(productName, (subscriptionBreakdownMap.get(productName) || 0) + 1);
         }
+
+        const avgRevenuePerUser = activeSubscriptions > 0 ? (mrr / 100) / activeSubscriptions : 0;
+        const subscriptionBreakdown = Array.from(subscriptionBreakdownMap.entries()).map(([name, count]) => ({ name, count }));
 
         // 2. Calculate Revenue and Daily Revenue for the last 30 days
         let revenueLast30Days = 0;
@@ -99,8 +108,10 @@ export async function getStripeDashboardData(): Promise<StripeDashboardData> {
             mrr: mrr / 100,
             revenueLast30Days: revenueLast30Days / 100,
             activeSubscriptions,
+            avgRevenuePerUser,
             recentCharges,
             dailyRevenue,
+            subscriptionBreakdown,
         };
 
     } catch (error: any) {
