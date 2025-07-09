@@ -34,9 +34,15 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
+  DropdownMenuPortal
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Separator } from './ui/separator';
+import { Avatar, AvatarFallback } from './ui/avatar';
+
 
 interface NavContentProps {
   isCollapsed: boolean;
@@ -143,70 +149,70 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
           {mainNav}
         </div>
 
-        <div className="mt-auto border-t">
-          <div className={cn("grid items-start text-sm font-medium", isCollapsed ? "p-2 space-y-1" : "p-4 space-y-1")}>
-            
-            {isCollapsed && !isMobile ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link href="/dashboard/configuracoes" className={cn('flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8', pathname.startsWith('/dashboard/configuracoes') && 'bg-accent text-accent-foreground')}><Settings className="h-5 w-5" /><span className="sr-only">Configurações</span></Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">Configurações</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Link href="/dashboard/configuracoes" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/configuracoes') && 'bg-muted text-primary')}><Settings className="h-4 w-4" />{!isCollapsed && <span>Configurações</span>}</Link>
-            )}
-
-            {isCollapsed && !isMobile ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Link href="/dashboard/subscription" className={cn('flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8', pathname.startsWith('/dashboard/subscription') && 'bg-accent text-accent-foreground')}><CreditCard className="h-5 w-5" /><span className="sr-only">Assinatura</span></Link>
-                </TooltipTrigger>
-                <TooltipContent side="right">Assinatura</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Link href="/dashboard/subscription" className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary', pathname.startsWith('/dashboard/subscription') && 'bg-muted text-primary')}><CreditCard className="h-4 w-4" />{!isCollapsed && <span>Assinatura</span>}</Link>
-            )}
-            
-            <Separator className="my-2" />
-
+        <div className="mt-auto p-2 border-t">
             <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className={cn('flex items-center gap-3 px-3 py-2 justify-start text-muted-foreground transition-all hover:text-primary', isCollapsed && !isMobile && "h-9 w-9 justify-center p-0 md:h-8 md:w-8")}>
-                      <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                      <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                      {(!isCollapsed || isMobile) && <span className="ml-0">Alterar Tema</span>}
-                      <span className="sr-only">Alterar Tema</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                {(isCollapsed && !isMobile) && <TooltipContent side="right">Alterar Tema</TooltipContent>}
-              </Tooltip>
-              <DropdownMenuContent align="end" side={isMobile ? "top" : "right"} sideOffset={12}>
-                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className={cn("w-full justify-start text-left", isCollapsed && !isMobile ? "h-12 w-12 justify-center" : "h-auto p-2")}>
+                                <div className="flex items-center gap-3">
+                                    <Avatar className={cn("h-9 w-9", isCollapsed && !isMobile && "h-8 w-8")}>
+                                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
+                                    </Avatar>
+                                    {!isCollapsed && (
+                                        <div className="flex-1 overflow-hidden">
+                                            <p className="text-sm font-semibold truncate">{user?.email}</p>
+                                            <p className="text-xs text-muted-foreground">Menu do Usuário</p>
+                                        </div>
+                                    )}
+                                </div>
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    {isCollapsed && !isMobile && <TooltipContent side="right">Menu do Usuário</TooltipContent>}
+                </Tooltip>
 
-            {isCollapsed && !isMobile ? (
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" onClick={handleLogout} className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8 p-0"><LogOut className="h-5 w-5" /><span className="sr-only">Sair</span></Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">Sair</TooltipContent>
-              </Tooltip>
-            ) : (
-              <Button variant="ghost" onClick={handleLogout} className={cn('flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary justify-start')}><LogOut className="h-4 w-4" />{!isCollapsed && <span>Sair</span>}</Button>
-            )}
-          </div>
+                <DropdownMenuContent side="top" align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                     <DropdownMenuItem asChild>
+                        <Link href="/dashboard/configuracoes">
+                            <Settings className="mr-2 h-4 w-4" />
+                            <span>Configurações</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                        <Link href="/dashboard/subscription">
+                            <CreditCard className="mr-2 h-4 w-4" />
+                            <span>Assinatura</span>
+                        </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSub>
+                        <DropdownMenuSubTrigger>
+                            <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                            <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                            <span>Alterar Tema</span>
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuPortal>
+                             <DropdownMenuSubContent>
+                                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+                            </DropdownMenuSubContent>
+                        </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
+
       </div>
     </TooltipProvider>
   );
 }
+
 
 export function DashboardSidebar({ isCollapsed, toggleSidebar, isMobile = false }: { isCollapsed: boolean, toggleSidebar: () => void, isMobile?: boolean }) {
   return (
