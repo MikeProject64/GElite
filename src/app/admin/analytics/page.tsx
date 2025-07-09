@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAnalyticsReports } from './actions';
-import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin, TrendingDown } from 'lucide-react';
+import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin, TrendingDown, LineChart } from 'lucide-react';
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -21,6 +21,7 @@ interface AnalyticsData {
   countries: { name: string; users: number }[];
   devices: { name: string; users: number }[];
   conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
+  dailyViews: { date: string; views: number }[];
 }
 
 const eventTranslations: { [key: string]: string } = {
@@ -68,6 +69,7 @@ export default function AnalyticsPage() {
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
         </div>
+        <Skeleton className="h-96" />
       </div>
     );
   }
@@ -151,6 +153,26 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </div>
+
+       <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (Últimos 30 dias)</CardTitle>
+          <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+            <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={data?.dailyViews}>
+                  <CartesianGrid vertical={false} />
+                  <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                  <YAxis />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                  <Bar dataKey="views" fill="var(--color-views)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+          </ChartContainer>
+        </CardContent>
+       </Card>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-1">

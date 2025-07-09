@@ -4,6 +4,7 @@
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { format, parse } from 'date-fns';
 
 interface AnalyticsReports {
     success: boolean;
@@ -16,6 +17,7 @@ interface AnalyticsReports {
         countries: { name: string; users: number; }[];
         devices: { name: string; users: number; }[];
         conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
+        dailyViews: { date: string; views: number; }[];
     };
 }
 
@@ -69,16 +71,16 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
     });
     const realtimeUsers = parseInt(realtimeResponse.rows?.[0]?.metricValues?.[0]?.value ?? '0', 10);
     
-    // 2. Batch report for other metrics (last 7 days)
+    // 2. Batch report for other metrics (last 30 days for daily, 7 days for others)
     const [batchResponse] = await client.batchRunReports({
       property: propertyPath,
       requests: [
-        // Main Metrics
+        // Main Metrics (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
           metrics: [{ name: 'activeUsers' }, { name: 'newUsers' }, { name: 'conversions' }],
         },
-        // Events
+        // Events (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
           dimensions: [{ name: 'eventName' }],
@@ -92,7 +94,7 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
             },
           },
         },
-        // Pages
+        // Pages (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
           dimensions: [{ name: 'pagePath' }],
@@ -100,7 +102,7 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
           limit: 5,
           orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }]
         },
-        // Countries
+        // Countries (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
           dimensions: [{ name: 'country' }],
@@ -108,11 +110,18 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
           limit: 5,
           orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }]
         },
-        // Devices
+        // Devices (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
           dimensions: [{ name: 'deviceCategory' }],
           metrics: [{ name: 'activeUsers' }],
+        },
+        // Daily Views (30d)
+        {
+          dateRanges: [{ startDate: '29daysAgo', endDate: 'today' }],
+          dimensions: [{ name: 'date' }],
+          metrics: [{ name: 'screenPageViews' }],
+          orderBys: [{ dimension: { dimensionName: 'date' }, desc: false }]
         },
       ],
     });
@@ -156,6 +165,18 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         name: row.dimensionValues?.[0].value ?? 'N/A',
         users: parseInt(row.metricValues?.[0].value ?? '0', 10),
     })) ?? [];
+
+    // Process Daily Views report
+    const dailyViewsReport = batchResponse.reports?.[5];
+    const dailyViews = dailyViewsReport?.rows?.map(row => {
+        // GA4 returns date as '20231225', so we parse it
+        const dateStr = row.dimensionValues?.[0].value ?? '19700101';
+        const parsedDate = parse(dateStr, 'yyyyMMdd', new Date());
+        return {
+            date: format(parsedDate, 'dd/MM'),
+            views: parseInt(row.metricValues?.[0].value ?? '0', 10),
+        };
+    }) ?? [];
     
     // Process Conversion Funnel data
     const getEventCount = (eventName: string) => events.find(e => e.name === eventName)?.count ?? 0;
@@ -175,6 +196,7 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         countries,
         devices,
         conversionFunnel,
+        dailyViews,
       },
     };
 
