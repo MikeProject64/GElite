@@ -51,6 +51,10 @@ export interface UserSettings {
   smtpPassword?: string;
   emailRecipients?: string[];
   notifyOnNewSubscription?: boolean;
+  stripePublishableKey?: string;
+  stripeSecretKey?: string;
+  whatsAppBusinessAccountId?: string;
+  whatsAppAccessToken?: string;
 }
 
 export interface SystemUser {

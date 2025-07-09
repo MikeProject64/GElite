@@ -1,13 +1,15 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { collection, query, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { format } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, CreditCard, Package } from 'lucide-react';
+import { Users, CreditCard, Package, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { SystemUser, Plan } from '@/types';
 import { getActiveSubscriptionCount } from './actions';
@@ -105,36 +107,45 @@ export default function AdminDashboardPage() {
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{stats.totalUsers}</div>}
-            <p className="text-xs text-muted-foreground">Usuários cadastrados na plataforma.</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Assinaturas Ativas (Stripe)</CardTitle>
-            <CreditCard className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>}
-            <p className="text-xs text-muted-foreground">Contagem real de assinaturas no Stripe.</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Planos Criados</CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{stats.totalPlans}</div>}
-            <p className="text-xs text-muted-foreground">Total de planos disponíveis para assinatura.</p>
-          </CardContent>
-        </Card>
+        <Link href="/admin/users">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{stats.totalUsers}</div>}
+              <p className="text-xs text-muted-foreground">Usuários cadastrados na plataforma.</p>
+            </CardContent>
+          </Card>
+        </Link>
+        <a href="https://dashboard.stripe.com/subscriptions" target="_blank" rel="noopener noreferrer">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Assinaturas Ativas (Stripe)</CardTitle>
+              <div className="flex items-center gap-1 text-muted-foreground">
+                <ExternalLink className="h-3 w-3" />
+                <CreditCard className="h-4 w-4" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>}
+              <p className="text-xs text-muted-foreground">Contagem real de assinaturas no Stripe.</p>
+            </CardContent>
+          </Card>
+        </a>
+        <Link href="/admin/plans">
+          <Card className="hover:bg-muted/50 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Planos Criados</CardTitle>
+              <Package className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{stats.totalPlans}</div>}
+              <p className="text-xs text-muted-foreground">Total de planos disponíveis para assinatura.</p>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <Card>

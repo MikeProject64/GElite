@@ -35,7 +35,8 @@ function AdminNavContent() {
     { href: '/admin/dashboard', label: 'Painel', icon: LayoutDashboard },
     { href: '/admin/home', label: 'Home', icon: ImageIcon },
     { href: '/admin/users', label: 'Usuários', icon: Users },
-    { href: '/admin/plans', label: 'Planos', icon: CreditCard },
+    { href: '/admin/plans', label: 'Planos', icon: Package },
+    { href: '/admin/stripe', label: 'Stripe', icon: CreditCard },
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];
