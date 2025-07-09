@@ -1,193 +1,322 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { collection, query, onSnapshot, orderBy, limit, getDocs } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { format } from 'date-fns';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, CreditCard, Package, ExternalLink } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import type { SystemUser, Plan } from '@/types';
-import { getActiveSubscriptionCount } from './actions';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { format } from 'date-fns';
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell } from 'recharts';
+import Link from 'next/link';
 
+// Actions
+import { getAnalyticsReports } from '../analytics/actions';
+import { getStripeDashboardData } from '../stripe/actions';
+
+// Types
+import type { AnalyticsData } from '../analytics/page';
+import type { StripeDashboardData } from '../stripe/page';
+import type { ChartConfig } from '@/components/ui/chart';
+
+// UI Components
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { cn } from '@/lib/utils';
+
+// Icons
+import {
+  Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2,
+  PieChart as PieChartIcon, TrendingDown, LineChart, DollarSign, Wallet, ExternalLink, UserCheck, Layout, Loader2
+} from 'lucide-react';
+
+
+const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+
+const eventTranslations: { [key: string]: string } = {
+  'generate_lead': 'Teste Iniciado',
+  'plano_contratado': 'Plano Contratado',
+  'begin_checkout': 'Iniciou Checkout'
+};
+
+const barChartConfig = {
+  count: { label: "Contagem", color: "hsl(var(--chart-1))" },
+  views: { label: "Visualizações", color: "hsl(var(--chart-2))" },
+  users: { label: "Usuários", color: "hsl(var(--chart-3))" },
+  total: { label: 'Faturamento', color: 'hsl(var(--primary))' },
+} satisfies ChartConfig;
+
+// === Sortable Panel Component ===
+interface SortablePanelProps {
+  id: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const SortablePanel: React.FC<SortablePanelProps> = ({ id, children, className }) => {
+  const { isDragging, attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 10 : undefined,
+  };
+  
+  return (
+    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "opacity-60 shadow-2xl")}>
+       <div {...attributes} {...listeners} className={cn("h-full", isDragging && "cursor-grabbing")}>
+           {children}
+       </div>
+    </div>
+  );
+};
+
+const initialPanelOrder = [
+    // Analytics
+    'realtime-users', 'active-users-7d', 'new-users-7d', 'conversions-7d',
+    'daily-views-chart', 'conversion-funnel', 'event-count-chart',
+    'top-pages', 'device-users',
+    // Stripe
+    'mrr', 'revenue-30d', 'active-subs', 'arpu',
+    'daily-revenue-chart', 'recent-transactions', 'subs-by-plan-chart'
+];
+
+const initialPanelVisibility = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: true }), {});
+
+// === Main Dashboard Page Component ===
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState({ totalUsers: 0, activeSubscriptions: 0, totalPlans: 0 });
-  const [recentUsers, setRecentUsers] = useState<SystemUser[]>([]);
-  const [plans, setPlans] = useState<Plan[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+    const { toast } = useToast();
 
-  useEffect(() => {
-    // Firestore listeners
-    const usersQuery = query(collection(db, 'users'));
-    const plansQuery = query(collection(db, 'plans'));
-    const recentUsersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'), limit(5));
+    // Data State
+    const [analyticsData, setAnalyticsData] = useState<AnalyticsData | null>(null);
+    const [stripeData, setStripeData] = useState<Omit<StripeDashboardData, 'success' | 'message'>>({});
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
-    const unsubUsers = onSnapshot(usersQuery, (snapshot) => {
-      setStats(prev => ({ ...prev, totalUsers: snapshot.size }));
-    });
+    // Layout State
+    const [panelOrder, setPanelOrder] = useState<string[]>(initialPanelOrder);
+    const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
+    const [isMounted, setIsMounted] = useState(false);
+    const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
 
-    const unsubPlans = onSnapshot(plansQuery, (snapshot) => {
-      const planData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plan));
-      setPlans(planData);
-      setStats(prev => ({ ...prev, totalPlans: snapshot.size }));
-    });
-
-    const unsubRecentUsers = onSnapshot(recentUsersQuery, (snapshot) => {
-      const usersData = snapshot.docs.map(doc => ({ ...doc.data(), uid: doc.id } as SystemUser));
-      setRecentUsers(usersData);
-    });
-
-    // Stripe API call
-    const fetchStripeData = async () => {
+    // Load layout from localStorage
+    useEffect(() => {
+        setIsMounted(true);
         try {
-            const result = await getActiveSubscriptionCount();
-            if (result.success) {
-                setStats(prev => ({ ...prev, activeSubscriptions: result.count ?? 0 }));
-            } else {
-                console.error("Failed to fetch Stripe active subs:", result.message);
-                toast({
-                    variant: 'destructive',
-                    title: 'Erro de API do Stripe',
-                    description: result.message || 'Não foi possível carregar as assinaturas ativas.',
-                });
+            const storedOrder = localStorage.getItem('dashboard-panel-order');
+            if (storedOrder) {
+                const parsedOrder = JSON.parse(storedOrder);
+                const validOrder = initialPanelOrder.filter(p => parsedOrder.includes(p));
+                const newPanels = initialPanelOrder.filter(p => !parsedOrder.includes(p));
+                if (validOrder.length > 0) setPanelOrder([...validOrder, ...newPanels]);
             }
-        } catch (error) {
-            console.error("Error calling getActiveSubscriptionCount:", error);
-        }
-    };
+            const storedVisible = localStorage.getItem('dashboard-visible-panels');
+            if (storedVisible) {
+                const parsedVisible = JSON.parse(storedVisible);
+                // Ensure all panels have an entry
+                const updatedVisible = initialPanelOrder.reduce((acc, id) => {
+                    acc[id] = parsedVisible[id] !== false; // Default to true if not found
+                    return acc;
+                }, {} as Record<string, boolean>);
+                setVisiblePanels(updatedVisible);
+            }
+        } catch(e) { console.error("Failed to load layout from localStorage", e); }
+    }, []);
 
-    const initialLoad = async () => {
-        setLoading(true);
-        try {
-            await Promise.all([
-                getDocs(usersQuery),
-                getDocs(plansQuery),
-                getDocs(recentUsersQuery),
-                fetchStripeData()
+    // Save layout to localStorage
+    useEffect(() => { if (isMounted) localStorage.setItem('dashboard-panel-order', JSON.stringify(panelOrder)); }, [panelOrder, isMounted]);
+    useEffect(() => { if (isMounted) localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels)); }, [visiblePanels, isMounted]);
+
+    // Fetch all data
+    useEffect(() => {
+        async function fetchData() {
+            setLoading(true);
+            setError(null);
+            const [analyticsResult, stripeResult] = await Promise.allSettled([
+                getAnalyticsReports(),
+                getStripeDashboardData()
             ]);
-        } catch (error) {
-            console.error("Error during initial data fetch:", error);
-        } finally {
+
+            let errors: string[] = [];
+            if (analyticsResult.status === 'fulfilled' && analyticsResult.value.success) {
+                setAnalyticsData(analyticsResult.value.data!);
+            } else {
+                const message = (analyticsResult as PromiseFulfilledResult<any>).value?.message || (analyticsResult as PromiseRejectedResult).reason?.message || 'Falha ao buscar dados do Analytics.';
+                errors.push(`Analytics: ${message}`);
+            }
+
+            if (stripeResult.status === 'fulfilled' && stripeResult.value.success) {
+                setStripeData(stripeResult.value);
+            } else {
+                const message = (stripeResult as PromiseFulfilledResult<any>).value?.message || (stripeResult as PromiseRejectedResult).reason?.message || 'Falha ao buscar dados do Stripe.';
+                errors.push(`Stripe: ${message}`);
+            }
+
+            if(errors.length > 0) {
+                setError(errors.join(' | '));
+                toast({ variant: 'destructive', title: 'Erro ao Carregar Painel', description: errors.join(' ')});
+            }
             setLoading(false);
         }
+        fetchData();
+    }, [toast]);
+
+    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+    
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+        if (over && active.id !== over.id) {
+          setPanelOrder((items) => {
+            const oldIndex = items.indexOf(active.id as string);
+            const newIndex = items.indexOf(over.id as string);
+            return arrayMove(items, oldIndex, newIndex);
+          });
+        }
     };
 
-    initialLoad();
+    const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
 
-    return () => {
-      unsubUsers();
-      unsubPlans();
-      unsubRecentUsers();
+    const deviceIconMap: { [key: string]: React.ReactNode } = {
+        'Desktop': <Laptop className="h-4 w-4 text-muted-foreground" />,
+        'Mobile': <Smartphone className="h-4 w-4 text-muted-foreground" />,
+        'Tablet': <Tablet className="h-4 w-4 text-muted-foreground" />,
     };
-  }, [toast]);
 
-  const getPlanName = (planId?: string) => {
-    if (!planId) return 'N/A';
-    const plan = plans.find(p => p.id === planId);
-    return plan?.name || 'Não encontrado';
-  };
+    const funnel = analyticsData?.conversionFunnel;
+    const leadConversionRate = funnel && funnel.newUsers > 0 ? (funnel.generatedLeads / funnel.newUsers) * 100 : 0;
+    const purchaseConversionRate = funnel && funnel.generatedLeads > 0 ? (funnel.purchasedPlans / funnel.generatedLeads) * 100 : 0;
 
-  return (
+    const pieChartConfig = useMemo(() => {
+        if (!stripeData.subscriptionBreakdown) return {} as ChartConfig;
+        return {
+            count: { label: 'Assinantes' },
+            ...stripeData.subscriptionBreakdown.reduce((acc, cur, index) => {
+                acc[cur.name] = { label: cur.name, color: `hsl(var(--chart-${(index % 5) + 1}))` };
+                return acc;
+            }, {} as Record<string, { label: string; color: string }>)
+        } satisfies ChartConfig;
+    }, [stripeData.subscriptionBreakdown]);
+    
+    const panels = useMemo(() => ({
+        'realtime-users': { title: 'Usuários Ativos (Agora)', group: 'Analytics', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Usuários Ativos (Agora)</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{analyticsData?.realtime.activeUsers ?? 0}</div><p className="text-xs text-muted-foreground">Nos últimos 30 minutos</p></CardContent></Card> },
+        'active-users-7d': { title: 'Usuários Ativos (7d)', group: 'Analytics', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Usuários Ativos (7d)</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{analyticsData?.mainMetrics.activeUsers ?? 0}</div> <p className="text-xs text-muted-foreground">Usuários únicos nos últimos 7 dias</p></CardContent></Card> },
+        'new-users-7d': { title: 'Novos Usuários (7d)', group: 'Analytics', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Novos Usuários (7d)</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{analyticsData?.mainMetrics.newUsers ?? 0}</div><p className="text-xs text-muted-foreground">Usuários que visitaram pela primeira vez</p></CardContent></Card> },
+        'conversions-7d': { title: 'Conversões (7d)', group: 'Analytics', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Conversões (7d)</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{analyticsData?.mainMetrics.conversions ?? 0}</div><p className="text-xs text-muted-foreground">Testes iniciados, planos, etc.</p></CardContent></Card> },
+        'daily-views-chart': { title: 'Visualizações de Página (30d)', group: 'Analytics', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (30d)</CardTitle><CardDescription>Visualizações de página por dia.</CardDescription></CardHeader><CardContent className="flex-grow"><ChartContainer config={barChartConfig} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData?.dailyViews} maxBarSize={50}><CartesianGrid vertical={false} /><XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} /><YAxis /><Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} /><Bar dataKey="views" fill="var(--color-views)" radius={4} /></BarChart></ResponsiveContainer></ChartContainer></CardContent></Card> },
+        'conversion-funnel': { title: 'Funil de Conversão (7d)', group: 'Analytics', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><TrendingDown /> Funil de Conversão (7d)</CardTitle><CardDescription>Jornada do novo usuário até a contratação.</CardDescription></CardHeader><CardContent className="space-y-4 flex-grow">{funnel && (<><div className="space-y-2"><div className="flex items-center justify-between"><p className="font-medium">Novos Usuários</p><p className="font-bold">{funnel.newUsers}</p></div><Progress value={100} /></div><div className="space-y-2"><div className="flex items-center justify-between"><p className="font-medium">Testes Iniciados</p><p className="font-bold">{funnel.generatedLeads}</p></div><Progress value={leadConversionRate} /><p className="text-xs text-muted-foreground text-right">{leadConversionRate.toFixed(1)}% de conversão</p></div><div className="space-y-2"><div className="flex items-center justify-between"><p className="font-medium">Planos Contratados</p><p className="font-bold">{funnel.purchasedPlans}</p></div><Progress value={(purchaseConversionRate / 100) * leadConversionRate} /><p className="text-xs text-muted-foreground text-right">{purchaseConversionRate.toFixed(1)}% de conversão (dos que iniciaram teste)</p></div></>)}</CardContent></Card> },
+        'event-count-chart': { title: 'Contagem de Eventos (7d)', group: 'Analytics', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle><CardDescription>Eventos chave de conversão.</CardDescription></CardHeader><CardContent className="flex-grow"><ChartContainer config={barChartConfig} className="w-full h-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={analyticsData?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical"><CartesianGrid horizontal={false} /><XAxis type="number" /><YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} /><Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} /><Bar dataKey="count" fill="var(--color-count)" radius={4} /></BarChart></ResponsiveContainer></ChartContainer></CardContent></Card> },
+        'top-pages': { title: 'Páginas Mais Acessadas (7d)', group: 'Analytics', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle><CardDescription>Top 5 páginas mais vistas.</CardDescription></CardHeader><CardContent className="flex-grow"><Table><TableHeader><TableRow><TableHead>Caminho da Página</TableHead><TableHead className="text-right">Visualizações</TableHead></TableRow></TableHeader><TableBody>{analyticsData?.pages.map(page => (<TableRow key={page.path}><TableCell className="font-mono text-xs truncate max-w-xs">{page.path}</TableCell><TableCell className="text-right font-medium">{page.views}</TableCell></TableRow>))}</TableBody></Table></CardContent></Card> },
+        'device-users': { title: 'Usuários por Dispositivo (7d)', group: 'Analytics', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon /> Usuários por Dispositivo</CardTitle><CardDescription>Distribuição de usuários.</CardDescription></CardHeader><CardContent className="flex-grow">{analyticsData?.devices.map(device => (<div key={device.name} className="flex items-center justify-between p-2 rounded hover:bg-muted"><div className="flex items-center gap-2 text-sm">{deviceIconMap[device.name] || <Laptop className="h-4 w-4 text-muted-foreground" />}<span>{device.name}</span></div><span className="font-semibold">{device.users}</span></div>))}</CardContent></Card> },
+        'mrr': { title: 'MRR (Stripe)', group: 'Stripe', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Mensal Recorrente</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(stripeData.mrr ?? 0)}</div><p className="text-xs text-muted-foreground">Previsão de receita mensal.</p></CardContent></Card> },
+        'revenue-30d': { title: 'Receita (30d)', group: 'Stripe', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita (Últimos 30 dias)</CardTitle><TrendingUp className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(stripeData.revenueLast30Days ?? 0)}</div><p className="text-xs text-muted-foreground">Soma de cobranças bem-sucedidas.</p></CardContent></Card> },
+        'active-subs': { title: 'Assinaturas Ativas', group: 'Stripe', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Assinaturas Ativas</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{stripeData.activeSubscriptions ?? 0}</div><p className="text-xs text-muted-foreground">Total de clientes com assinaturas ativas.</p></CardContent></Card> },
+        'arpu': { title: 'ARPU', group: 'Stripe', content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Receita Média / Usuário</CardTitle><UserCheck className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{formatCurrency(stripeData.avgRevenuePerUser ?? 0)}</div><p className="text-xs text-muted-foreground">MRR dividido por assinantes.</p></CardContent></Card> },
+        'daily-revenue-chart': { title: 'Faturamento Diário (30d)', group: 'Stripe', content: <Card className="flex flex-col"><CardHeader><CardTitle>Faturamento Diário (30d)</CardTitle></CardHeader><CardContent className="flex-grow"><ChartContainer config={barChartConfig} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><BarChart data={stripeData.dailyRevenue}><CartesianGrid vertical={false} /><XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} /><YAxis tickFormatter={(value) => formatCurrency(value as number)} /><Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent formatter={(value) => formatCurrency(value as number)} />} /><Bar dataKey="total" fill="var(--color-total)" radius={4} /></BarChart></ResponsiveContainer></ChartContainer></CardContent></Card> },
+        'recent-transactions': { title: 'Últimas Transações', group: 'Stripe', content: <Card className="flex flex-col"><CardHeader><CardTitle>Últimas Transações</CardTitle><CardDescription>As 5 cobranças mais recentes.</CardDescription></CardHeader><CardContent className="flex-grow"><Table><TableHeader><TableRow><TableHead>Cliente</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader><TableBody>{stripeData.recentCharges?.map(charge => (<TableRow key={charge.id}><TableCell><div className="font-medium truncate">{charge.customerEmail}</div><div className="text-xs text-muted-foreground">{format(new Date(charge.created * 1000), 'dd/MM/yyyy HH:mm')}</div></TableCell><TableCell className="text-right"><div className="flex justify-end items-center gap-2">{formatCurrency(charge.amount / 100)}{charge.receipt_url && (<a href={charge.receipt_url} target="_blank" rel="noopener noreferrer" title="Ver recibo no Stripe"><ExternalLink className="h-3.5 w-3.5 text-muted-foreground hover:text-primary"/></a>)}</div></TableCell></TableRow>))}</TableBody></Table></CardContent></Card> },
+        'subs-by-plan-chart': { title: 'Assinantes por Plano', group: 'Stripe', content: <Card className="flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><PieChartIcon /> Assinantes por Plano</CardTitle><CardDescription>Distribuição de assinantes.</CardDescription></CardHeader><CardContent className="flex-grow"><ChartContainer config={pieChartConfig} className="h-full w-full"><ResponsiveContainer width="100%" height="100%"><PieChart><Tooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="name" />} /><Pie data={stripeData.subscriptionBreakdown} dataKey="count" nameKey="name" innerRadius={60} strokeWidth={5} label>{stripeData.subscriptionBreakdown?.map((entry) => (<Cell key={`cell-${entry.name}`} fill={`var(--color-${entry.name})`} />))}</Pie></PieChart></ResponsiveContainer></ChartContainer></CardContent></Card> },
+    }), [analyticsData, stripeData, pieChartConfig]);
+
+    const panelGroups = {
+        'Analytics': initialPanelOrder.filter(p => panels[p as keyof typeof panels]?.group === 'Analytics'),
+        'Stripe': initialPanelOrder.filter(p => panels[p as keyof typeof panels]?.group === 'Stripe'),
+    };
+    
+    if (loading) {
+        return (
+            <div className="space-y-6">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                    {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+                </div>
+                 <div className="grid gap-6 lg:grid-cols-3">
+                    {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-96" />)}
+                </div>
+            </div>
+        );
+    }
+    
+    if (error) {
+        return (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle>Falha ao Carregar o Painel</AlertTitle>
+              <AlertDescription>
+                <p>Ocorreram erros ao buscar dados de um ou mais serviços:</p>
+                <p className='font-mono text-xs mt-2'>{error}</p>
+              </AlertDescription>
+            </Alert>
+        )
+    }
+
+    return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-3xl font-bold tracking-tight">Painel do Administrador</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Bem-vindo, Administrador!</CardTitle>
-          <CardDescription>Esta é a sua área central de gerenciamento. Use o menu à esquerda para navegar pelas funcionalidades.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p>Acompanhe em tempo real o crescimento e as atividades da sua plataforma.</p>
-        </CardContent>
-      </Card>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Link href="/admin/users">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{stats.totalUsers}</div>}
-              <p className="text-xs text-muted-foreground">Usuários cadastrados na plataforma.</p>
-            </CardContent>
-          </Card>
-        </Link>
-        <a href="https://dashboard.stripe.com/subscriptions" target="_blank" rel="noopener noreferrer">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Assinaturas Ativas (Stripe)</CardTitle>
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <ExternalLink className="h-3 w-3" />
-                <CreditCard className="h-4 w-4" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              {loading ? <Skeleton className="h-8 w-16" /> : <div className="text-2xl font-bold">{stats.activeSubscriptions}</div>}
-              <p className="text-xs text-muted-foreground">Contagem real de assinaturas no Stripe.</p>
-            </CardContent>
-          </Card>
-        </a>
-        <Link href="/admin/plans">
-          <Card className="hover:bg-muted/50 transition-colors">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Planos Criados</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              {loading ? <Skeleton className="h-8 w-12" /> : <div className="text-2xl font-bold">{stats.totalPlans}</div>}
-              <p className="text-xs text-muted-foreground">Total de planos disponíveis para assinatura.</p>
-            </CardContent>
-          </Card>
-        </Link>
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">Painel do Administrador</h1>
+        <Button variant="outline" size="sm" onClick={() => setIsLayoutModalOpen(true)}>
+            <Layout className="mr-2 h-4 w-4" /> Personalizar Layout
+        </Button>
       </div>
 
-      <Card className="flex flex-col">
-        <CardHeader>
-          <CardTitle>Últimos Usuários Cadastrados</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-grow">
-          {loading ? (
-            <div className="space-y-4">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Usuário</TableHead>
-                  <TableHead className="hidden sm:table-cell">Plano</TableHead>
-                  <TableHead className="text-right">Data de Cadastro</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentUsers.map(user => (
-                  <TableRow key={user.uid}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>{user.name ? user.name.charAt(0).toUpperCase() : user.email.charAt(0).toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="font-medium truncate">{user.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="hidden sm:table-cell">{user.subscriptionStatus === 'trialing' ? 'Em Teste' : getPlanName(user.planId)}</TableCell>
-                    <TableCell className="text-right">{user.createdAt ? format(user.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+       <Dialog open={isLayoutModalOpen} onOpenChange={setIsLayoutModalOpen}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Personalizar Painel</DialogTitle>
+                    <DialogDescription>Selecione os painéis que deseja exibir. Você pode reordená-los arrastando e soltando na tela principal.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
+                    {Object.entries(panelGroups).map(([groupName, panelIds]) => (
+                        <div key={groupName}>
+                            <h3 className="mb-2 font-semibold text-lg">{groupName}</h3>
+                            <div className="space-y-2">
+                                {panelIds.map(panelId => {
+                                    const panel = (panels as any)[panelId];
+                                    if (!panel) return null;
+                                    return (
+                                        <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                            <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                            <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId]} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                        </div>
+                                    )
+                                })}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </DialogContent>
+        </Dialog>
+      
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {panelOrder.map(panelId => {
+                        const panel = (panels as any)[panelId];
+                        if (!panel || !visiblePanels[panelId]) return null;
+                        
+                        // Determine class based on panel type
+                        const isSmallCard = ['realtime-users', 'active-users-7d', 'new-users-7d', 'conversions-7d', 'mrr', 'revenue-30d', 'active-subs', 'arpu'].includes(panelId);
+                        const isMediumCard = ['daily-views-chart', 'conversion-funnel', 'event-count-chart', 'top-pages', 'device-users', 'daily-revenue-chart', 'recent-transactions', 'subs-by-plan-chart'].includes(panelId);
+
+                        const panelClassName = cn(
+                            isSmallCard && "lg:col-span-1 md:col-span-1",
+                            isMediumCard && "lg:col-span-2 md:col-span-2 min-h-[440px]",
+                        );
+
+                        return (
+                            <SortablePanel key={panelId} id={panelId} className={panelClassName}>
+                               {loading ? <Skeleton className="h-full w-full" /> : panel.content}
+                            </SortablePanel>
+                        );
+                    })}
+                </div>
+            </SortableContext>
+        </DndContext>
     </div>
   );
 }
