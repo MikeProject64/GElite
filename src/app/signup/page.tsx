@@ -27,6 +27,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
 import * as gtag from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
+import * as fbq from '@/lib/meta-pixel';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -102,6 +103,12 @@ function TrialSignupForm() {
               currency: "BRL",
               value: 1
             }});
+            
+            // Fire Meta Pixel event for trial start
+            fbq.event('StartTrial', {
+                value: 1.00,
+                currency: 'BRL',
+            });
 
             await signInWithEmailAndPassword(auth, result.email, values.password);
             toast({ title: "Bem-vindo(a)!", description: "Sua conta de teste foi criada com sucesso." });

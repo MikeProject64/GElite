@@ -5,6 +5,8 @@ import './globals.css';
 import { Providers } from '@/components/providers';
 import { cn } from '@/lib/utils';
 import { GA_TRACKING_ID } from '@/lib/utils';
+import { MetaPixel } from '@/components/meta-pixel';
+import { Suspense } from 'react';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -54,6 +56,9 @@ export default function RootLayout({
             `,
           }}
         />
+        <Suspense fallback={null}>
+          <MetaPixel />
+        </Suspense>
       </head>
       <body className={cn(
         "min-h-screen bg-background font-sans antialiased",
