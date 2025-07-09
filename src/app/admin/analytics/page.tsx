@@ -159,14 +159,14 @@ export default function AnalyticsPage() {
           <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-            <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={data?.dailyViews}>
+          <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
+            <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data?.dailyViews} maxBarSize={80}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis />
                   <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                  <Bar dataKey="views" fill="var(--color-views)" radius={4} maxBarSize={80} />
+                  <Bar dataKey="views" fill="var(--color-views)" radius={4} />
                 </BarChart>
               </ResponsiveContainer>
           </ChartContainer>
