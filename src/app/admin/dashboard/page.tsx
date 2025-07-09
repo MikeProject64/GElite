@@ -148,11 +148,11 @@ export default function AdminDashboardPage() {
         </Link>
       </div>
 
-      <Card>
+      <Card className="flex flex-col">
         <CardHeader>
           <CardTitle>Últimos Usuários Cadastrados</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex-grow">
           {loading ? (
             <div className="space-y-4">
               <Skeleton className="h-10 w-full" />
