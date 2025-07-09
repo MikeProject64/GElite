@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useCallback, ChangeEvent } from 'react';
@@ -14,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 import Image from 'next/image';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -39,42 +38,41 @@ const pageSchema = z.object({
 type PageFormValues = z.infer<typeof pageSchema>;
 
 const editorElements = [
-    { type: 'title' as PageBlockType, icon: <Heading1 />, label: 'Título' },
-    { type: 'subtitle' as PageBlockType, icon: <Heading2 />, label: 'Subtítulo' },
-    { type: 'text' as PageBlockType, icon: <Pilcrow />, label: 'Texto' },
-    { type: 'image' as PageBlockType, icon: <ImageIcon />, label: 'Imagem' },
+    { type: 'title' as PageBlockType, icon: <Heading1 className="h-4 w-4" />, label: 'Título' },
+    { type: 'subtitle' as PageBlockType, icon: <Heading2 className="h-4 w-4" />, label: 'Subtítulo' },
+    { type: 'text' as PageBlockType, icon: <Pilcrow className="h-4 w-4" />, label: 'Texto' },
+    { type: 'image' as PageBlockType, icon: <ImageIcon className="h-4 w-4" />, label: 'Imagem' },
 ];
 
-// --- Drag-and-Drop Components ---
-
-function DraggableElement({ type, icon, label }: { type: PageBlockType, icon: React.ReactNode, label: string }) {
-    const { attributes, listeners, setNodeRef } = useDraggable({ id: `draggable-${type}` });
+// --- New Element Button ---
+function AddElementButton({ type, icon, label, onAdd }: { type: PageBlockType; icon: React.ReactNode; label: string; onAdd: (type: PageBlockType) => void; }) {
     return (
-        <div ref={setNodeRef} {...listeners} {...attributes} className="flex items-center gap-2 p-2 bg-muted rounded-md cursor-grab active:cursor-grabbing">
+        <Button variant="outline" className="w-full justify-start gap-2" onClick={() => onAdd(type)}>
             {icon}
-            <span className="text-sm font-medium">{label}</span>
-        </div>
+            <span>{label}</span>
+        </Button>
     );
 }
 
-function SortableBlock({ block, selectedBlockId, setSelectedBlockId, removeBlock }: { block: PageBlock, selectedBlockId: string | null, setSelectedBlockId: (id: string | null) => void, removeBlock: (id: string) => void }) {
+// --- Sortable Block (for reordering) ---
+function SortableBlock({ block, selectedBlockId, setSelectedBlockId, removeBlock }: { block: PageBlock; selectedBlockId: string | null; setSelectedBlockId: (id: string | null) => void; removeBlock: (id: string) => void; }) {
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: block.id });
     const style = { transform: CSS.Transform.toString(transform), transition };
     const isSelected = block.id === selectedBlockId;
 
     const renderBlockContent = () => {
         switch (block.type) {
-            case 'title': return <h1 className="text-3xl font-bold">{block.content.text || 'Título Principal'}</h1>;
-            case 'subtitle': return <h2 className="text-2xl font-semibold">{block.content.text || 'Subtítulo'}</h2>;
-            case 'text': return <p className="leading-relaxed">{block.content.text || 'Parágrafo de texto.'}</p>;
+            case 'title': return <h1 className="text-3xl font-bold break-words">{block.content.text || 'Título Principal'}</h1>;
+            case 'subtitle': return <h2 className="text-2xl font-semibold break-words">{block.content.text || 'Subtítulo'}</h2>;
+            case 'text': return <p className="leading-relaxed whitespace-pre-wrap break-words">{block.content.text || 'Parágrafo de texto.'}</p>;
             case 'image': return <Image src={block.content.src || 'https://placehold.co/600x400.png'} alt={block.content.alt || 'Imagem'} width={600} height={400} className="w-full h-auto rounded-md bg-muted" />;
         }
     };
 
     return (
         <div ref={setNodeRef} style={style} className={`relative p-4 rounded-md group ${isSelected ? 'ring-2 ring-primary' : 'bg-card border'}`} onClick={() => setSelectedBlockId(block.id)}>
-            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab" {...attributes} {...listeners}><GripVertical className="h-4 w-4" /></Button>
+            <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-background/50 rounded-md">
+                <Button variant="ghost" size="icon" className="h-7 w-7 cursor-grab touch-none" {...attributes} {...listeners}><GripVertical className="h-4 w-4" /></Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive" onClick={(e) => { e.stopPropagation(); removeBlock(block.id); }}><Trash2 className="h-4 w-4" /></Button>
             </div>
             {renderBlockContent()}
@@ -83,7 +81,6 @@ function SortableBlock({ block, selectedBlockId, setSelectedBlockId, removeBlock
 }
 
 // --- Main Page Editor Component ---
-
 export default function PageEditor() {
     const { id: pageId } = useParams();
     const router = useRouter();
@@ -95,8 +92,7 @@ export default function PageEditor() {
     const [isLoading, setIsLoading] = useState(true);
     const [isNewPage, setIsNewPage] = useState(false);
     
-    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    const { setNodeRef: setCanvasRef } = useDroppable({ id: 'canvas' });
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
     const form = useForm<PageFormValues>({
         resolver: zodResolver(pageSchema),
@@ -160,35 +156,29 @@ export default function PageEditor() {
         setBlocks(prev => prev.filter(b => b.id !== blockId));
         if(selectedBlockId === blockId) setSelectedBlockId(null);
     }
-    
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (!over) return;
-    
-        const activeId = active.id.toString();
-        const overId = over.id.toString();
-    
-        // Handle dropping a new element from the sidebar
-        if (activeId.startsWith('draggable-') && overId === 'canvas') {
-          const type = activeId.replace('draggable-', '') as PageBlockType;
-          const newBlock: PageBlock = {
+
+    const addBlock = (type: PageBlockType) => {
+        const newBlock: PageBlock = {
             id: uuidv4(),
             type,
             content: { text: '' }
-          };
-          if (type === 'image') {
+        };
+        if (type === 'image') {
             newBlock.content = { src: 'https://placehold.co/600x400.png', alt: 'Placeholder' };
-          }
-          setBlocks(prev => [...prev, newBlock]);
-          setSelectedBlockId(newBlock.id);
-          return;
         }
+        setBlocks(prev => [...prev, newBlock]);
+        setSelectedBlockId(newBlock.id);
+    };
     
-        // Handle reordering existing elements
-        if (!activeId.startsWith('draggable-') && !overId.startsWith('draggable-') && activeId !== overId) {
-            const oldIndex = blocks.findIndex(b => b.id === activeId);
-            const newIndex = blocks.findIndex(b => b.id === overId);
-            setBlocks(prev => arrayMove(prev, oldIndex, newIndex));
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
+    
+        if (over && active.id !== over.id) {
+            const oldIndex = blocks.findIndex(b => b.id === active.id);
+            const newIndex = blocks.findIndex(b => b.id === over.id);
+            if (oldIndex > -1 && newIndex > -1) {
+                setBlocks(items => arrayMove(items, oldIndex, newIndex));
+            }
         }
     };
 
@@ -233,13 +223,13 @@ export default function PageEditor() {
 
                 <div className="grid lg:grid-cols-12 flex-1 overflow-hidden">
                     {/* Elements Sidebar */}
-                    <aside className="lg:col-span-2 bg-card border-r p-4 space-y-4 overflow-y-auto">
-                        <h2 className="font-semibold">Elementos</h2>
-                        {editorElements.map(el => <DraggableElement key={el.type} {...el} />)}
+                    <aside className="lg:col-span-2 bg-card border-r p-4 space-y-2 overflow-y-auto">
+                        <h2 className="font-semibold mb-2">Adicionar Elemento</h2>
+                        {editorElements.map(el => <AddElementButton key={el.type} {...el} onAdd={addBlock} />)}
                     </aside>
 
                     {/* Editor Canvas */}
-                    <main ref={setCanvasRef} id="canvas" className="lg:col-span-7 bg-muted/50 p-4 md:p-8 overflow-y-auto">
+                    <main className="lg:col-span-7 bg-muted/50 p-4 md:p-8 overflow-y-auto">
                         <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                             <div className="max-w-3xl mx-auto space-y-4">
                                 {blocks.length > 0 ? (
@@ -249,7 +239,7 @@ export default function PageEditor() {
                                 ) : (
                                     <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg text-muted-foreground h-full">
                                         <PlusCircle className="h-12 w-12 mb-4" />
-                                        <p>Arraste um elemento da barra lateral para começar a construir sua página.</p>
+                                        <p>Adicione um elemento da barra lateral para começar a construir sua página.</p>
                                     </div>
                                 )}
                             </div>
@@ -268,18 +258,18 @@ export default function PageEditor() {
                                 {(selectedBlock.type === 'title' || selectedBlock.type === 'subtitle' || selectedBlock.type === 'text') && (
                                     <div>
                                         <Label htmlFor="text-content">Conteúdo</Label>
-                                        <Textarea id="text-content" value={selectedBlock.content.text} onChange={(e) => updateBlock(selectedBlock.id, { text: e.target.value })} rows={5} />
+                                        <Textarea id="text-content" value={selectedBlock.content.text} onChange={(e) => updateBlock(selectedBlock.id, { text: e.target.value })} rows={selectedBlock.type === 'text' ? 10 : 3} />
                                     </div>
                                 )}
                                 {selectedBlock.type === 'image' && (
-                                    <div className="space-y-2">
+                                    <div className="space-y-4">
                                         <div>
                                             <Label htmlFor="image-src">URL da Imagem</Label>
                                             <Input id="image-src" value={selectedBlock.content.src} onChange={(e) => updateBlock(selectedBlock.id, { src: e.target.value })} />
                                         </div>
                                          <div>
-                                            <Label>Enviar Nova Imagem</Label>
-                                            <Input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, selectedBlock.id)} />
+                                            <Label htmlFor={`upload-${selectedBlock.id}`}>Enviar Nova Imagem</Label>
+                                            <Input id={`upload-${selectedBlock.id}`} type="file" accept="image/*" onChange={(e) => handleImageUpload(e, selectedBlock.id)} />
                                         </div>
                                         <div>
                                             <Label htmlFor="image-alt">Texto Alternativo</Label>
@@ -299,7 +289,12 @@ export default function PageEditor() {
                                     )}/>
                                     <FormField control={form.control} name="isPublic" render={({ field }) => (
                                       <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                        <FormLabel>Página Pública</FormLabel>
+                                        <div className="space-y-0.5">
+                                            <FormLabel>Página Pública</FormLabel>
+                                            <FormDescription className="text-xs">
+                                                Torna a página acessível a todos.
+                                            </FormDescription>
+                                        </div>
                                         <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                       </FormItem>
                                     )}/>
@@ -312,5 +307,4 @@ export default function PageEditor() {
         </DndContext>
     );
 }
-
     
