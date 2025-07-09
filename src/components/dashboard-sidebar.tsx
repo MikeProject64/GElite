@@ -34,14 +34,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
-  DropdownMenuPortal
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
-import { Avatar, AvatarFallback } from './ui/avatar';
 
 
 interface NavContentProps {
@@ -150,64 +144,65 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
         </div>
 
         <div className="mt-auto p-2 border-t">
+          <div className="grid gap-1">
+            
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} asChild>
+                  <Link href="/dashboard/configuracoes">
+                    <Settings className="h-4 w-4" />
+                    {!isCollapsed && <span className="ml-3">Configurações</span>}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Configurações</TooltipContent>}
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} asChild>
+                  <Link href="/dashboard/subscription">
+                    <CreditCard className="h-4 w-4" />
+                    {!isCollapsed && <span className="ml-3">Assinatura</span>}
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Assinatura</TooltipContent>}
+            </Tooltip>
+
             <DropdownMenu>
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className={cn("w-full justify-start text-left", isCollapsed && !isMobile ? "h-12 w-12 justify-center" : "h-auto p-2")}>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className={cn("h-9 w-9", isCollapsed && !isMobile && "h-8 w-8")}>
-                                        <AvatarFallback>{user?.email?.charAt(0).toUpperCase()}</AvatarFallback>
-                                    </Avatar>
-                                    {!isCollapsed && (
-                                        <div className="flex-1 overflow-hidden">
-                                            <p className="text-sm font-semibold truncate">{user?.email}</p>
-                                            <p className="text-xs text-muted-foreground">Menu do Usuário</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </Button>
-                        </DropdownMenuTrigger>
-                    </TooltipTrigger>
-                    {isCollapsed && !isMobile && <TooltipContent side="right">Menu do Usuário</TooltipContent>}
-                </Tooltip>
-
-                <DropdownMenuContent side="top" align="start" className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                     <DropdownMenuItem asChild>
-                        <Link href="/dashboard/configuracoes">
-                            <Settings className="mr-2 h-4 w-4" />
-                            <span>Configurações</span>
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                        <Link href="/dashboard/subscription">
-                            <CreditCard className="mr-2 h-4 w-4" />
-                            <span>Assinatura</span>
-                        </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuSub>
-                        <DropdownMenuSubTrigger>
-                            <Sun className="mr-2 h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                            <Moon className="absolute mr-2 h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                            <span>Alterar Tema</span>
-                        </DropdownMenuSubTrigger>
-                        <DropdownMenuPortal>
-                             <DropdownMenuSubContent>
-                                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
-                            </DropdownMenuSubContent>
-                        </DropdownMenuPortal>
-                    </DropdownMenuSub>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive focus:bg-destructive/10">
-                        <LogOut className="mr-2 h-4 w-4" />
-                        <span>Sair</span>
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")}>
+                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                      {!isCollapsed && <span className="ml-3">Alterar Tema</span>}
+                      <span className="sr-only">Alterar Tema</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                </TooltipTrigger>
+                {isCollapsed && <TooltipContent side="right">Alterar Tema</TooltipContent>}
+              </Tooltip>
+              <DropdownMenuContent side="top" align="start" className={cn(isCollapsed && "ml-2")}>
+                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+              </DropdownMenuContent>
             </DropdownMenu>
-        </div>
 
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" className={cn("w-full text-destructive hover:text-destructive", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} onClick={handleLogout}>
+                  <LogOut className="h-4 w-4" />
+                  {!isCollapsed && <span className="ml-3">Sair</span>}
+                </Button>
+              </TooltipTrigger>
+              {isCollapsed && <TooltipContent side="right">Sair</TooltipContent>}
+            </Tooltip>
+            
+          </div>
+        </div>
       </div>
     </TooltipProvider>
   );
