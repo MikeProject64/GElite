@@ -5,7 +5,7 @@ import './globals.css';
 import { Providers } from '@/components/providers';
 import { cn } from '@/lib/utils';
 import { GA_TRACKING_ID } from '@/lib/utils';
-import { MetaPixel } from '@/components/meta-pixel';
+import MetaPixel from '@/components/meta-pixel';
 import { Suspense } from 'react';
 
 const fontSans = Inter({
