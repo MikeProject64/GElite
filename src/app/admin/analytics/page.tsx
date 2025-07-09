@@ -155,13 +155,13 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
             <CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (Últimos 30 dias)</CardTitle>
             <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
             </CardHeader>
-            <CardContent>
-            <ChartContainer config={chartConfig} className="h-[350px]">
+            <CardContent className="flex-grow">
+            <ChartContainer config={chartConfig} className="h-full w-full">
                 <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={data?.dailyViews} maxBarSize={50}>
                     <CartesianGrid vertical={false} />
@@ -175,12 +175,12 @@ export default function AnalyticsPage() {
             </CardContent>
         </Card>
         
-        <Card>
+        <Card className="flex flex-col">
            <CardHeader>
              <CardTitle className="flex items-center gap-2"><TrendingDown /> Funil de Conversão (7d)</CardTitle>
              <CardDescription>Jornada do novo usuário até a contratação de um plano.</CardDescription>
            </CardHeader>
-           <CardContent className="space-y-4">
+           <CardContent className="space-y-4 flex-grow">
               {funnel && (
                 <>
                   <div className="space-y-2">
@@ -211,14 +211,14 @@ export default function AnalyticsPage() {
            </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
             <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
           </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={250}>
+          <CardContent className="flex-grow">
+            <ChartContainer config={chartConfig} className="w-full h-full">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
                   <CartesianGrid horizontal={false} />
                   <XAxis type="number" />
@@ -231,12 +231,12 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle>
               <CardDescription>Top 5 páginas mais vistas nos últimos 7 dias.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                <Table>
                 <TableHeader>
                   <TableRow>
@@ -256,12 +256,12 @@ export default function AnalyticsPage() {
             </CardContent>
           </Card>
            
-        <Card>
+        <Card className="flex flex-col">
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><PieChart /> Usuários por Dispositivo</CardTitle>
               <CardDescription>Distribuição de usuários nos últimos 7 dias.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-grow">
                 {data?.devices.map(device => (
                     <div key={device.name} className="flex items-center justify-between p-2 rounded hover:bg-muted">
                       <div className="flex items-center gap-2 text-sm">
