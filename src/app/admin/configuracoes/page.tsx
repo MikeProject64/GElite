@@ -192,7 +192,11 @@ function GlobalSettingsForm() {
                             <FormDescription>Este ícone representará a marca em todo o site.</FormDescription>
                             <FormMessage />
                             <Dialog open={isIconModalOpen} onOpenChange={setIsIconModalOpen}>
-                              <DialogContent className="sm:max-w-2xl"><DialogHeader><DialogTitle>Selecione um Ícone</DialogTitle><DialogDescription>Escolha um ícone para representar seu site.</DialogDescription></DialogHeader>
+                              <DialogContent className="sm:max-w-2xl">
+                                  <DialogHeader>
+                                      <DialogTitle>Selecione um Ícone</DialogTitle>
+                                      <DialogDescription>Escolha um ícone para representar seu site.</DialogDescription>
+                                  </DialogHeader>
                                 <ScrollArea className="max-h-[60vh]">
                                   <RadioGroup onValueChange={(value) => { field.onChange(value); setIsIconModalOpen(false); }} defaultValue={field.value} className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2 p-4">
                                     {iconNames.map((iconName) => {
@@ -234,7 +238,11 @@ function GlobalSettingsForm() {
                             <FormDescription>Selecione a cor principal que será usada em botões, links e outros elementos de destaque em todo o sistema.</FormDescription>
                             <FormMessage />
                             <Dialog open={isColorModalOpen} onOpenChange={setIsColorModalOpen}>
-                                <DialogContent className="sm:max-w-md"><DialogHeader><DialogTitle>Selecione uma Cor</DialogTitle><DialogDescription>Esta cor será usada globalmente.</DialogDescription></DialogHeader>
+                                <DialogContent className="sm:max-w-md">
+                                    <DialogHeader>
+                                        <DialogTitle>Selecione uma Cor</DialogTitle>
+                                        <DialogDescription>Esta cor será usada globalmente.</DialogDescription>
+                                    </DialogHeader>
                                     <div className="grid grid-cols-6 gap-2 pt-2">
                                         {brandColors.map((color) => (
                                             <TooltipProvider key={color.name}>

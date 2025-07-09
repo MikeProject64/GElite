@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Save, ArrowLeft, GripVertical, Trash2, Heading1, Heading2, Pilcrow, Image as ImageIcon, PlusCircle } from 'lucide-react';
@@ -282,23 +282,25 @@ export default function PageEditor() {
                         ) : (
                            <div className="space-y-4">
                                 <Form {...form}>
-                                    <FormField control={form.control} name="title" render={({ field }) => (
-                                        <FormItem><FormLabel>Título da Página</FormLabel><FormControl><Input placeholder="Sobre Nós" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="slug" render={({ field }) => (
-                                        <FormItem><FormLabel>URL</FormLabel><FormControl><Input placeholder="sobre-nos" {...field} /></FormControl><FormMessage /></FormItem>
-                                    )}/>
-                                    <FormField control={form.control} name="isPublic" render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
-                                        <div className="space-y-0.5">
-                                            <FormLabel>Página Pública</FormLabel>
-                                            <FormDescription className="text-xs">
-                                                Torna a página acessível a todos.
-                                            </FormDescription>
-                                        </div>
-                                        <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                      </FormItem>
-                                    )}/>
+                                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                                        <FormField control={form.control} name="title" render={({ field }) => (
+                                            <FormItem><FormLabel>Título da Página</FormLabel><FormControl><Input placeholder="Sobre Nós" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="slug" render={({ field }) => (
+                                            <FormItem><FormLabel>URL</FormLabel><FormControl><Input placeholder="sobre-nos" {...field} /></FormControl><FormMessage /></FormItem>
+                                        )}/>
+                                        <FormField control={form.control} name="isPublic" render={({ field }) => (
+                                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
+                                            <div className="space-y-0.5">
+                                                <FormLabel>Página Pública</FormLabel>
+                                                <FormDescription className="text-xs">
+                                                    Torna a página acessível a todos.
+                                                </FormDescription>
+                                            </div>
+                                            <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                                        </FormItem>
+                                        )}/>
+                                    </form>
                                 </Form>
                            </div>
                         )}
