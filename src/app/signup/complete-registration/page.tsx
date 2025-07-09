@@ -54,7 +54,7 @@ function CompleteRegistrationContent() {
         
         // Fire GA4 event for purchase
         if (result.value && result.currency && result.transaction_id && result.planId && result.planName) {
-            gtag.event({ action: "purchase", params: {
+            gtag.event({ action: "plano_contratado", params: {
                 transaction_id: result.transaction_id,
                 value: result.value,
                 currency: result.currency,

@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Loader2, CheckCircle, XCircle, CreditCard, ExternalLink, RefreshCw } from 'lucide-react';
 import Link from 'next/link';
 import { createStripePortalSession, getSubscriptionDetails, cancelSubscriptionAction, createSubscriptionCheckoutSession, verifySubscriptionAndUpgradeUser } from './actions';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -53,13 +53,25 @@ function NoPlanView() {
         return () => unsubscribe();
     }, []);
 
-    const handleSubscribe = async (planId: string, interval: 'month' | 'year') => {
+    const handleSubscribe = async (plan: Plan, interval: 'month' | 'year') => {
         if (!user || !user.email) {
             toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não encontrado. Por favor, faça login novamente.' });
             return;
         }
-        setIsRedirecting(planId + interval);
-        const result = await createSubscriptionCheckoutSession(planId, interval, user.uid, user.email, systemUser?.stripeCustomerId);
+        setIsRedirecting(plan.id + interval);
+
+        // Fire begin_checkout event
+        const price = interval === 'year' && plan.yearlyPrice > 0 ? plan.yearlyPrice : plan.monthlyPrice;
+        gtag.event({
+            action: 'begin_checkout',
+            params: {
+                currency: 'BRL',
+                value: price,
+                items: [{ item_id: plan.id, item_name: plan.name, price, quantity: 1 }]
+            }
+        });
+
+        const result = await createSubscriptionCheckoutSession(plan.id, interval, user.uid, user.email, systemUser?.stripeCustomerId);
         
         if (result.success && result.url) {
             router.push(result.url);
@@ -107,7 +119,7 @@ function NoPlanView() {
                     </CardContent>
                     <CardFooter className='flex-col gap-2'>
                         <Button
-                          onClick={() => handleSubscribe(plan.id, 'month')}
+                          onClick={() => handleSubscribe(plan, 'month')}
                           disabled={!!isRedirecting}
                           className={`w-full`}
                         >
@@ -115,7 +127,7 @@ function NoPlanView() {
                         </Button>
                         {plan.yearlyPrice > 0 && (
                         <Button
-                           onClick={() => handleSubscribe(plan.id, 'year')}
+                           onClick={() => handleSubscribe(plan, 'year')}
                            disabled={!!isRedirecting}
                            variant="outline"
                            className={`w-full`}
@@ -160,38 +172,21 @@ function SubscriptionPageContent() {
                         description: 'Seu plano foi atualizado com sucesso. Bem-vindo!',
                     });
 
-                    // Fire GA4 conversion events
-                    if (result.wasOnTrial) {
-                        gtag.event({
-                            action: 'trial_to_plan',
-                            params: {
-                                currency: result.currency,
-                                value: result.value,
-                                transaction_id: result.transaction_id,
-                                items: [{
-                                    item_id: result.planId,
-                                    item_name: result.planName,
-                                    price: result.value,
-                                    quantity: 1,
-                                }]
-                            }
-                        });
-                    } else {
-                        gtag.event({
-                            action: 'plano_contratado',
-                             params: {
-                                currency: result.currency,
-                                value: result.value,
-                                transaction_id: result.transaction_id,
-                                items: [{
-                                    item_id: result.planId,
-                                    item_name: result.planName,
-                                    price: result.value,
-                                    quantity: 1,
-                                }]
-                            }
-                        });
-                    }
+                    // Fire GA4 conversion event
+                    gtag.event({
+                        action: 'plano_contratado',
+                         params: {
+                            currency: result.currency,
+                            value: result.value,
+                            transaction_id: result.transaction_id,
+                            items: [{
+                                item_id: result.planId,
+                                item_name: result.planName,
+                                price: result.value,
+                                quantity: 1,
+                            }]
+                        }
+                    });
 
                     // Clear URL params and trigger a re-fetch of subscription data
                     router.replace('/dashboard/subscription', { scroll: false });

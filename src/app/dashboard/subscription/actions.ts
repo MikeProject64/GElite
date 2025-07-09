@@ -175,9 +175,6 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         }
 
         const userDocRef = doc(db, 'users', uid);
-        const userDocSnap = await getDoc(userDocRef);
-        
-        const wasOnTrial = userDocSnap.exists() && userDocSnap.data().subscriptionStatus === 'trialing';
 
         await updateDoc(userDocRef, {
             planId: planId,
@@ -199,26 +196,23 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         const value = price.unit_amount ? price.unit_amount / 100 : 0;
         const currency = price.currency.toUpperCase();
         
-        if (wasOnTrial) {
-             gtag.event({
-                name: 'trial_to_plan',
-                params: {
-                    currency: currency,
-                    value: value,
-                    transaction_id: subscription.id,
-                    items: [{
-                        item_id: planData?.id,
-                        item_name: planData?.name,
-                        price: value,
-                        quantity: 1,
-                    }]
-                }
-            });
-        }
+        gtag.event({
+            name: 'plano_contratado',
+            params: {
+                currency: currency,
+                value: value,
+                transaction_id: subscription.id,
+                items: [{
+                    item_id: planData?.id,
+                    item_name: planData?.name,
+                    price: value,
+                    quantity: 1,
+                }]
+            }
+        });
         
         return { 
             success: true, 
-            wasOnTrial,
             value, 
             currency, 
             transaction_id: subscription.id,
