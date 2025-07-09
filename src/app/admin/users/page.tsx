@@ -52,7 +52,7 @@ export default function AdminUsersPage() {
 
   useEffect(() => {
     setIsLoading(true);
-    const usersQuery = query(collection(db, 'users'), orderBy('email', 'asc'));
+    const usersQuery = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
     const plansQuery = query(collection(db, 'plans'), orderBy('monthlyPrice', 'asc'));
 
     const unsubUsers = onSnapshot(usersQuery, (querySnapshot) => {
@@ -118,7 +118,13 @@ export default function AdminUsersPage() {
     try {
         const userRef = doc(db, 'users', selectedUser.uid);
         // Admin assignment grants active status and bypasses/removes Stripe subscription ID
-        await updateDoc(userRef, { planId: data.planId, subscriptionId: null, subscriptionStatus: 'active' });
+        await updateDoc(userRef, { 
+            planId: data.planId, 
+            subscriptionId: null, 
+            subscriptionStatus: 'active',
+            trialStartedAt: null,
+            trialEndsAt: null,
+        });
         toast({ title: "Sucesso!", description: `Plano de ${selectedUser.email} atualizado.` });
         setIsPlanDialogOpen(false);
         setSelectedUser(null);
@@ -131,6 +137,16 @@ export default function AdminUsersPage() {
   const getRoleBadgeVariant = (role: string) => {
     return role === 'admin' ? 'default' : 'secondary';
   };
+  
+  const getUserPlanName = (user: SystemUser) => {
+    if (user.subscriptionStatus === 'trialing') {
+      return 'Em Teste';
+    }
+    if (!user.planId) {
+      return 'Nenhum';
+    }
+    return plans.find(p => p.id === user.planId)?.name || 'Inválido';
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -157,12 +173,10 @@ export default function AdminUsersPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users.map((user) => {
-                    const userPlan = plans.find(p => p.id === user.planId);
-                    return (
+                {users.map((user) => (
                         <TableRow key={user.uid}>
                             <TableCell className="font-medium">{user.email}</TableCell>
-                            <TableCell>{userPlan?.name || 'Nenhum'}</TableCell>
+                            <TableCell>{getUserPlanName(user)}</TableCell>
                             <TableCell>
                             <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize">{user.role}</Badge>
                             </TableCell>
@@ -195,8 +209,7 @@ export default function AdminUsersPage() {
                                 </DropdownMenu>
                             </TableCell>
                         </TableRow>
-                    )
-                })}
+                    ))}
               </TableBody>
             </Table>
           )}
@@ -252,7 +265,7 @@ export default function AdminUsersPage() {
             <DialogHeader>
               <DialogTitle>Alterar Plano do Usuário</DialogTitle>
               <DialogDescription>
-                Alterando o plano de <span className="font-bold">{selectedUser?.email}</span>. Esta ação substituirá qualquer assinatura existente.
+                Alterando o plano de <span className="font-bold">{selectedUser?.email}</span>. Esta ação substituirá qualquer assinatura ou teste existente.
               </DialogDescription>
             </DialogHeader>
              <Form {...planForm}>
@@ -289,4 +302,3 @@ export default function AdminUsersPage() {
     </div>
   );
 }
-
