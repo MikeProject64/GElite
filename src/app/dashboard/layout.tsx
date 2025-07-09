@@ -5,13 +5,11 @@ import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { TrialBanner } from '@/components/trial-banner';
-import { Loader2, ChevronsLeft, Menu } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 import { cn } from '@/lib/utils';
-import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 
 export default function DashboardLayout({
   children,
@@ -21,24 +19,11 @@ export default function DashboardLayout({
   const { user, systemUser, isAdmin, loading } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const storedState = localStorage.getItem('sidebar-collapsed');
-    if (storedState) {
-      setIsCollapsed(JSON.parse(storedState));
-    }
   }, []);
-
-  const toggleSidebar = () => {
-    setIsCollapsed(prevState => {
-      const newState = !prevState;
-      localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
-      return newState;
-    });
-  };
 
   useEffect(() => {
     if (loading) return;
@@ -99,28 +84,11 @@ export default function DashboardLayout({
     <>
       <DynamicLayoutEffects />
       <TrialBanner />
-      <div className={cn("h-screen w-full flex", isOnTrial && "pt-12")}>
-        <div className="hidden md:block">
-            <DashboardSidebar isCollapsed={isCollapsed} toggleSidebar={toggleSidebar} />
-        </div>
-        <div className="flex-1 flex flex-col overflow-hidden">
-            <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] md:hidden">
-                 <Sheet>
-                    <SheetTrigger asChild>
-                        <Button variant="outline" size="icon" className="shrink-0">
-                            <Menu className="h-5 w-5" />
-                            <span className="sr-only">Toggle navigation menu</span>
-                        </Button>
-                    </SheetTrigger>
-                    <SheetContent side="left" className="flex flex-col p-0">
-                        <DashboardSidebar isCollapsed={false} toggleSidebar={() => {}} isMobile={true} />
-                    </SheetContent>
-                </Sheet>
-            </header>
-            <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
-              {children}
-            </main>
-        </div>
+      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
+        <DashboardSidebar />
+        <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+          {children}
+        </main>
       </div>
       <WhatsAppSupportButton />
     </>
