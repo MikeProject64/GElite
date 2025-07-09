@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { v4 as uuidv4 } from 'uuid';
 import Link from 'next/link';
 import Image from 'next/image';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverlay, useDraggable } from '@dnd-kit/core';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, useDraggable, useDroppable } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -96,6 +96,7 @@ export default function PageEditor() {
     const [isNewPage, setIsNewPage] = useState(false);
     
     const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
+    const { setNodeRef: setCanvasRef } = useDroppable({ id: 'canvas' });
 
     const form = useForm<PageFormValues>({
         resolver: zodResolver(pageSchema),
@@ -238,7 +239,7 @@ export default function PageEditor() {
                     </aside>
 
                     {/* Editor Canvas */}
-                    <main id="canvas" className="lg:col-span-7 bg-muted/50 p-4 md:p-8 overflow-y-auto">
+                    <main ref={setCanvasRef} id="canvas" className="lg:col-span-7 bg-muted/50 p-4 md:p-8 overflow-y-auto">
                         <SortableContext items={blocks.map(b => b.id)} strategy={verticalListSortingStrategy}>
                             <div className="max-w-3xl mx-auto space-y-4">
                                 {blocks.length > 0 ? (
@@ -246,7 +247,7 @@ export default function PageEditor() {
                                         <SortableBlock key={block.id} block={block} selectedBlockId={selectedBlockId} setSelectedBlockId={setSelectedBlockId} removeBlock={removeBlock} />
                                     ))
                                 ) : (
-                                    <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg text-muted-foreground">
+                                    <div className="flex flex-col items-center justify-center text-center p-12 border-2 border-dashed rounded-lg text-muted-foreground h-full">
                                         <PlusCircle className="h-12 w-12 mb-4" />
                                         <p>Arraste um elemento da barra lateral para começar a construir sua página.</p>
                                     </div>
@@ -311,3 +312,5 @@ export default function PageEditor() {
         </DndContext>
     );
 }
+
+    
