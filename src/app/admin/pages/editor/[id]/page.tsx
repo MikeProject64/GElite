@@ -23,6 +23,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Save, ArrowLeft, ClipboardCopy, Image as ImageIcon, Upload } from 'lucide-react';
 import Link from 'next/link';
 import { CustomPage } from '@/types';
+import { Label } from '@/components/ui/label';
 
 
 const pageSchema = z.object({
