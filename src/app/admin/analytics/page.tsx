@@ -64,7 +64,7 @@ export default function AnalyticsPage() {
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
          <div className="grid gap-6 lg:grid-cols-3">
-          <Skeleton className="h-80 lg:col-span-2" />
+          <Skeleton className="h-80" />
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
@@ -155,7 +155,7 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card>
             <CardHeader>
             <CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (Últimos 30 dias)</CardTitle>
             <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
