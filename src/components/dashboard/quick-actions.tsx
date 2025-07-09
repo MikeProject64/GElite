@@ -159,5 +159,3 @@ export function QuickActions({ stats, loading, deadlines }: QuickActionsProps) {
     </Card>
   );
 }
-
-    

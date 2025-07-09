@@ -173,27 +173,8 @@ export default function AnalyticsPage() {
         </CardContent>
        </Card>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
-            <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-        <Card className="lg:col-span-2">
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
            <CardHeader>
              <CardTitle className="flex items-center gap-2"><TrendingDown /> Funil de Conversão (7d)</CardTitle>
              <CardDescription>Jornada do novo usuário até a contratação de um plano.</CardDescription>
@@ -228,10 +209,7 @@ export default function AnalyticsPage() {
               )}
            </CardContent>
         </Card>
-      </div>
-
-       <div className="grid gap-6 lg:grid-cols-2">
-          <Card>
+         <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle>
               <CardDescription>Top 5 páginas mais vistas nos últimos 7 dias.</CardDescription>
@@ -255,6 +233,25 @@ export default function AnalyticsPage() {
               </Table>
             </CardContent>
           </Card>
+           <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
+            <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><PieChart /> Usuários por Dispositivo</CardTitle>
