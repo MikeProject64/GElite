@@ -18,7 +18,6 @@ interface AnalyticsData {
   mainMetrics: { activeUsers: number; newUsers: number; conversions: number };
   events: { name: string; count: number }[];
   pages: { path: string; views: number }[];
-  countries: { name: string; users: number }[];
   devices: { name: string; users: number }[];
   conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
   dailyViews: { date: string; views: number }[];
@@ -231,7 +230,7 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
+       <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle>
@@ -250,30 +249,6 @@ export default function AnalyticsPage() {
                     <TableRow key={page.path}>
                       <TableCell className="font-mono text-xs truncate max-w-xs">{page.path}</TableCell>
                       <TableCell className="text-right font-medium">{page.views}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2"><MapPin /> Usuários por País</CardTitle>
-              <CardDescription>Top 5 países por usuários ativos nos últimos 7 dias.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>País</TableHead>
-                    <TableHead className="text-right">Usuários</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {data?.countries.map(country => (
-                    <TableRow key={country.name}>
-                      <TableCell className="font-medium">{country.name}</TableCell>
-                      <TableCell className="text-right font-medium">{country.users}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

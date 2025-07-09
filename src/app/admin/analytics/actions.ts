@@ -14,7 +14,6 @@ interface AnalyticsReports {
         mainMetrics: { activeUsers: number; newUsers: number; conversions: number; };
         events: { name: string; count: number; }[];
         pages: { path: string; views: number; }[];
-        countries: { name: string; users: number; }[];
         devices: { name: string; users: number; }[];
         conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
         dailyViews: { date: string; views: number; }[];
@@ -102,14 +101,6 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
           limit: 5,
           orderBys: [{ metric: { metricName: 'screenPageViews' }, desc: true }]
         },
-        // Countries (7d)
-        {
-          dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
-          dimensions: [{ name: 'country' }],
-          metrics: [{ name: 'activeUsers' }],
-          limit: 5,
-          orderBys: [{ metric: { metricName: 'activeUsers' }, desc: true }]
-        },
         // Devices (7d)
         {
           dateRanges: [{ startDate: '7daysAgo', endDate: 'today' }],
@@ -152,22 +143,15 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         views: parseInt(row.metricValues?.[0].value ?? '0', 10),
     })) ?? [];
 
-    // Process Countries report
-    const countriesReport = batchResponse.reports?.[3];
-    const countries = countriesReport?.rows?.map(row => ({
-        name: row.dimensionValues?.[0].value ?? 'N/A',
-        users: parseInt(row.metricValues?.[0].value ?? '0', 10),
-    })) ?? [];
-
     // Process Devices report
-    const devicesReport = batchResponse.reports?.[4];
+    const devicesReport = batchResponse.reports?.[3];
     const devices = devicesReport?.rows?.map(row => ({
         name: row.dimensionValues?.[0].value ?? 'N/A',
         users: parseInt(row.metricValues?.[0].value ?? '0', 10),
     })) ?? [];
 
     // Process Daily Views report
-    const dailyViewsReport = batchResponse.reports?.[5];
+    const dailyViewsReport = batchResponse.reports?.[4];
     const dailyViews = dailyViewsReport?.rows?.map(row => {
         // GA4 returns date as '20231225', so we parse it
         const dateStr = row.dimensionValues?.[0].value ?? '19700101';
@@ -193,7 +177,6 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         mainMetrics,
         events,
         pages,
-        countries,
         devices,
         conversionFunnel,
         dailyViews,
