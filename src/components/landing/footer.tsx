@@ -1,3 +1,5 @@
+import Link from 'next/link';
+
 export function Footer() {
   return (
     <footer className="w-full py-6 px-4 md:px-6 border-t">
@@ -6,12 +8,12 @@ export function Footer() {
           &copy; {new Date().getFullYear()} Gestor Elite. Todos os direitos reservados.
         </p>
         <nav className="flex gap-4 sm:gap-6 mt-4 md:mt-0">
-          <a href="#" className="text-sm hover:underline underline-offset-4 text-muted-foreground">
+          <Link href="/termos-de-servico" className="text-sm hover:underline underline-offset-4 text-muted-foreground">
             Termos de Serviço
-          </a>
-          <a href="#" className="text-sm hover:underline underline-offset-4 text-muted-foreground">
+          </Link>
+          <Link href="/politica-de-privacidade" className="text-sm hover:underline underline-offset-4 text-muted-foreground">
             Política de Privacidade
-          </a>
+          </Link>
         </nav>
       </div>
     </footer>

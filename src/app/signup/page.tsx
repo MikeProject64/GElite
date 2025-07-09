@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/components/auth-provider';
 import * as gtag from '@/lib/utils';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -44,6 +45,9 @@ const paidSignupSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um e-mail válido.' }),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
   confirmPassword: z.string(),
+  terms: z.literal(true, {
+    errorMap: () => ({ message: "Você deve aceitar os Termos e a Política de Privacidade." }),
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem.",
   path: ["confirmPassword"],
@@ -56,6 +60,9 @@ const trialSignupSchema = z.object({
   companyName: z.string().min(2, { message: 'O nome da empresa é obrigatório.'}),
   password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
   confirmPassword: z.string(),
+  terms: z.literal(true, {
+    errorMap: () => ({ message: "Você deve aceitar os Termos e a Política de Privacidade." }),
+  }),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem.",
   path: ["confirmPassword"],
@@ -70,7 +77,7 @@ function TrialSignupForm() {
 
     const form = useForm<z.infer<typeof trialSignupSchema>>({
         resolver: zodResolver(trialSignupSchema),
-        defaultValues: { name: '', email: '', phone: '', companyName: '', password: '', confirmPassword: '' },
+        defaultValues: { name: '', email: '', phone: '', companyName: '', password: '', confirmPassword: '', terms: false },
     });
 
     const handleEmailBlur = useCallback(async (email: string) => {
@@ -128,6 +135,36 @@ function TrialSignupForm() {
                         <FormField control={form.control} name="companyName" render={({ field }) => (<FormItem><FormLabel>Nome da Empresa</FormLabel><FormControl><Input placeholder="Sua empresa" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                         <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                        
+                        <FormField
+                            control={form.control}
+                            name="terms"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
+                                <FormControl>
+                                    <Checkbox
+                                    checked={field.value}
+                                    onCheckedChange={field.onChange}
+                                    />
+                                </FormControl>
+                                <div className="space-y-1 leading-none">
+                                    <FormLabel className="font-normal text-muted-foreground">
+                                    Eu li e aceito os{' '}
+                                    <Link href="/termos-de-servico" target="_blank" className="underline hover:text-primary">
+                                        Termos de Serviço
+                                    </Link>{' '}
+                                    e a{' '}
+                                    <Link href="/politica-de-privacidade" target="_blank" className="underline hover:text-primary">
+                                        Política de Privacidade
+                                    </Link>
+                                    .
+                                    </FormLabel>
+                                    <FormMessage />
+                                </div>
+                                </FormItem>
+                            )}
+                        />
+                        
                         <Button type="submit" className="w-full !mt-6" disabled={isLoading || isVerifyingEmail}>
                             {isLoading ? <Loader2 className="animate-spin" /> : 'Começar a Usar'}
                         </Button>
@@ -162,7 +199,7 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
 
   const form = useForm<z.infer<typeof paidSignupSchema>>({
     resolver: zodResolver(paidSignupSchema),
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
+    defaultValues: { name: '', email: '', password: '', confirmPassword: '', terms: false },
   });
 
   const handleEmailBlur = useCallback(async (email: string) => {
@@ -228,6 +265,36 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
                         </FormControl><FormMessage /></FormItem>)}/>
                     <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                     <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                    
+                    <FormField
+                        control={form.control}
+                        name="terms"
+                        render={({ field }) => (
+                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
+                            <FormControl>
+                                <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                                <FormLabel className="font-normal text-muted-foreground">
+                                Eu li e aceito os{' '}
+                                <Link href="/termos-de-servico" target="_blank" className="underline hover:text-primary">
+                                    Termos de Serviço
+                                </Link>{' '}
+                                e a{' '}
+                                <Link href="/politica-de-privacidade" target="_blank" className="underline hover:text-primary">
+                                    Política de Privacidade
+                                </Link>
+                                .
+                                </FormLabel>
+                                <FormMessage />
+                            </div>
+                            </FormItem>
+                        )}
+                        />
+
                     <Button type="submit" className="w-full !mt-6" disabled={isLoading || isVerifyingEmail}>
                         {isLoading ? <Loader2 className="animate-spin" /> : 'Ir para o Pagamento'}
                     </Button>
