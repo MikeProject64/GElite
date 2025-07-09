@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -159,8 +158,8 @@ export default function AnalyticsPage() {
           <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="min-h-[200px] w-full">
-            <ResponsiveContainer width="100%" height={250}>
+          <ChartContainer config={chartConfig} className="w-[419px] h-[621px]">
+            <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data?.dailyViews} maxBarSize={80}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
