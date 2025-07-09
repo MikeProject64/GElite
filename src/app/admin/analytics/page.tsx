@@ -166,7 +166,7 @@ export default function AnalyticsPage() {
                   <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
                   <YAxis />
                   <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                  <Bar dataKey="views" fill="var(--color-views)" radius={4} />
+                  <Bar dataKey="views" fill="var(--color-views)" radius={4} maxBarSize={80} />
                 </BarChart>
               </ResponsiveContainer>
           </ChartContainer>
