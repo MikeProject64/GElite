@@ -100,7 +100,7 @@ const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, 
 };
 
 
-const initialPanelOrder = ['quick-actions', 'quick-search', 'order-status-chart', 'monthly-revenue-chart', 'recent-activity'];
+const initialPanelOrder = ['quick-actions', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart'];
 const initialPanelVisibility = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: true }), {});
 const initialPanelCollapse = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: false }), {});
 
@@ -111,7 +111,6 @@ const DashboardSkeleton: React.FC = () => (
         <Skeleton className="lg:col-span-2 md:col-span-4 h-64" />
         <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
         <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
-        <Skeleton className="lg:col-span-6 md:col-span-4 h-72" />
     </div>
 );
 
@@ -292,11 +291,6 @@ export default function DashboardPage() {
       className: 'lg:col-span-4 md:col-span-4',
       content: <QuickActions stats={stats} loading={loading} deadlines={criticalDeadlines} />,
     },
-    'quick-search': {
-      title: 'Busca Rápida',
-      className: 'lg:col-span-2 md:col-span-4',
-      content: <Card className="h-full"><CardHeader><CardTitle className="flex items-center gap-2"><Search /> Busca Rápida</CardTitle><CardDescription>Encontre clientes, serviços e orçamentos.</CardDescription></CardHeader><CardContent><Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}><PopoverTrigger asChild className='w-full'><div className="relative"><Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" /><Input placeholder="Buscar em todo o sistema..." className="w-full pl-10" value={searchTerm} onChange={(e) => { const term = e.target.value; setSearchTerm(term); if (term.length > 1) { setIsPopoverOpen(true); } else { setIsPopoverOpen(false); }}}/></div></PopoverTrigger><PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}><ScrollArea className="h-60">{searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}{!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (<p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>)}{searchResults.length > 0 && (searchResults.map((result) => (<Button variant="ghost" key={result.id} className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto" onClick={() => { router.push(result.href); setIsPopoverOpen(false); setSearchTerm('');}}>{getSearchIcon(result.type)}<div className='ml-2 text-left'><p className='font-medium'>{result.title}</p><p className="text-xs text-muted-foreground">{result.description}</p></div></Button>)))}</ScrollArea></PopoverContent></Popover></CardContent></Card>
-    },
     'order-status-chart': {
       title: 'Ordens por Status',
       className: 'lg:col-span-3 md:col-span-2',
@@ -309,7 +303,7 @@ export default function DashboardPage() {
     },
     'recent-activity': {
       title: 'Atividade Recente',
-      className: 'lg:col-span-6 md:col-span-4',
+      className: 'lg:col-span-2 md:col-span-4',
       content: (
         <Card className='h-full flex flex-col'>
           <CardHeader>
@@ -321,40 +315,93 @@ export default function DashboardPage() {
         </Card>
       )
     },
-  }), [stats, loading, criticalDeadlines, chartData, recentActivity, isPopoverOpen, searchTerm, searchResults, searchLoading, router]);
+  }), [stats, loading, criticalDeadlines, chartData, recentActivity]);
   
   if (!isMounted) return <DashboardSkeleton />;
 
   return (
     <div className='flex flex-col gap-4'>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
-             <Dialog>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="sm">
-                        <Layout className="mr-2 h-4 w-4" />
-                        Personalizar Layout
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Personalizar Painel</DialogTitle>
-                        <DialogDescription>Selecione os painéis que você deseja exibir. Arraste-os na tela principal para reordenar.</DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        {initialPanelOrder.map(panelId => {
-                            const panel = (panels as any)[panelId];
-                            if (!panel) return null;
-                            return (
-                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                                    <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                                    <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId]} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                                </div>
-                            )
-                        })}
-                    </div>
-                </DialogContent>
-            </Dialog>
+            <div className="flex items-center gap-2 ml-auto">
+               <div className="relative w-full max-w-sm hidden md:block">
+                  <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+                      <PopoverTrigger asChild>
+                          <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                              <Input
+                                  placeholder="Buscar em todo o sistema..."
+                                  className="w-full pl-10"
+                                  value={searchTerm}
+                                  onChange={(e) => {
+                                      const term = e.target.value;
+                                      setSearchTerm(term);
+                                      if (term.length > 1) {
+                                      setIsPopoverOpen(true);
+                                      } else {
+                                      setIsPopoverOpen(false);
+                                      }
+                                  }}
+                              />
+                          </div>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start" ref={popoverRef}>
+                          <ScrollArea className="h-60">
+                              {searchLoading && <p className="p-4 text-center text-sm">Buscando...</p>}
+                              {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
+                                  <p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>
+                              )}
+                              {searchResults.length > 0 && (
+                                  searchResults.map((result) => (
+                                      <Button
+                                          variant="ghost"
+                                          key={result.id}
+                                          className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto"
+                                          onClick={() => {
+                                              router.push(result.href);
+                                              setIsPopoverOpen(false);
+                                              setSearchTerm('');
+                                          }}
+                                      >
+                                          {getSearchIcon(result.type)}
+                                          <div className='ml-2 text-left'>
+                                              <p className='font-medium'>{result.title}</p>
+                                              <p className="text-xs text-muted-foreground">{result.description}</p>
+                                          </div>
+                                      </Button>
+                                  ))
+                              )}
+                          </ScrollArea>
+                      </PopoverContent>
+                  </Popover>
+               </div>
+                <Dialog>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm">
+                            <Layout className="mr-2 h-4 w-4" />
+                            Personalizar Layout
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Personalizar Painel</DialogTitle>
+                            <DialogDescription>Selecione os painéis que você deseja exibir. Arraste-os na tela principal para reordenar.</DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                            {initialPanelOrder.map(panelId => {
+                                const panel = (panels as any)[panelId];
+                                if (!panel) return null;
+                                return (
+                                    <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                        <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                        <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId]} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
