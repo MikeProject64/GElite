@@ -1,22 +1,11 @@
-
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { notFound } from 'next/navigation';
-import type { CustomPage as CustomPageType } from '@/types';
+import type { CustomPage as CustomPageType, PageBlock } from '@/types';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/landing/footer';
 import { doc, getDoc } from 'firebase/firestore';
-import type { UserSettings } from '@/types';
-import DOMPurify from 'isomorphic-dompurify';
-
-// This function can be used for Static Site Generation if needed
-// export async function generateStaticParams() {
-//   const q = query(collection(db, 'customPages'), where('isPublic', '==', true));
-//   const querySnapshot = await getDocs(q);
-//   return querySnapshot.docs.map((doc) => ({
-//     slug: doc.data().slug,
-//   }));
-// }
+import Image from 'next/image';
 
 async function getPageData(slug: string): Promise<CustomPageType | null> {
   const q = query(
@@ -32,8 +21,42 @@ async function getPageData(slug: string): Promise<CustomPageType | null> {
   }
 
   const pageDoc = querySnapshot.docs[0];
-  return { id: pageDoc.id, ...pageDoc.data() } as CustomPageType;
+  const data = pageDoc.data();
+  
+  // Basic migration for old string-based content
+  if (typeof data.content === 'string') {
+      data.content = [{ id: 'migrated-content', type: 'text', content: { text: data.content }}];
+  }
+
+
+  return { id: pageDoc.id, ...data } as CustomPageType;
 }
+
+function PageBlockRenderer({ block }: { block: PageBlock }) {
+    switch (block.type) {
+        case 'title':
+            return <h1 className="text-4xl font-bold mb-4">{block.content.text}</h1>;
+        case 'subtitle':
+            return <h2 className="text-2xl font-semibold mb-3">{block.content.text}</h2>;
+        case 'text':
+            return <p className="mb-4 leading-relaxed">{block.content.text}</p>;
+        case 'image':
+            return (
+                <div className="my-6">
+                    <Image
+                        src={block.content.src || 'https://placehold.co/800x400.png'}
+                        alt={block.content.alt || 'Imagem da página'}
+                        width={800}
+                        height={400}
+                        className="rounded-lg shadow-md object-cover"
+                    />
+                </div>
+            );
+        default:
+            return null;
+    }
+}
+
 
 export default async function CustomPage({ params }: { params: { slug: string } }) {
   const pageData = await getPageData(params.slug);
@@ -41,10 +64,7 @@ export default async function CustomPage({ params }: { params: { slug: string } 
   if (!pageData) {
     notFound();
   }
-
-  // Sanitize the HTML content on the server side
-  const cleanHtml = DOMPurify.sanitize(pageData.content);
-
+  
   // Fetch site settings for header/footer consistency
   let siteName = 'Gestor Elite';
   let iconName = 'Wrench';
@@ -65,8 +85,10 @@ export default async function CustomPage({ params }: { params: { slug: string } 
       <Header siteName={siteName} iconName={iconName} />
       <main className="flex-grow container mx-auto px-4 md:px-6 py-8">
         <article className="prose lg:prose-xl max-w-4xl mx-auto">
-          <h1>{pageData.title}</h1>
-          <div dangerouslySetInnerHTML={{ __html: cleanHtml }} />
+          <h1 className="text-5xl font-extrabold tracking-tight mb-6">{pageData.title}</h1>
+           {Array.isArray(pageData.content) && pageData.content.map(block => (
+               <PageBlockRenderer key={block.id} block={block} />
+           ))}
         </article>
       </main>
       <Footer />

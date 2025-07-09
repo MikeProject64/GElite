@@ -58,12 +58,25 @@ export interface UserSettings {
   ga4CredentialsJson?: string;
 }
 
+export type PageBlockType = 'title' | 'subtitle' | 'text' | 'image';
+
+export interface PageBlock {
+  id: string;
+  type: PageBlockType;
+  content: {
+    text?: string;
+    src?: string;
+    alt?: string;
+  };
+}
+
+
 export interface CustomPage {
   id: string;
   userId: string;
   title: string;
   slug: string;
-  content: string; // HTML content
+  content: PageBlock[]; // Changed from string to structured content
   isPublic: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
