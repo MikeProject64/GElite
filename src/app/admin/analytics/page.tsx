@@ -7,10 +7,11 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAnalyticsReports } from './actions';
-import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin } from 'lucide-react';
+import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin, TrendingDown } from 'lucide-react';
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Progress } from '@/components/ui/progress';
 
 interface AnalyticsData {
   realtime: { activeUsers: number };
@@ -19,6 +20,7 @@ interface AnalyticsData {
   pages: { path: string; views: number }[];
   countries: { name: string; users: number }[];
   devices: { name: string; users: number }[];
+  conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
 }
 
 const eventTranslations: { [key: string]: string } = {
@@ -61,7 +63,8 @@ export default function AnalyticsPage() {
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
-         <div className="grid gap-6 md:grid-cols-2">
+         <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="h-80" />
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
         </div>
@@ -97,6 +100,10 @@ export default function AnalyticsPage() {
     'Mobile': <Smartphone className="h-4 w-4 text-muted-foreground" />,
     'Tablet': <Tablet className="h-4 w-4 text-muted-foreground" />,
   };
+  
+  const funnel = data?.conversionFunnel;
+  const leadConversionRate = funnel && funnel.newUsers > 0 ? (funnel.generatedLeads / funnel.newUsers) * 100 : 0;
+  const purchaseConversionRate = funnel && funnel.generatedLeads > 0 ? (funnel.purchasedPlans / funnel.generatedLeads) * 100 : 0;
   
   return (
     <div className="space-y-6">
@@ -146,14 +153,14 @@ export default function AnalyticsPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
             <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
           </CardHeader>
           <CardContent>
             <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={250}>
                 <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
                   <CartesianGrid horizontal={false} />
                   <XAxis type="number" />
@@ -165,26 +172,44 @@ export default function AnalyticsPage() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><PieChart /> Usuários por Dispositivo</CardTitle>
-             <CardDescription>Distribuição de usuários nos últimos 7 dias.</CardDescription>
-          </CardHeader>
-          <CardContent>
-              {data?.devices.map(device => (
-                  <div key={device.name} className="flex items-center justify-between p-2 rounded hover:bg-muted">
-                    <div className="flex items-center gap-2 text-sm">
-                      {deviceIconMap[device.name] || <Laptop className="h-4 w-4 text-muted-foreground" />}
-                      <span>{device.name}</span>
+        <Card className="lg:col-span-2">
+           <CardHeader>
+             <CardTitle className="flex items-center gap-2"><TrendingDown /> Funil de Conversão (7d)</CardTitle>
+             <CardDescription>Jornada do novo usuário até a contratação de um plano.</CardDescription>
+           </CardHeader>
+           <CardContent className="space-y-4">
+              {funnel && (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                       <p className="font-medium">Novos Usuários</p>
+                       <p className="font-bold">{funnel.newUsers}</p>
                     </div>
-                    <span className="font-semibold">{device.users}</span>
+                    <Progress value={100} />
                   </div>
-              ))}
-          </CardContent>
+                   <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                       <p className="font-medium">Testes Iniciados (generate_lead)</p>
+                       <p className="font-bold">{funnel.generatedLeads}</p>
+                    </div>
+                    <Progress value={leadConversionRate} />
+                    <p className="text-xs text-muted-foreground text-right">{leadConversionRate.toFixed(1)}% de conversão</p>
+                  </div>
+                   <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                       <p className="font-medium">Planos Contratados</p>
+                       <p className="font-bold">{funnel.purchasedPlans}</p>
+                    </div>
+                    <Progress value={(purchaseConversionRate / 100) * leadConversionRate} />
+                     <p className="text-xs text-muted-foreground text-right">{purchaseConversionRate.toFixed(1)}% de conversão (dos que iniciaram teste)</p>
+                  </div>
+                </>
+              )}
+           </CardContent>
         </Card>
       </div>
 
-       <div className="grid gap-6 lg:grid-cols-2">
+       <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle>
@@ -231,6 +256,23 @@ export default function AnalyticsPage() {
                   ))}
                 </TableBody>
               </Table>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><PieChart /> Usuários por Dispositivo</CardTitle>
+              <CardDescription>Distribuição de usuários nos últimos 7 dias.</CardDescription>
+            </CardHeader>
+            <CardContent>
+                {data?.devices.map(device => (
+                    <div key={device.name} className="flex items-center justify-between p-2 rounded hover:bg-muted">
+                      <div className="flex items-center gap-2 text-sm">
+                        {deviceIconMap[device.name] || <Laptop className="h-4 w-4 text-muted-foreground" />}
+                        <span>{device.name}</span>
+                      </div>
+                      <span className="font-semibold">{device.users}</span>
+                    </div>
+                ))}
             </CardContent>
           </Card>
        </div>

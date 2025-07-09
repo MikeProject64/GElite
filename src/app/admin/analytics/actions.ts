@@ -15,6 +15,7 @@ interface AnalyticsReports {
         pages: { path: string; views: number; }[];
         countries: { name: string; users: number; }[];
         devices: { name: string; users: number; }[];
+        conversionFunnel: { newUsers: number; generatedLeads: number; purchasedPlans: number };
     };
 }
 
@@ -155,6 +156,14 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         name: row.dimensionValues?.[0].value ?? 'N/A',
         users: parseInt(row.metricValues?.[0].value ?? '0', 10),
     })) ?? [];
+    
+    // Process Conversion Funnel data
+    const getEventCount = (eventName: string) => events.find(e => e.name === eventName)?.count ?? 0;
+    const conversionFunnel = {
+        newUsers: mainMetrics.newUsers,
+        generatedLeads: getEventCount('generate_lead'),
+        purchasedPlans: getEventCount('plano_contratado'),
+    };
 
     return {
       success: true,
@@ -165,6 +174,7 @@ export async function getAnalyticsReports(): Promise<AnalyticsReports> {
         pages,
         countries,
         devices,
+        conversionFunnel,
       },
     };
 
