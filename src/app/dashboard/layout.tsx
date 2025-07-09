@@ -10,6 +10,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 import { cn } from '@/lib/utils';
+import { WelcomeModal } from '@/components/dashboard/welcome-modal';
 
 export default function DashboardLayout({
   children,
@@ -83,6 +84,7 @@ export default function DashboardLayout({
   return (
     <>
       <DynamicLayoutEffects />
+      <WelcomeModal />
       <TrialBanner />
       <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
         <DashboardSidebar />
