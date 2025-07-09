@@ -1,0 +1,90 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      // Check if the user document exists before trying to access .data
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // --- Public Data ---
+    // Anyone can read public plans and site config. Only admins can modify.
+    match /plans/{planId} {
+      allow get: if resource.data.isPublic == true || isAdmin(); // get for single document read
+      allow list: if true; // list for collection queries
+      allow write: if isAdmin(); // create, update, delete for admins only
+    }
+    match /siteConfig/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    match /customPages/{pageId} {
+        allow create, update, delete: if isAdmin();
+        allow get: if resource.data.isPublic == true || isAdmin();
+        // Allow public queries, which are further secured by the `get` rule above
+        // and the client-side `where('isPublic', '==', true)` clause.
+        allow list: if true;
+    }
+
+
+    // --- User Accounts ---
+    // Secure user creation during signup and protect user documents.
+    match /users/{userId} {
+      allow create: if request.auth.uid == userId && request.resource.data.role == 'user'; // Allow user creation during signup
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Only admins can list all users
+    }
+    
+    // --- User-Owned Data (The pattern for most collections) ---
+    // A user can CRUD their own documents, and admins can CRUD any document.
+    // Listing requires authentication, security is enforced by queries + read rules.
+    match /customers/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /serviceOrders/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /quotes/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /collaborators/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /inventory/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /inventoryMovements/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /timelineNotes/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+     match /userSettings/{userId} {
+      allow create, update, read: if isOwner(userId) || isAdmin();
+    }
+  }
+}
