@@ -124,13 +124,13 @@ export default function StripeDashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
             <CardTitle>Faturamento Diário (Últimos 30 dias)</CardTitle>
           </CardHeader>
-          <CardContent>
-             <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={300}>
+          <CardContent className="flex-grow">
+             <ChartContainer config={chartConfig} className="h-full w-full">
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={data.dailyRevenue}>
                   <CartesianGrid vertical={false} />
                   <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
@@ -145,12 +145,12 @@ export default function StripeDashboardPage() {
             </ChartContainer>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="flex flex-col">
            <CardHeader>
             <CardTitle>Últimas Transações</CardTitle>
             <CardDescription>As 5 cobranças mais recentes bem-sucedidas.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-grow">
             <Table>
                 <TableHeader>
                     <TableRow>
