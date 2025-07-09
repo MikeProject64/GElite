@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, ChevronDown, Activity, Layout, GripVertical } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -18,17 +18,14 @@ import { MonthlyRevenueChart } from '@/components/dashboard/monthly-revenue-char
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
-import { QuickActions } from '@/components/dashboard/quick-actions';
 import { useSettings } from '@/components/settings-provider';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
+import { Badge } from '@/components/ui/badge';
 
 interface SearchResult {
   id: string;
@@ -69,99 +66,54 @@ const getStatusColor = (status: string) => {
     return `hsl(var(--chart-${colorIndex + 1}))`;
 };
 
+const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'total-customers'];
+const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart'];
+const allPanelIds = [...smallPanelIds, ...largePanelIds];
 
-interface SortablePanelProps {
-  id: string;
-  children: React.ReactNode;
-  className?: string;
-  title: string;
-  isCollapsed: boolean;
-  onToggleCollapse: (isOpen: boolean) => void;
-}
-
-const SortableCollapsiblePanel: React.FC<SortablePanelProps> = ({ id, children, className, title, isCollapsed, onToggleCollapse }) => {
-  const { isDragging, attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-  };
-  
-  return (
-    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "opacity-60 shadow-2xl")}>
-       <Collapsible open={!isCollapsed} onOpenChange={onToggleCollapse}>
-         <div {...attributes} {...listeners} className={cn("h-full", isDragging && "cursor-grabbing")}>
-           {children}
-         </div>
-       </Collapsible>
-    </div>
-  );
-};
-
-
-const initialPanelOrder = ['quick-actions', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart'];
-const initialPanelVisibility = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: true }), {});
-const initialPanelCollapse = initialPanelOrder.reduce((acc, id) => ({ ...acc, [id]: false }), {});
-
+const initialPanelVisibility = allPanelIds.reduce((acc, id) => ({ ...acc, [id]: true }), {});
 
 const DashboardSkeleton: React.FC = () => (
-    <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
-        <Skeleton className="lg:col-span-4 md:col-span-4 h-64" />
-        <Skeleton className="lg:col-span-2 md:col-span-4 h-64" />
-        <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
-        <Skeleton className="lg:col-span-3 md:col-span-2 h-80" />
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-80" />)}
+      </div>
     </div>
 );
-
 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { settings } = useSettings();
   const router = useRouter();
 
-  // Page data state
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0 });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [] });
   const [criticalDeadlines, setCriticalDeadlines] = useState<ServiceOrder[]>([]);
   
-  // Search state
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
   
-  // Layout state
-  const [panelOrder, setPanelOrder] = useState<string[]>(initialPanelOrder);
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
-  const [collapsedPanels, setCollapsedPanels] = useState<Record<string, boolean>>(initialPanelCollapse);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
     try {
-      const storedOrder = localStorage.getItem('dashboard-panel-order');
-      if (storedOrder) {
-        const parsedOrder = JSON.parse(storedOrder);
-        const validOrder = initialPanelOrder.filter(p => parsedOrder.includes(p));
-        const newPanels = initialPanelOrder.filter(p => !parsedOrder.includes(p));
-        if (validOrder.length > 0) setPanelOrder([...validOrder, ...newPanels]);
-      }
       const storedVisible = localStorage.getItem('dashboard-visible-panels');
       if (storedVisible) setVisiblePanels(JSON.parse(storedVisible));
-      const storedCollapsed = localStorage.getItem('dashboard-collapsed-panels');
-      if (storedCollapsed) setCollapsedPanels(JSON.parse(storedCollapsed));
     } catch(e) {
         console.error("Failed to load layout from localStorage", e);
     }
   }, []);
 
-  useEffect(() => { if (isMounted) localStorage.setItem('dashboard-panel-order', JSON.stringify(panelOrder)); }, [panelOrder, isMounted]);
   useEffect(() => { if (isMounted) localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels)); }, [visiblePanels, isMounted]);
-  useEffect(() => { if (isMounted) localStorage.setItem('dashboard-collapsed-panels', JSON.stringify(collapsedPanels)); }, [collapsedPanels, isMounted]);
 
   const fetchDashboardData = useCallback(async () => {
     if (!user) return;
@@ -270,40 +222,100 @@ export default function DashboardPage() {
     }
   };
 
-  const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setPanelOrder((items) => {
-        const oldIndex = items.indexOf(active.id as string);
-        const newIndex = items.indexOf(over.id as string);
-        return arrayMove(items, oldIndex, newIndex);
-      });
+  const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
+
+  const getDueDateStatus = (dueDate: Date) => {
+    if (isPast(dueDate) && !isToday(dueDate)) {
+      return { text: `Vencido`, variant: 'destructive' as const };
     }
+    if (isToday(dueDate)) {
+      return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600' };
+    }
+    return null;
   };
 
-  const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
-  const handleToggleCollapse = (panelId: string, isOpen: boolean) => { setCollapsedPanels(prev => ({...prev, [panelId]: !isOpen})); };
-
   const panels = useMemo(() => ({
-    'quick-actions': {
-      title: 'Ações Rápidas',
-      className: 'lg:col-span-4 md:col-span-4',
-      content: <QuickActions stats={stats} loading={loading} deadlines={criticalDeadlines} />,
+    'active-orders': {
+      title: 'O.S. Ativas',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">O.S. Ativas</CardTitle><Wrench className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.activeOrders}</div><p className="text-xs text-muted-foreground">Serviços em andamento</p></CardContent></Card>
+    },
+    'pending-quotes': {
+      title: 'Orçamentos Pendentes',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Orçamentos Pendentes</CardTitle><Hourglass className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.pendingQuotes}</div><p className="text-xs text-muted-foreground">Aguardando aprovação</p></CardContent></Card>
+    },
+    'overdue-orders': {
+      title: 'Serviços Vencidos',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Serviços Vencidos</CardTitle><AlertTriangle className="h-4 w-4 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{loading ? <Skeleton className="h-8 w-12" /> : stats.overdueOrders}</div><p className="text-xs text-muted-foreground">Que passaram do prazo</p></CardContent></Card>
+    },
+    'total-customers': {
+      title: 'Total de Clientes',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Clientes</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.totalCustomers}</div><p className="text-xs text-muted-foreground">Clientes na sua base</p></CardContent></Card>
+    },
+    'quick-action-buttons': {
+        title: 'Ações Rápidas',
+        content: (
+            <Card className="h-full flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Activity /> Ações Rápidas</CardTitle>
+                    <CardDescription>Crie novos registros com um clique.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col flex-grow justify-center">
+                    <div className="flex flex-col gap-2">
+                        <Button asChild><Link href="/dashboard/servicos/criar"><PlusCircle /> Nova O.S.</Link></Button>
+                        <Button asChild variant="secondary"><Link href="/dashboard/orcamentos/criar"><FilePlus /> Novo Orçamento</Link></Button>
+                        <Button asChild variant="secondary"><Link href="/dashboard/base-de-clientes"><UserPlus /> Novo Cliente</Link></Button>
+                    </div>
+                </CardContent>
+            </Card>
+        )
+    },
+    'critical-deadlines': {
+        title: 'Prazos Críticos',
+        content: (
+            <Card className="h-full flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><CalendarClock /> Prazos Críticos</CardTitle>
+                    <CardDescription>Serviços vencidos ou vencendo hoje.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow">
+                    {loading ? <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : deadlines.length > 0 ? (
+                        <div className="space-y-2">
+                            {deadlines.map(order => {
+                                const status = getDueDateStatus(order.dueDate.toDate());
+                                if (!status) return null;
+                                return (
+                                    <Link key={order.id} href={`/dashboard/servicos/${order.id}`} className="block p-2 rounded-lg hover:bg-secondary transition-colors text-sm">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <p className="font-medium truncate">{order.serviceType}</p>
+                                                <p className="text-xs text-muted-foreground">{order.clientName}</p>
+                                            </div>
+                                            <Badge variant={status.variant} className={status.className}>{status.text}</Badge>
+                                        </div>
+                                    </Link>
+                                )
+                            })}
+                        </div>
+                    ) : (
+                        <div className="flex items-center justify-center h-full">
+                            <p className="text-sm text-center text-muted-foreground py-4">Nenhum prazo crítico. Bom trabalho!</p>
+                        </div>
+                    )}
+                </CardContent>
+                <CardFooter><Button asChild variant="secondary" size="sm" className="w-full"><Link href="/dashboard/prazos">Ver todos os prazos</Link></Button></CardFooter>
+            </Card>
+        )
     },
     'order-status-chart': {
       title: 'Ordens por Status',
-      className: 'lg:col-span-3 md:col-span-2',
-      content: loading ? <Card><CardHeader><Skeleton className="h-5 w-3/5" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent className="flex justify-center items-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card> : <OrderStatusChart data={chartData.orderStatus} />
+      content: <OrderStatusChart data={chartData.orderStatus} />
     },
     'monthly-revenue-chart': {
       title: 'Faturamento Mensal',
-      className: 'lg:col-span-3 md:col-span-2',
-      content: loading ? <Card><CardHeader><Skeleton className="h-5 w-3/5" /><Skeleton className="h-4 w-4/5" /></CardHeader><CardContent className="flex justify-center items-center h-[250px]"><Loader2 className="h-8 w-8 animate-spin" /></CardContent></Card> : <MonthlyRevenueChart data={chartData.monthlyRevenue} />
+      content: <MonthlyRevenueChart data={chartData.monthlyRevenue} />
     },
     'recent-activity': {
       title: 'Atividade Recente',
-      className: 'lg:col-span-2 md:col-span-4',
       content: (
         <Card className='h-full flex flex-col'>
           <CardHeader>
@@ -320,7 +332,7 @@ export default function DashboardPage() {
   if (!isMounted) return <DashboardSkeleton />;
 
   return (
-    <div className='flex flex-col gap-4'>
+    <div className='flex flex-col gap-6'>
         <div className="flex items-center justify-between gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
             <div className="flex items-center gap-2 ml-auto">
@@ -379,54 +391,67 @@ export default function DashboardPage() {
                     <DialogTrigger asChild>
                         <Button variant="outline" size="sm">
                             <Layout className="mr-2 h-4 w-4" />
-                            Personalizar Layout
+                            Personalizar
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
                         <DialogHeader>
                             <DialogTitle>Personalizar Painel</DialogTitle>
-                            <DialogDescription>Selecione os painéis que você deseja exibir. Arraste-os na tela principal para reordenar.</DialogDescription>
+                            <DialogDescription>Selecione os painéis que você deseja exibir.</DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4 py-4">
-                            {initialPanelOrder.map(panelId => {
-                                const panel = (panels as any)[panelId];
-                                if (!panel) return null;
-                                return (
-                                    <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                                        <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                                        <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId]} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                                    </div>
-                                )
+                          <h3 className="mb-2 font-semibold text-lg">Métricas Rápidas</h3>
+                          <div className="space-y-2">
+                            {smallPanelIds.map(panelId => {
+                              const panel = (panels as any)[panelId];
+                              if (!panel) return null;
+                              return (
+                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                  <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                  <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                </div>
+                              )
                             })}
+                          </div>
+                          <Separator />
+                          <h3 className="mb-2 font-semibold text-lg">Painéis Detalhados</h3>
+                          <div className="space-y-2">
+                             {largePanelIds.map(panelId => {
+                              const panel = (panels as any)[panelId];
+                              if (!panel) return null;
+                              return (
+                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                  <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                  <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                     </DialogContent>
                 </Dialog>
             </div>
         </div>
 
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {panelOrder.map(panelId => {
-                const panel = (panels as any)[panelId];
-                if (!panel || !visiblePanels[panelId]) return null;
-                
-                return (
-                <SortableCollapsiblePanel
-                    key={panelId}
-                    id={panelId}
-                    className={panel.className}
-                    title={panel.title}
-                    isCollapsed={collapsedPanels[panelId]}
-                    onToggleCollapse={(isOpen) => handleToggleCollapse(panelId, isOpen)}
-                >
-                    {panel.content}
-                </SortableCollapsiblePanel>
-                );
-            })}
+        {loading ? <DashboardSkeleton /> : (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                {smallPanelIds.map(panelId => {
+                  const panel = (panels as any)[panelId];
+                  if (!panel || !visiblePanels[panelId]) return null;
+                  return <div key={panelId}>{panel.content}</div>;
+                })}
             </div>
-        </SortableContext>
-        </DndContext>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
+                {largePanelIds.map(panelId => {
+                  const panel = (panels as any)[panelId];
+                  if (!panel || !visiblePanels[panelId]) return null;
+                  return <div key={panelId} className="flex flex-col">{panel.content}</div>;
+                })}
+            </div>
+          </div>
+        )}
     </div>
   );
 }
