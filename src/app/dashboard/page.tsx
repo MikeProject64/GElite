@@ -278,9 +278,9 @@ export default function DashboardPage() {
                     <CardDescription>Serviços vencidos ou vencendo hoje.</CardDescription>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                    {loading ? <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : deadlines.length > 0 ? (
+                    {loading ? <div className="space-y-2"><Skeleton className="h-10 w-full" /><Skeleton className="h-10 w-full" /></div> : criticalDeadlines.length > 0 ? (
                         <div className="space-y-2">
-                            {deadlines.map(order => {
+                            {criticalDeadlines.map(order => {
                                 const status = getDueDateStatus(order.dueDate.toDate());
                                 if (!status) return null;
                                 return (
@@ -438,7 +438,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 {smallPanelIds.map(panelId => {
                   const panel = (panels as any)[panelId];
-                  if (!panel || !visiblePanels[panelId]) return null;
+                  if (!panel || visiblePanels[panelId] === false) return null;
                   return <div key={panelId}>{panel.content}</div>;
                 })}
             </div>
@@ -446,7 +446,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {largePanelIds.map(panelId => {
                   const panel = (panels as any)[panelId];
-                  if (!panel || !visiblePanels[panelId]) return null;
+                  if (!panel || visiblePanels[panelId] === false) return null;
                   return <div key={panelId} className="flex flex-col">{panel.content}</div>;
                 })}
             </div>
