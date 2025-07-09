@@ -10,6 +10,7 @@ import { getAnalyticsReports } from './actions';
 import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin } from 'lucide-react';
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface AnalyticsData {
   realtime: { activeUsers: number };
