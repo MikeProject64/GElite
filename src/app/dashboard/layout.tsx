@@ -84,7 +84,7 @@ export default function DashboardLayout({
     <>
       <DynamicLayoutEffects />
       <TrialBanner />
-      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr] lg:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
+      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
         <DashboardSidebar />
         <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
           {children}
