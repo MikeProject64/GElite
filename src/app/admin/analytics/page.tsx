@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -61,14 +62,12 @@ export default function AnalyticsPage() {
           <AlertDescription>
             <p>{error}</p>
             <p className="mt-2">
-              Para habilitar esta página, por favor, siga estes passos:
-              <ul className="list-decimal list-inside mt-1 text-xs">
-                <li>Certifique-se de que a API do Google Analytics Data (v1beta) está ativada no seu projeto Google Cloud.</li>
-                <li>Crie uma conta de serviço no Google Cloud e conceda a ela a permissão de "Leitor" na sua propriedade do Google Analytics.</li>
-                <li>Faça o download do arquivo de chave JSON da conta de serviço.</li>
-                <li>Defina a variável de ambiente `GOOGLE_APPLICATION_CREDENTIALS` no seu servidor para o caminho do arquivo JSON.</li>
-                 <li>Defina a variável de ambiente `GA4_PROPERTY_ID` com o ID da sua propriedade do Google Analytics 4.</li>
-              </ul>
+              Para habilitar esta página, por favor, vá para a seção de{' '}
+              <Link href="/admin/integrations" className="font-bold underline hover:no-underline">Integrações</Link>
+              {' '}e configure o ID da Propriedade do GA4 e o arquivo de credenciais JSON.
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+                Dica: Certifique-se de que a API do Google Analytics Data (v1beta) está ativada no seu projeto Google Cloud e que a conta de serviço tem permissão de "Leitor".
             </p>
           </AlertDescription>
         </Alert>

@@ -55,6 +55,8 @@ export interface UserSettings {
   stripeSecretKey?: string;
   whatsAppBusinessAccountId?: string;
   whatsAppAccessToken?: string;
+  ga4PropertyId?: string;
+  ga4CredentialsJson?: string;
 }
 
 export interface SystemUser {

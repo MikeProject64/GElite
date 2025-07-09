@@ -12,9 +12,10 @@ import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail, Send } from 'lucide-react';
+import { Loader2, Save, KeyRound, DollarSign, CreditCard, Repeat, MessageSquare, Mail, Send, TrendingUp, FileUp } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { createTestChargeAction, createTestSubscriptionAction, sendTestEmailAction, sendWhatsAppTestMessageAction } from './actions';
@@ -65,6 +66,11 @@ const testWhatsAppFormSchema = z.object({
 });
 type TestWhatsAppFormValues = z.infer<typeof testWhatsAppFormSchema>;
 
+const googleAnalyticsFormSchema = z.object({
+  ga4PropertyId: z.string().optional().or(z.literal('')),
+  ga4CredentialsJson: z.string().optional().or(z.literal('')),
+});
+type GoogleAnalyticsFormValues = z.infer<typeof googleAnalyticsFormSchema>;
 
 function StripeSettingsForm() {
     const { toast } = useToast();
@@ -679,12 +685,147 @@ function WhatsAppApiSettingsForm() {
     );
 }
 
+function GoogleAnalyticsSettingsForm() {
+    const { toast } = useToast();
+    const [isLoading, setIsLoading] = useState(true);
+    const [isSaving, setIsSaving] = useState(false);
+    const [fileName, setFileName] = useState<string | null>(null);
+
+    const form = useForm<GoogleAnalyticsFormValues>({
+        resolver: zodResolver(googleAnalyticsFormSchema),
+        defaultValues: { ga4PropertyId: '', ga4CredentialsJson: '' },
+    });
+
+    useEffect(() => {
+        const settingsRef = doc(db, 'siteConfig', 'main');
+        const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                form.reset({
+                    ga4PropertyId: data.ga4PropertyId || '',
+                    ga4CredentialsJson: data.ga4CredentialsJson || '',
+                });
+                if (data.ga4CredentialsJson) {
+                    try {
+                        const credentials = JSON.parse(data.ga4CredentialsJson);
+                        setFileName(`credenciais_${credentials.project_id}.json`);
+                    } catch (e) {
+                        setFileName('Arquivo de credenciais inválido');
+                    }
+                }
+            }
+            setIsLoading(false);
+        });
+        return () => unsubscribe();
+    }, [form]);
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFileName(file.name);
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                const content = event.target?.result as string;
+                try {
+                    JSON.parse(content);
+                    form.setValue('ga4CredentialsJson', content, { shouldValidate: true });
+                } catch (error) {
+                    toast({ variant: 'destructive', title: 'Arquivo Inválido', description: 'O arquivo selecionado não é um JSON válido.' });
+                    setFileName(null);
+                    form.setValue('ga4CredentialsJson', '');
+                }
+            };
+            reader.readAsText(file);
+        }
+    };
+
+    const onSubmit = async (data: GoogleAnalyticsFormValues) => {
+        setIsSaving(true);
+        try {
+            const settingsRef = doc(db, 'siteConfig', 'main');
+            await setDoc(settingsRef, data, { merge: true });
+            toast({
+                title: 'Sucesso!',
+                description: 'Suas configurações do Google Analytics foram salvas.',
+            });
+        } catch (error) {
+            console.error('Error updating GA settings:', error);
+            toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível salvar as configurações.' });
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    if (isLoading) {
+      return (
+        <div className="space-y-8">
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <div className="space-y-4"> <Skeleton className="h-6 w-1/4" /><Skeleton className="h-10 w-full" /></div>
+          <Skeleton className="h-10 w-32" />
+        </div>
+      );
+    }
+
+    return (
+        <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+                <FormField
+                    control={form.control}
+                    name="ga4PropertyId"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>ID da Propriedade do Google Analytics 4</FormLabel>
+                            <FormControl><Input placeholder="Ex: 123456789" {...field} /></FormControl>
+                            <FormDescription>Encontrado nos detalhes da sua propriedade no Google Analytics.</FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <FormField
+                    control={form.control}
+                    name="ga4CredentialsJson"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Arquivo de Credenciais JSON</FormLabel>
+                            <FormControl>
+                                 <div className="flex items-center gap-4">
+                                    <Input id="json-upload" type="file" accept=".json" onChange={handleFileChange} className="hidden" />
+                                    <Label htmlFor="json-upload" className="flex-grow">
+                                        <Button type="button" variant="outline" className="w-full justify-start" asChild>
+                                            <span className='w-full'>
+                                                <FileUp className="mr-2 h-4 w-4" />
+                                                {fileName || 'Selecionar arquivo credentials.json'}
+                                            </span>
+                                        </Button>
+                                    </Label>
+                                </div>
+                            </FormControl>
+                            <FormDescription>
+                                Faça o download do arquivo JSON da sua conta de serviço no Google Cloud Console.
+                                <a href="https://cloud.google.com/iam/docs/service-accounts-create" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline ml-1">Saiba mais</a>.
+                            </FormDescription>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+
+                <Button type="submit" disabled={isSaving}>
+                    {isSaving ? (<Loader2 className="mr-2 h-4 w-4 animate-spin" />) : (<Save className="mr-2 h-4 w-4" />)}
+                    Salvar Configurações do Analytics
+                </Button>
+            </form>
+        </Form>
+    );
+}
+
+
 export default function AdminIntegrationsPage() {
   return (
     <div className="flex flex-col gap-6">
         <h1 className="text-3xl font-bold tracking-tight">Integrações</h1>
       <Tabs defaultValue="stripe" className="w-full">
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="stripe">
             <KeyRound className="mr-2 h-4 w-4" /> Stripe
           </TabsTrigger>
@@ -696,6 +837,9 @@ export default function AdminIntegrationsPage() {
           </TabsTrigger>
            <TabsTrigger value="email">
             <Mail className="mr-2 h-4 w-4" /> E-mail
+          </TabsTrigger>
+          <TabsTrigger value="analytics">
+            <TrendingUp className="mr-2 h-4 w-4" /> Analytics
           </TabsTrigger>
         </TabsList>
         <TabsContent value="stripe">
@@ -741,6 +885,17 @@ export default function AdminIntegrationsPage() {
               </CardHeader>
               <CardContent>
                   <EmailSettingsForm />
+              </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="analytics">
+          <Card>
+              <CardHeader>
+                  <CardTitle>Configuração do Google Analytics</CardTitle>
+                  <CardDescription>Conecte sua propriedade do GA4 para visualizar métricas no painel.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <GoogleAnalyticsSettingsForm />
               </CardContent>
           </Card>
         </TabsContent>

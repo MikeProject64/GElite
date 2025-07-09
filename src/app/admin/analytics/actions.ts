@@ -2,8 +2,8 @@
 'use server';
 
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
-
-const GA4_PROPERTY_ID = process.env.GA4_PROPERTY_ID;
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 interface AnalyticsData {
   activeUsers: number;
@@ -13,25 +13,40 @@ interface AnalyticsData {
 }
 
 export async function getAnalyticsReport(): Promise<{ success: boolean; data?: AnalyticsData; message?: string }> {
+  const settingsRef = doc(db, 'siteConfig', 'main');
+  const settingsSnap = await getDoc(settingsRef);
+
+  if (!settingsSnap.exists()) {
+    return { success: false, message: 'Configurações do site não encontradas. Configure as integrações na página de administrador.' };
+  }
+  const settingsData = settingsSnap.data();
+  const GA4_PROPERTY_ID = settingsData.ga4PropertyId;
+  const GA4_CREDENTIALS_JSON = settingsData.ga4CredentialsJson;
+
+
   if (!GA4_PROPERTY_ID) {
     return {
       success: false,
-      message: 'O ID da Propriedade do Google Analytics 4 (GA4_PROPERTY_ID) não está configurado no seu ambiente.',
+      message: 'O ID da Propriedade do Google Analytics 4 não está configurado. Por favor, adicione-o na página de Integrações.',
     };
   }
 
-  const hasCredentialsFile = !!process.env.GOOGLE_APPLICATION_CREDENTIALS;
-  const hasDirectCredentials = !!process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL && !!process.env.GOOGLE_PRIVATE_KEY;
-
-  if (!hasCredentialsFile && !hasDirectCredentials) {
-    return {
-      success: false,
-      message: 'As credenciais do Google Cloud não foram encontradas. Configure as variáveis de ambiente necessárias (ex: GOOGLE_APPLICATION_CREDENTIALS ou GOOGLE_SERVICE_ACCOUNT_EMAIL e GOOGLE_PRIVATE_KEY).',
-    };
+  if (!GA4_CREDENTIALS_JSON) {
+      return {
+          success: false,
+          message: 'As credenciais do Google Cloud (arquivo JSON) não foram configuradas. Por favor, faça o upload na página de Integrações.'
+      }
   }
 
   try {
-    const analyticsDataClient = new BetaAnalyticsDataClient();
+    const credentials = JSON.parse(GA4_CREDENTIALS_JSON);
+
+    const analyticsDataClient = new BetaAnalyticsDataClient({
+        credentials: {
+            client_email: credentials.client_email,
+            private_key: credentials.private_key.replace(/\\n/g, '\n'),
+        }
+    });
 
     const [reportResponse] = await analyticsDataClient.runReport({
       property: `properties/${GA4_PROPERTY_ID}`,
@@ -67,8 +82,11 @@ export async function getAnalyticsReport(): Promise<{ success: boolean; data?: A
 
   } catch (error: any) {
     console.error('Google Analytics API Error:', error);
-    if (error.message.includes('permission denied') || error.code === 7) {
-      return { success: false, message: 'Erro de permissão. Verifique se a conta de serviço tem a função de "Leitor" na sua propriedade do Google Analytics e se a API está ativada.' };
+    if (error.message.includes('permission denied') || error.code === 7 || error.message.includes('invalid_grant')) {
+      return { success: false, message: 'Erro de permissão. Verifique se as credenciais JSON são válidas, se a conta de serviço tem a função de "Leitor" na sua propriedade do Google Analytics e se a API Google Analytics Data está ativada.' };
+    }
+     if (error instanceof SyntaxError) {
+      return { success: false, message: 'O arquivo de credenciais JSON parece ser inválido. Por favor, faça o upload de um arquivo válido.' };
     }
     return { success: false, message: `Falha ao buscar dados do Google Analytics: ${error.message}` };
   }
