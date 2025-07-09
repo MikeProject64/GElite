@@ -21,6 +21,7 @@ import {
   LayoutDashboard,
   Image as ImageIcon,
   Package,
+  TrendingUp,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -34,6 +35,7 @@ function AdminNavContent() {
 
   const navItems = [
     { href: '/admin/dashboard', label: 'Painel', icon: LayoutDashboard },
+    { href: '/admin/analytics', label: 'Analytics', icon: TrendingUp },
     { href: '/admin/home', label: 'Home', icon: ImageIcon },
     { href: '/admin/users', label: 'Usuários', icon: Users },
     { href: '/admin/plans', label: 'Planos', icon: Package },

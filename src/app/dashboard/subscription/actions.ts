@@ -6,6 +6,7 @@ import { db } from '@/lib/firebase';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan, SubscriptionDetails } from '@/types';
+import * as gtag from '@/lib/gtag-server';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -176,7 +177,6 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         const userDocRef = doc(db, 'users', uid);
         const userDocSnap = await getDoc(userDocRef);
         
-        // Check if user was on trial BEFORE updating the document
         const wasOnTrial = userDocSnap.exists() && userDocSnap.data().subscriptionStatus === 'trialing';
 
         await updateDoc(userDocRef, {
@@ -188,7 +188,6 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
             trialEndsAt: null,
         });
 
-        // Get plan details for the event
         const planRef = doc(db, 'plans', planId);
         const planSnap = await getDoc(planRef);
         let planData: Plan | null = null;
@@ -199,7 +198,24 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         const price = subscription.items.data[0].price;
         const value = price.unit_amount ? price.unit_amount / 100 : 0;
         const currency = price.currency.toUpperCase();
-
+        
+        if (wasOnTrial) {
+             gtag.event({
+                name: 'trial_to_plan',
+                params: {
+                    currency: currency,
+                    value: value,
+                    transaction_id: subscription.id,
+                    items: [{
+                        item_id: planData?.id,
+                        item_name: planData?.name,
+                        price: value,
+                        quantity: 1,
+                    }]
+                }
+            });
+        }
+        
         return { 
             success: true, 
             wasOnTrial,
