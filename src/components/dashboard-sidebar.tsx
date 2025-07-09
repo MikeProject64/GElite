@@ -149,6 +149,37 @@ function DashboardNavContent({ isCollapsed }: { isCollapsed: boolean }) {
   );
 }
 
+// Hook to manage sidebar state, encapsulated within this component
+const useSidebar = () => {
+    const [isCollapsed, setIsCollapsed] = React.useState(false);
+  
+    React.useEffect(() => {
+      try {
+        const storedState = localStorage.getItem('sidebar-collapsed');
+        if (storedState) {
+          setIsCollapsed(JSON.parse(storedState));
+        }
+      } catch (e) {
+        // In case of parsing error or if localStorage is unavailable
+        console.error("Could not load sidebar state from localStorage", e);
+      }
+    }, []);
+
+    const toggleSidebar = () => {
+      setIsCollapsed(prevState => {
+        const newState = !prevState;
+        try {
+          localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
+        } catch (e) {
+            console.error("Could not save sidebar state to localStorage", e);
+        }
+        return newState;
+      });
+    };
+    
+    return { isCollapsed, toggleSidebar };
+};
+
 export function DashboardSidebar() {
   const { isCollapsed, toggleSidebar } = useSidebar();
   
@@ -157,7 +188,7 @@ export function DashboardSidebar() {
       <div className={cn("hidden border-r bg-card md:block", isCollapsed ? "w-[72px]" : "w-[280px]", "transition-all duration-300 ease-in-out")}>
         <div className="relative h-full">
           <DashboardNavContent isCollapsed={isCollapsed} />
-          <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] right-2 h-8 w-8">
+          <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] right-0 h-8 w-8">
             <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
           </Button>
         </div>
@@ -178,25 +209,3 @@ export function DashboardSidebar() {
     </TooltipProvider>
   );
 }
-
-// Hook to manage sidebar state
-const useSidebar = () => {
-    const [isCollapsed, setIsCollapsed] = React.useState(false);
-  
-    React.useEffect(() => {
-      const storedState = localStorage.getItem('sidebar-collapsed');
-      if (storedState) {
-        setIsCollapsed(JSON.parse(storedState));
-      }
-    }, []);
-
-    const toggleSidebar = () => {
-      setIsCollapsed(prevState => {
-        const newState = !prevState;
-        localStorage.setItem('sidebar-collapsed', JSON.stringify(newState));
-        return newState;
-      });
-    };
-    
-    return { isCollapsed, toggleSidebar };
-};
