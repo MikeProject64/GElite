@@ -400,58 +400,62 @@ export default function DashboardPage() {
             </Dialog>
         </div>
 
-        <div className="relative w-full" ref={popoverRef}>
-            <div className="relative">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
-                <Input
-                    placeholder="Buscar em todo o sistema (clientes, serviços, orçamentos...)"
-                    className="w-full pl-12 h-14 text-base rounded-xl shadow-sm"
-                    value={searchTerm}
-                    onChange={(e) => {
-                        const term = e.target.value;
-                        setSearchTerm(term);
-                        if (term.length > 1) {
-                        setIsPopoverOpen(true);
-                        } else {
-                        setIsPopoverOpen(false);
-                        }
-                    }}
-                    onFocus={() => { if (searchTerm.length > 1) setIsPopoverOpen(true); }}
-                />
-            </div>
-            {isPopoverOpen && searchTerm.length > 1 && (
-                <Card className="absolute z-20 w-full mt-1 shadow-lg border">
-                    <CardContent className="p-0">
-                        <ScrollArea className="h-60">
-                            {searchLoading && <div className="p-4 text-center text-sm flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>Buscando...</div>}
-                            {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
-                                <p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>
-                            )}
-                            {searchResults.length > 0 && (
-                                searchResults.map((result) => (
-                                    <Button
-                                        variant="ghost"
-                                        key={result.id + result.type}
-                                        className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto border-b last:border-b-0"
-                                        onClick={() => {
-                                            router.push(result.href);
-                                            setIsPopoverOpen(false);
-                                            setSearchTerm('');
-                                        }}
-                                    >
-                                        {getSearchIcon(result.type)}
-                                        <div className='ml-3 text-left'>
-                                            <p className='font-medium'>{result.title}</p>
-                                            <p className="text-xs text-muted-foreground">{result.description}</p>
-                                        </div>
-                                    </Button>
-                                ))
-                            )}
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-            )}
-        </div>
+        <Card>
+            <CardContent className="p-4">
+                <div className="relative w-full" ref={popoverRef}>
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none" />
+                        <Input
+                            placeholder="Buscar em todo o sistema (clientes, serviços, orçamentos...)"
+                            className="w-full pl-12 h-12 text-base rounded-lg"
+                            value={searchTerm}
+                            onChange={(e) => {
+                                const term = e.target.value;
+                                setSearchTerm(term);
+                                if (term.length > 1) {
+                                setIsPopoverOpen(true);
+                                } else {
+                                setIsPopoverOpen(false);
+                                }
+                            }}
+                            onFocus={() => { if (searchTerm.length > 1) setIsPopoverOpen(true); }}
+                        />
+                    </div>
+                    {isPopoverOpen && searchTerm.length > 1 && (
+                        <Card className="absolute z-20 w-full mt-1 shadow-lg border">
+                            <CardContent className="p-0">
+                                <ScrollArea className="h-60">
+                                    {searchLoading && <div className="p-4 text-center text-sm flex items-center justify-center gap-2"><Loader2 className="h-4 w-4 animate-spin"/>Buscando...</div>}
+                                    {!searchLoading && searchResults.length === 0 && searchTerm.length > 1 && (
+                                        <p className="p-4 text-center text-sm">Nenhum resultado encontrado.</p>
+                                    )}
+                                    {searchResults.length > 0 && (
+                                        searchResults.map((result) => (
+                                            <Button
+                                                variant="ghost"
+                                                key={result.id + result.type}
+                                                className="flex w-full justify-start items-center p-2 text-sm rounded-none h-auto border-b last:border-b-0"
+                                                onClick={() => {
+                                                    router.push(result.href);
+                                                    setIsPopoverOpen(false);
+                                                    setSearchTerm('');
+                                                }}
+                                            >
+                                                {getSearchIcon(result.type)}
+                                                <div className='ml-3 text-left'>
+                                                    <p className='font-medium'>{result.title}</p>
+                                                    <p className="text-xs text-muted-foreground">{result.description}</p>
+                                                </div>
+                                            </Button>
+                                        ))
+                                    )}
+                                </ScrollArea>
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+            </CardContent>
+        </Card>
 
 
         {loading ? <DashboardSkeleton /> : (
@@ -476,3 +480,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+
