@@ -19,7 +19,8 @@ import {
   Wrench,
   Settings,
   LayoutDashboard,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Package,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
