@@ -1,3 +1,4 @@
+
 import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { notFound } from 'next/navigation';
@@ -39,7 +40,7 @@ function PageBlockRenderer({ block }: { block: PageBlock }) {
         case 'subtitle':
             return <h2 className="text-2xl font-semibold mb-3">{block.content.text}</h2>;
         case 'text':
-            return <p className="mb-4 leading-relaxed">{block.content.text}</p>;
+            return <p className="mb-4 leading-relaxed whitespace-pre-wrap">{block.content.text}</p>;
         case 'image':
             return (
                 <div className="my-6">
