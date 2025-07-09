@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 import type { Stripe } from 'stripe';
 
@@ -57,6 +56,17 @@ export interface UserSettings {
   whatsAppAccessToken?: string;
   ga4PropertyId?: string;
   ga4CredentialsJson?: string;
+}
+
+export interface CustomPage {
+  id: string;
+  userId: string;
+  title: string;
+  slug: string;
+  content: string; // HTML content
+  isPublic: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
 }
 
 export interface SystemUser {
