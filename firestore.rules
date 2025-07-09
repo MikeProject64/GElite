@@ -1,62 +1,90 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
 
-    // Helper function to check if the requesting user is an admin.
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
     function isAdmin() {
-      // Check if the user is authenticated and if their role in the 'users' collection is 'admin'.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // Check if the user document exists before trying to access .data
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Rules for user documents
-    match /users/{userId} {
-      // Admins can read any user's data. Users can only read/write their own.
-      allow read: if isAdmin() || request.auth.uid == userId;
-      // Users can only write to their own document, admins can also update roles etc.
-      allow write: if isAdmin() || request.auth.uid == userId;
-    }
-
-    // Rules for user-specific settings (like color theme)
-    match /userSettings/{userId} {
-      // Only the owner can read/write their personal settings.
-      allow read, write: if request.auth.uid == userId;
-    }
-
-    // Rules for global site configuration
-    match /siteConfig/{docId} {
-      // Anyone can read the site configuration (for site name, icon, etc.).
-      allow get: if true;
-      // Only admins can write to the site configuration.
-      allow list, write: if isAdmin();
-    }
-
-    // Rules for subscription plans
+    // --- Public Data ---
+    // Anyone can read public plans and site config. Only admins can modify.
     match /plans/{planId} {
-      // Plans are public for the pricing page.
-      allow get, list: if true;
-      // Only admins can create or modify plans.
+      allow get: if resource.data.isPublic == true || isAdmin(); // get for single document read
+      allow list: if true; // list for collection queries
+      allow write: if isAdmin(); // create, update, delete for admins only
+    }
+    match /siteConfig/{configId} {
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Rules for Custom Pages
+    // --- Custom Pages ---
+    // Admins have full access. Public can read individual public pages.
     match /customPages/{pageId} {
-      // Admins have full read/write access to all pages.
-      // Anyone can read a public page (this covers the public-facing page route).
-      // Authenticated users can read their own private pages.
-      allow read: if isAdmin() || resource.data.isPublic == true || (request.auth.uid != null && request.auth.uid == resource.data.userId);
-
-      // Admins can write to any page.
-      // Authenticated users can only write to their own pages.
-      allow write: if isAdmin() || (request.auth.uid != null && request.auth.uid == resource.data.userId);
+      allow create, update, delete, list: if isAdmin();
+      allow get: if resource.data.isPublic == true || isAdmin();
     }
 
-    // Default rules for user-scoped data collections
-    // This single rule covers customers, serviceOrders, quotes, collaborators, inventory, etc.
-    match /{collection}/{docId} 
-      where collection in ['customers', 'serviceOrders', 'quotes', 'collaborators', 'inventory', 'inventoryMovements', 'timelineNotes'] {
-        // A user can do anything with a document in these collections if their UID matches the document's userId field.
-        allow read, write, delete: if request.auth != null && request.auth.uid == resource.data.userId;
+    // --- User Accounts ---
+    // Secure user creation during signup and protect user documents.
+    match /users/{userId} {
+      allow create: if request.auth.uid == userId && request.resource.data.role == 'user'; // Allow user creation during signup
+      allow read, update: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); // Only admins can list all users
+    }
+    
+    // --- User-Owned Data (The pattern for most collections) ---
+    // A user can CRUD their own documents, and admins can CRUD any document.
+    // Listing requires authentication, security is enforced by queries + read rules.
+    match /customers/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /serviceOrders/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /quotes/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /collaborators/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /inventory/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /inventoryMovements/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /timelineNotes/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+     match /userSettings/{userId} {
+      allow create, update, read: if isOwner(userId) || isAdmin();
     }
   }
 }
