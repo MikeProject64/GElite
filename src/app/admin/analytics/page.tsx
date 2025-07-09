@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -6,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter }
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { getAnalyticsReports } from './actions';
-import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, MapPin, TrendingDown, LineChart } from 'lucide-react';
+import { Users, Eye, Repeat, AlertTriangle, TrendingUp, Laptop, Smartphone, Tablet, BarChart2, PieChart, TrendingDown, LineChart } from 'lucide-react';
 import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie } from 'recharts';
 import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -63,11 +64,12 @@ export default function AnalyticsPage() {
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28" />)}
         </div>
          <div className="grid gap-6 lg:grid-cols-3">
+          <Skeleton className="h-80 lg:col-span-2" />
+          <Skeleton className="h-80" />
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
           <Skeleton className="h-80" />
         </div>
-        <Skeleton className="h-96" />
       </div>
     );
   }
@@ -152,27 +154,27 @@ export default function AnalyticsPage() {
         </Card>
       </div>
 
-       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (Últimos 30 dias)</CardTitle>
-          <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ChartContainer config={chartConfig} className="w-[419px] h-[621px]">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data?.dailyViews} maxBarSize={80}>
-                  <CartesianGrid vertical={false} />
-                  <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
-                  <YAxis />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                  <Bar dataKey="views" fill="var(--color-views)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-          </ChartContainer>
-        </CardContent>
-       </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+            <CardHeader>
+            <CardTitle className="flex items-center gap-2"><LineChart /> Visualizações de Página (Últimos 30 dias)</CardTitle>
+            <CardDescription>Visualizações de página por dia para todo o site.</CardDescription>
+            </CardHeader>
+            <CardContent>
+            <ChartContainer config={chartConfig} className="h-[350px]">
+                <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={data?.dailyViews} maxBarSize={50}>
+                    <CartesianGrid vertical={false} />
+                    <XAxis dataKey="date" tickLine={false} tickMargin={10} axisLine={false} />
+                    <YAxis />
+                    <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                    <Bar dataKey="views" fill="var(--color-views)" radius={4} />
+                    </BarChart>
+                </ResponsiveContainer>
+            </ChartContainer>
+            </CardContent>
+        </Card>
+        
         <Card>
            <CardHeader>
              <CardTitle className="flex items-center gap-2"><TrendingDown /> Funil de Conversão (7d)</CardTitle>
@@ -208,7 +210,28 @@ export default function AnalyticsPage() {
               )}
            </CardContent>
         </Card>
-         <Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
+            <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
+                  <CartesianGrid horizontal={false} />
+                  <XAxis type="number" />
+                  <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Eye /> Páginas Mais Acessadas</CardTitle>
               <CardDescription>Top 5 páginas mais vistas nos últimos 7 dias.</CardDescription>
@@ -232,26 +255,8 @@ export default function AnalyticsPage() {
               </Table>
             </CardContent>
           </Card>
-           <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><BarChart2 /> Contagem de Eventos</CardTitle>
-            <CardDescription>Eventos chave de conversão nos últimos 7 dias.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={data?.events.map(e => ({...e, name: eventTranslations[e.name] || e.name}))} layout="vertical">
-                  <CartesianGrid horizontal={false} />
-                  <XAxis type="number" />
-                  <YAxis type="category" dataKey="name" width={120} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: 'hsl(var(--muted))' }} content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-           <Card>
+           
+        <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><PieChart /> Usuários por Dispositivo</CardTitle>
               <CardDescription>Distribuição de usuários nos últimos 7 dias.</CardDescription>
@@ -268,7 +273,7 @@ export default function AnalyticsPage() {
                 ))}
             </CardContent>
           </Card>
-       </div>
+      </div>
     </div>
   );
 }
