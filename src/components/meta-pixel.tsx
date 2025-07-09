@@ -16,7 +16,7 @@ const MetaPixel = () => {
   }, [pathname, loaded])
 
   return (
-    <div>
+    <>
       <Script
         id="fb-pixel"
         src="/scripts/pixel.js"
@@ -24,7 +24,7 @@ const MetaPixel = () => {
         onLoad={() => setLoaded(true)}
         data-pixel-id={pixel.PIXEL_ID}
       />
-    </div>
+    </>
   )
 }
 
