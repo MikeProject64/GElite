@@ -53,7 +53,7 @@ const NavItem: React.FC<{
         isActive && 'bg-muted text-primary'
       )}
     >
-      <Icon className="h-4 w-4" />
+      <Icon className="h-5 w-5" />
       {!isCollapsed && <span>{label}</span>}
     </Link>
   );
@@ -163,7 +163,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         
         <NavActionButton
           label="Alterar Tema"
-          icon={<Sun className="h-4 w-4" />}
+          icon={<Sun className="h-5 w-5" />}
           isCollapsed={isCollapsed}
         >
           <DropdownMenuContent side="right" align="start">
