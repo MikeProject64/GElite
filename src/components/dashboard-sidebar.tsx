@@ -120,8 +120,8 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
   const { settings } = useSettings();
   const { setTheme, theme } = useTheme();
 
-  const topNavItems = [
-    { href: '/dashboard', label: 'Painel', icon: Home, flag: 'servicos' }, // Use a core flag for dashboard
+  const navItems = [
+    { href: '/dashboard', label: 'Painel', icon: Home, flag: 'servicos' },
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList, flag: 'servicos' },
     { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText, flag: 'orcamentos' },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
@@ -129,9 +129,6 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
     { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase, flag: 'colaboradores' },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
-  ];
-  
-   const bottomNavItems = [
     { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
     { href: '/dashboard/subscription', label: 'Assinatura', icon: CreditCard },
   ];
@@ -168,42 +165,36 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
           )}
         </div>
         
-        <nav className="flex flex-col flex-1 gap-1 px-2 py-4 lg:px-4">
-            {topNavItems.map(({ href, label, icon: NavIcon, flag }) => {
-                const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
-                if (!showFeature) return null;
-                const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
-                return <NavLink key={href} href={href} label={label} icon={NavIcon} isCollapsed={isCollapsed} isActive={isActive} />
-            })}
+        <div className="flex-1 overflow-y-auto">
+            <nav className="grid items-start px-2 py-4 text-sm font-medium lg:px-4 gap-1">
+                {navItems.map(({ href, label, icon: NavIcon, flag }) => {
+                    const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+                    if (!showFeature) return null;
+                    const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
+                    return <NavLink key={href} href={href} label={label} icon={NavIcon} isCollapsed={isCollapsed} isActive={isActive} />
+                })}
 
-            <div className="flex-grow" />
+                 <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="w-full">
+                      <NavButton
+                          label="Alterar Tema"
+                          icon={theme === 'dark' ? Moon : Sun}
+                          isCollapsed={isCollapsed}
+                          isActive={false}
+                       />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="start">
+                    <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
 
-            {bottomNavItems.map(({ href, label, icon: NavIcon }) => {
-                const isActive = pathname.startsWith(href);
-                return <NavLink key={href} href={href} label={label} icon={NavIcon} isCollapsed={isCollapsed} isActive={isActive} />
-            })}
-
-             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-full">
-                  <NavButton
-                      label="Alterar Tema"
-                      icon={theme === 'dark' ? Moon : Sun}
-                      isCollapsed={isCollapsed}
-                      isActive={false}
-                   />
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent side="right" align="start">
-                <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <NavButton label="Sair" icon={LogOut} isCollapsed={isCollapsed} isActive={false} onClick={handleLogout} className="text-destructive hover:text-destructive" />
-
-        </nav>
+                <NavButton label="Sair" icon={LogOut} isCollapsed={isCollapsed} isActive={false} onClick={handleLogout} className="text-destructive hover:text-destructive" />
+            </nav>
+        </div>
       </div>
     </TooltipProvider>
   );
