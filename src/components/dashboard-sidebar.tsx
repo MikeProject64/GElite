@@ -38,6 +38,75 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 
 
+interface NavLinkProps {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  isCollapsed: boolean;
+  isActive: boolean;
+  onClick?: () => void;
+  className?: string;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ href, label, icon: NavIcon, isCollapsed, isActive, onClick, className }) => {
+  const linkContent = (
+    <div className={cn(
+      'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+      isActive && 'bg-muted text-primary',
+      className
+    )}>
+      <NavIcon className="h-4 w-4" />
+      {!isCollapsed && <span>{label}</span>}
+    </div>
+  );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Link href={href} onClick={onClick}>
+            {linkContent}
+          </Link>
+        </TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Link href={href} onClick={onClick}>
+      {linkContent}
+    </Link>
+  );
+};
+
+const NavButton: React.FC<Omit<NavLinkProps, 'href'>> = ({ label, icon: NavIcon, isCollapsed, isActive, onClick, className }) => {
+  const buttonContent = (
+    <button className={cn(
+      'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+      isActive && 'bg-muted text-primary',
+      className
+    )}>
+      <NavIcon className="h-4 w-4" />
+      {!isCollapsed && <span>{label}</span>}
+    </button>
+  );
+
+  if (isCollapsed) {
+    return (
+       <Tooltip>
+        <TooltipTrigger asChild onClick={onClick}>
+          {buttonContent}
+        </TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  
+  return <div onClick={onClick}>{buttonContent}</div>
+}
+
+
 interface NavContentProps {
   isCollapsed: boolean;
   toggleSidebar: () => void;
@@ -49,10 +118,10 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
   const router = useRouter();
   const { user } = useAuth();
   const { settings } = useSettings();
-  const { setTheme } = useTheme();
+  const { setTheme, theme } = useTheme();
 
-  const navItems = [
-    { href: '/dashboard', label: 'Painel', icon: Home },
+  const topNavItems = [
+    { href: '/dashboard', label: 'Painel', icon: Home, flag: 'servicos' }, // Use a core flag for dashboard
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList, flag: 'servicos' },
     { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText, flag: 'orcamentos' },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
@@ -60,6 +129,11 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
     { href: '/dashboard/colaboradores', label: 'Colaboradores', icon: Briefcase, flag: 'colaboradores' },
     { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
+  ];
+  
+   const bottomNavItems = [
+    { href: '/dashboard/configuracoes', label: 'Configurações', icon: Settings },
+    { href: '/dashboard/subscription', label: 'Assinatura', icon: CreditCard },
   ];
 
   const handleLogout = async () => {
@@ -74,51 +148,6 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
   const logoURL = settings.logoURL;
-
-  const mainNav = (
-    <nav className={cn("grid items-start text-sm font-medium mt-2", isCollapsed ? "px-2" : "px-2 lg:px-4")}>
-      {navItems.map(({ href, label, icon: NavIcon, flag }) => {
-        const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
-        if (!showFeature) return null;
-
-        const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
-
-        if (isCollapsed && !isMobile) {
-          return (
-            <Tooltip key={href}>
-              <TooltipTrigger asChild>
-                <Link
-                  href={href}
-                  className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-primary md:h-8 md:w-8',
-                    isActive && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  <NavIcon className="h-5 w-5" />
-                  <span className="sr-only">{label}</span>
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">{label}</TooltipContent>
-            </Tooltip>
-          );
-        }
-
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-              isActive && 'bg-muted text-primary'
-            )}
-          >
-            <NavIcon className="h-4 w-4" />
-            {!isCollapsed && <span>{label}</span>}
-          </Link>
-        );
-      })}
-    </nav>
-  );
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -138,71 +167,43 @@ function NavContent({ isCollapsed, toggleSidebar, isMobile = false }: NavContent
             </Button>
           )}
         </div>
+        
+        <nav className="flex flex-col flex-1 gap-1 px-2 py-4 lg:px-4">
+            {topNavItems.map(({ href, label, icon: NavIcon, flag }) => {
+                const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+                if (!showFeature) return null;
+                const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
+                return <NavLink key={href} href={href} label={label} icon={NavIcon} isCollapsed={isCollapsed} isActive={isActive} />
+            })}
 
-        <div className="flex-1 overflow-y-auto">
-          {mainNav}
-        </div>
+            <div className="flex-grow" />
 
-        <div className="mt-auto p-2 border-t">
-          <div className="grid gap-1">
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} asChild>
-                  <Link href="/dashboard/configuracoes">
-                    <Settings className="h-4 w-4" />
-                    {!isCollapsed && <span className="ml-3">Configurações</span>}
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              {isCollapsed && <TooltipContent side="right">Configurações</TooltipContent>}
-            </Tooltip>
+            {bottomNavItems.map(({ href, label, icon: NavIcon }) => {
+                const isActive = pathname.startsWith(href);
+                return <NavLink key={href} href={href} label={label} icon={NavIcon} isCollapsed={isCollapsed} isActive={isActive} />
+            })}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} asChild>
-                  <Link href="/dashboard/subscription">
-                    <CreditCard className="h-4 w-4" />
-                    {!isCollapsed && <span className="ml-3">Assinatura</span>}
-                  </Link>
-                </Button>
-              </TooltipTrigger>
-              {isCollapsed && <TooltipContent side="right">Assinatura</TooltipContent>}
-            </Tooltip>
-
-            <DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className={cn("w-full", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")}>
-                      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                      {!isCollapsed && <span className="ml-3">Alterar Tema</span>}
-                      <span className="sr-only">Alterar Tema</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                </TooltipTrigger>
-                {isCollapsed && <TooltipContent side="right">Alterar Tema</TooltipContent>}
-              </Tooltip>
-              <DropdownMenuContent side="top" align="start" className={cn(isCollapsed && "ml-2")}>
+             <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="w-full">
+                  <NavButton
+                      label="Alterar Tema"
+                      icon={theme === 'dark' ? Moon : Sun}
+                      isCollapsed={isCollapsed}
+                      isActive={false}
+                   />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent side="right" align="start">
                 <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" className={cn("w-full text-destructive hover:text-destructive", isCollapsed ? "justify-center h-10 w-10" : "justify-start px-3 py-2")} onClick={handleLogout}>
-                  <LogOut className="h-4 w-4" />
-                  {!isCollapsed && <span className="ml-3">Sair</span>}
-                </Button>
-              </TooltipTrigger>
-              {isCollapsed && <TooltipContent side="right">Sair</TooltipContent>}
-            </Tooltip>
-            
-          </div>
-        </div>
+            <NavButton label="Sair" icon={LogOut} isCollapsed={isCollapsed} isActive={false} onClick={handleLogout} className="text-destructive hover:text-destructive" />
+
+        </nav>
       </div>
     </TooltipProvider>
   );
