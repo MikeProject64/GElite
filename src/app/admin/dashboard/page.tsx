@@ -3,11 +3,8 @@
 
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useToast } from '@/hooks/use-toast';
-import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from '@dnd-kit/core';
-import { arrayMove, SortableContext, useSortable, rectSortingStrategy, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import { format } from 'date-fns';
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell } from 'recharts';
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Pie, Cell, PieChart } from 'recharts';
 import Link from 'next/link';
 
 // Actions
@@ -54,31 +51,6 @@ const barChartConfig = {
   total: { label: 'Faturamento', color: 'hsl(var(--primary))' },
 } satisfies ChartConfig;
 
-// === Sortable Panel Component ===
-interface SortablePanelProps {
-  id: string;
-  children: React.ReactNode;
-  className?: string;
-}
-
-const SortablePanel: React.FC<SortablePanelProps> = ({ id, children, className }) => {
-  const { isDragging, attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : undefined,
-  };
-  
-  return (
-    <div ref={setNodeRef} style={style} className={cn(className, isDragging && "opacity-60 shadow-2xl")}>
-       <div {...attributes} {...listeners} className={cn("h-full", isDragging && "cursor-grabbing")}>
-           {children}
-       </div>
-    </div>
-  );
-};
-
 const initialPanelOrder = [
     // Analytics
     'realtime-users', 'active-users-7d', 'new-users-7d', 'conversions-7d',
@@ -102,7 +74,6 @@ export default function AdminDashboardPage() {
     const [error, setError] = useState<string | null>(null);
 
     // Layout State
-    const [panelOrder, setPanelOrder] = useState<string[]>(initialPanelOrder);
     const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
     const [isMounted, setIsMounted] = useState(false);
     const [isLayoutModalOpen, setIsLayoutModalOpen] = useState(false);
@@ -111,13 +82,6 @@ export default function AdminDashboardPage() {
     useEffect(() => {
         setIsMounted(true);
         try {
-            const storedOrder = localStorage.getItem('dashboard-panel-order');
-            if (storedOrder) {
-                const parsedOrder = JSON.parse(storedOrder);
-                const validOrder = initialPanelOrder.filter(p => parsedOrder.includes(p));
-                const newPanels = initialPanelOrder.filter(p => !parsedOrder.includes(p));
-                if (validOrder.length > 0) setPanelOrder([...validOrder, ...newPanels]);
-            }
             const storedVisible = localStorage.getItem('dashboard-visible-panels');
             if (storedVisible) {
                 const parsedVisible = JSON.parse(storedVisible);
@@ -132,7 +96,6 @@ export default function AdminDashboardPage() {
     }, []);
 
     // Save layout to localStorage
-    useEffect(() => { if (isMounted) localStorage.setItem('dashboard-panel-order', JSON.stringify(panelOrder)); }, [panelOrder, isMounted]);
     useEffect(() => { if (isMounted) localStorage.setItem('dashboard-visible-panels', JSON.stringify(visiblePanels)); }, [visiblePanels, isMounted]);
 
     // Fetch all data
@@ -168,19 +131,6 @@ export default function AdminDashboardPage() {
         }
         fetchData();
     }, [toast]);
-
-    const sensors = useSensors(useSensor(PointerSensor), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
-    
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-          setPanelOrder((items) => {
-            const oldIndex = items.indexOf(active.id as string);
-            const newIndex = items.indexOf(over.id as string);
-            return arrayMove(items, oldIndex, newIndex);
-          });
-        }
-    };
 
     const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
 
@@ -268,7 +218,7 @@ export default function AdminDashboardPage() {
             <DialogContent>
                 <DialogHeader>
                     <DialogTitle>Personalizar Painel</DialogTitle>
-                    <DialogDescription>Selecione os painéis que deseja exibir. Você pode reordená-los arrastando e soltando na tela principal.</DialogDescription>
+                    <DialogDescription>Selecione os painéis que deseja exibir.</DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
                     {Object.entries(panelGroups).map(([groupName, panelIds]) => (
@@ -292,31 +242,28 @@ export default function AdminDashboardPage() {
             </DialogContent>
         </Dialog>
       
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={panelOrder} strategy={rectSortingStrategy}>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {panelOrder.map(panelId => {
-                        const panel = (panels as any)[panelId];
-                        if (!panel || !visiblePanels[panelId]) return null;
-                        
-                        // Determine class based on panel type
-                        const isSmallCard = ['realtime-users', 'active-users-7d', 'new-users-7d', 'conversions-7d', 'mrr', 'revenue-30d', 'active-subs', 'arpu'].includes(panelId);
-                        const isMediumCard = ['daily-views-chart', 'conversion-funnel', 'event-count-chart', 'top-pages', 'device-users', 'daily-revenue-chart', 'recent-transactions', 'subs-by-plan-chart'].includes(panelId);
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {initialPanelOrder.map(panelId => {
+                const panel = (panels as any)[panelId];
+                if (!panel || !visiblePanels[panelId]) return null;
+                
+                // Determine class based on panel type
+                const isSmallCard = ['realtime-users', 'active-users-7d', 'new-users-7d', 'conversions-7d', 'mrr', 'revenue-30d', 'active-subs', 'arpu'].includes(panelId);
+                const isMediumCard = ['daily-views-chart', 'conversion-funnel', 'event-count-chart', 'top-pages', 'device-users', 'daily-revenue-chart', 'recent-transactions', 'subs-by-plan-chart'].includes(panelId);
 
-                        const panelClassName = cn(
-                            isSmallCard && "lg:col-span-1 md:col-span-1",
-                            isMediumCard && "lg:col-span-2 md:col-span-2 min-h-[440px]",
-                        );
+                const panelClassName = cn(
+                    "flex flex-col",
+                    isSmallCard && "lg:col-span-1 md:col-span-1",
+                    isMediumCard && "lg:col-span-2 md:col-span-2 min-h-[440px]",
+                );
 
-                        return (
-                            <SortablePanel key={panelId} id={panelId} className={panelClassName}>
-                               {loading ? <Skeleton className="h-full w-full" /> : panel.content}
-                            </SortablePanel>
-                        );
-                    })}
-                </div>
-            </SortableContext>
-        </DndContext>
+                return (
+                    <div key={panelId} className={panelClassName}>
+                       {loading ? <Skeleton className="h-full w-full" /> : panel.content}
+                    </div>
+                );
+            })}
+        </div>
     </div>
   );
 }
