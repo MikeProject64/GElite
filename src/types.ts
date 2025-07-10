@@ -251,3 +251,10 @@ export interface InventoryMovement {
     serviceOrderId?: string;
     serviceOrderCode?: string;
 }
+
+export interface QuickNote {
+    id: string;
+    userId: string;
+    content: string;
+    createdAt: Timestamp;
+}

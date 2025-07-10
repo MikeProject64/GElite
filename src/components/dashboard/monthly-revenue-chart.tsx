@@ -8,6 +8,7 @@ import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/u
 
 interface MonthlyRevenueChartProps {
   data: { month: string; total: number }[];
+  period: '30d' | 'this_month' | '6m';
 }
 
 const formatCurrency = (value: number) => {
@@ -17,26 +18,33 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
-export function MonthlyRevenueChart({ data }: MonthlyRevenueChartProps) {
+export function MonthlyRevenueChart({ data, period }: MonthlyRevenueChartProps) {
   const chartConfig = {
     total: {
       label: 'Faturamento',
       color: 'hsl(var(--primary))',
     },
   } satisfies ChartConfig;
+  
+  const yAxisFormatter = (value: number) => {
+    if (period === '6m') {
+        return `R$${value / 1000}k`;
+    }
+    return formatCurrency(value);
+  }
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle className='flex items-center gap-2'><TrendingUp /> Faturamento Mensal</CardTitle>
-        <CardDescription>Receita de ordens de serviço concluídas nos últimos 6 meses.</CardDescription>
+        <CardTitle className='flex items-center gap-2'><TrendingUp /> Faturamento</CardTitle>
+        <CardDescription>Receita de ordens de serviço concluídas no período.</CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
           <BarChart accessibilityLayer data={data} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
             <CartesianGrid vertical={false} />
             <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-            <YAxis tickFormatter={(value) => `R$${value / 1000}k`} width={80} />
+            <YAxis tickFormatter={yAxisFormatter} width={80} />
             <Tooltip
               cursor={false}
               content={<ChartTooltipContent

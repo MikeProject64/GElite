@@ -3,14 +3,14 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, SlidersHorizontal } from 'lucide-react';
-import { collection, query, where, getDocs, Timestamp } from 'firebase/firestore';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react';
+import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import type { RecentActivity, ServiceOrder, Quote, Customer, Collaborator } from '@/types';
+import type { RecentActivity, ServiceOrder, Quote, Customer, Collaborator, QuickNote } from '@/types';
 import Link from 'next/link';
-import { formatDistanceToNow, format, subMonths, startOfMonth, isPast, isToday } from 'date-fns';
+import { formatDistanceToNow, format, subMonths, startOfMonth, isPast, isToday, startOfToday, endOfToday, startOfISOWeek, endOfISOWeek, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
@@ -26,6 +26,12 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 interface SearchResult {
   id: string;
@@ -48,6 +54,11 @@ interface DashboardStats {
     pendingQuotes: number;
 }
 
+const quickNoteSchema = z.object({
+  content: z.string().min(1, 'A nota não pode estar vazia.').max(280, 'A nota não pode exceder 280 caracteres.'),
+});
+type QuickNoteFormValues = z.infer<typeof quickNoteSchema>;
+
 const getStatusColor = (status: string) => {
     const STATUS_COLORS: { [key: string]: string } = {
       'Pendente': 'hsl(var(--destructive))',
@@ -68,7 +79,7 @@ const getStatusColor = (status: string) => {
 };
 
 const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'total-customers'];
-const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
+const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'quick-notes', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
 const allPanelIds = [...smallPanelIds, ...largePanelIds];
 
 const initialPanelVisibility = allPanelIds.reduce((acc, id) => ({ ...acc, [id]: true }), {});
@@ -94,6 +105,8 @@ export default function DashboardPage() {
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [], serviceTypes: [] });
   const [criticalDeadlines, setCriticalDeadlines] = useState<ServiceOrder[]>([]);
+  const [allOrders, setAllOrders] = useState<ServiceOrder[]>([]);
+  const [quickNotes, setQuickNotes] = useState<QuickNote[]>([]);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
@@ -103,6 +116,12 @@ export default function DashboardPage() {
   
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>(initialPanelVisibility);
   const [isMounted, setIsMounted] = useState(false);
+  const [chartPeriod, setChartPeriod] = useState<'30d' | 'this_month' | '6m'>('30d');
+
+  const noteForm = useForm<QuickNoteFormValues>({
+    resolver: zodResolver(quickNoteSchema),
+    defaultValues: { content: '' },
+  });
 
   useEffect(() => {
     setIsMounted(true);
@@ -129,58 +148,26 @@ export default function DashboardPage() {
             getDocs(ordersQuery), getDocs(customersQuery), getDocs(quotesQuery),
         ]);
 
-        const allOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder).filter(o => o.createdAt && typeof o.createdAt.toDate === 'function');
+        const fetchedOrders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as ServiceOrder).filter(o => o.createdAt && typeof o.createdAt.toDate === 'function');
+        setAllOrders(fetchedOrders);
         const allCustomers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Customer).filter(c => c.createdAt && typeof c.createdAt.toDate === 'function');
         const allQuotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote).filter(q => q.createdAt && typeof q.createdAt.toDate === 'function');
 
         const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
         const now = new Date(); now.setHours(0, 0, 0, 0);
 
-        const activeCount = allOrders.filter(o => activeStatuses.includes(o.status)).length;
+        const activeCount = fetchedOrders.filter(o => activeStatuses.includes(o.status)).length;
         const customerCount = allCustomers.length;
-        const overdueCount = allOrders.filter(o => o.dueDate && typeof o.dueDate.toDate === 'function' && !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+        const overdueCount = fetchedOrders.filter(o => o.dueDate && typeof o.dueDate.toDate === 'function' && !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
         const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
         setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
         
-        const activeOrdersWithDueDates = allOrders.filter(o => activeStatuses.includes(o.status) && o.dueDate && typeof o.dueDate.toDate === 'function');
+        const activeOrdersWithDueDates = fetchedOrders.filter(o => activeStatuses.includes(o.status) && o.dueDate && typeof o.dueDate.toDate === 'function');
         const overdue = activeOrdersWithDueDates.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).sort((a,b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
         const dueToday = activeOrdersWithDueDates.filter(o => isToday(o.dueDate.toDate()));
         setCriticalDeadlines([...overdue, ...dueToday].slice(0, 5));
 
-        const statusCounts = allOrders.reduce((acc, order) => { acc[order.status] = (acc[order.status] || 0) + 1; return acc; }, {} as Record<string, number>);
-        const orderStatus = Object.entries(statusCounts).map(([status, count]) => ({ status, count, fill: getStatusColor(status) }));
-
-        const sixMonthsAgo = subMonths(new Date(), 5);
-        const monthlyRevenueMap = allOrders.reduce((acc, order) => {
-            if (order.status === 'Concluída' && order.completedAt && typeof order.completedAt.toDate === 'function') {
-                const completionDate = order.completedAt.toDate();
-                if (completionDate >= startOfMonth(sixMonthsAgo)) {
-                    const monthKey = format(completionDate, 'yyyy-MM');
-                    acc[monthKey] = (acc[monthKey] || 0) + order.totalValue;
-                }
-            }
-            return acc;
-        }, {} as Record<string, number>);
-        const monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
-            const date = subMonths(new Date(), 5 - i);
-            const monthKey = format(date, 'yyyy-MM');
-            return { month: format(date, 'MMM/yy', { locale: ptBR }), total: monthlyRevenueMap[monthKey] || 0 };
-        });
-
-        const serviceTypeCounts = allOrders.reduce((acc, order) => {
-            const type = order.serviceType || 'Não especificado';
-            acc[type] = (acc[type] || 0) + 1;
-            return acc;
-        }, {} as Record<string, number>);
-        const serviceTypes = Object.entries(serviceTypeCounts).map(([type, count], index) => ({
-            type,
-            count,
-            fill: `hsl(var(--chart-${(index % 5) + 1}))`
-        })).sort((a, b) => b.count - a.count);
-
-        setChartData({ orderStatus, monthlyRevenue, serviceTypes });
-
-        const recentOrders = [...allOrders].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
+        const recentOrders = [...fetchedOrders].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         const recentCustomers = [...allCustomers].sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         const recentQuotesActivity = [...allQuotes].filter(q => !q.isTemplate).sort((a,b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime()).slice(0,3);
         
@@ -194,6 +181,88 @@ export default function DashboardPage() {
   }, [user, settings]);
   
   useEffect(() => { fetchDashboardData(); }, [fetchDashboardData]);
+
+  // Listener for quick notes
+  useEffect(() => {
+    if (!user) return;
+    const q = query(collection(db, 'quickNotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'), limit(10));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        setQuickNotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuickNote)));
+    });
+    return () => unsubscribe();
+  }, [user]);
+
+  // Chart data calculation based on period
+  useEffect(() => {
+    if (loading || !allOrders) return;
+
+    let startDate: Date;
+    const endDate = new Date();
+
+    if (chartPeriod === '30d') {
+        startDate = subMonths(endDate, 1);
+    } else if (chartPeriod === 'this_month') {
+        startDate = startOfMonth(endDate);
+    } else { // 6m
+        startDate = subMonths(endDate, 5);
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    const filteredOrders = allOrders.filter(order => order.createdAt.toDate() >= startDate);
+    
+    // Order Status Chart
+    const statusCounts = filteredOrders.reduce((acc, order) => { acc[order.status] = (acc[order.status] || 0) + 1; return acc; }, {} as Record<string, number>);
+    const orderStatus = Object.entries(statusCounts).map(([status, count]) => ({ status, count, fill: getStatusColor(status) }));
+    
+    // Monthly Revenue Chart
+    const revenueEndDate = chartPeriod === 'this_month' ? endOfMonth(endDate) : endDate;
+    const filteredCompletedOrders = filteredOrders.filter(order => order.status === 'Concluída' && order.completedAt && order.completedAt.toDate() >= startDate && order.completedAt.toDate() <= revenueEndDate);
+    
+    let monthlyRevenue: { month: string; total: number; }[] = [];
+    if (chartPeriod === '6m') {
+        const monthlyRevenueMap = filteredCompletedOrders.reduce((acc, order) => {
+            const completionDate = order.completedAt!.toDate();
+            const monthKey = format(completionDate, 'yyyy-MM');
+            acc[monthKey] = (acc[monthKey] || 0) + order.totalValue;
+            return acc;
+        }, {} as Record<string, number>);
+        monthlyRevenue = Array.from({ length: 6 }, (_, i) => {
+            const date = subMonths(new Date(), 5 - i);
+            const monthKey = format(date, 'yyyy-MM');
+            return { month: format(date, 'MMM/yy', { locale: ptBR }), total: monthlyRevenueMap[monthKey] || 0 };
+        });
+    } else { // Daily for 30d and this_month
+        const dailyRevenueMap = filteredCompletedOrders.reduce((acc, order) => {
+            const completionDate = order.completedAt!.toDate();
+            const dayKey = format(completionDate, 'yyyy-MM-dd');
+            acc[dayKey] = (acc[dayKey] || 0) + order.totalValue;
+            return acc;
+        }, {} as Record<string, number>);
+        
+        let currentDate = new Date(startDate);
+        while (currentDate <= revenueEndDate) {
+            const dayKey = format(currentDate, 'yyyy-MM-dd');
+            monthlyRevenue.push({ month: format(currentDate, 'dd/MM'), total: dailyRevenueMap[dayKey] || 0 });
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+    }
+
+    // Service Type Chart
+    const serviceTypeCounts = filteredOrders.reduce((acc, order) => {
+        const type = order.serviceType || 'Não especificado';
+        acc[type] = (acc[type] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+    const serviceTypes = Object.entries(serviceTypeCounts).map(([type, count], index) => ({
+        type,
+        count,
+        fill: `hsl(var(--chart-${(index % 5) + 1}))`
+    })).sort((a, b) => b.count - a.count);
+
+    setChartData({ orderStatus, monthlyRevenue, serviceTypes });
+
+  }, [allOrders, chartPeriod, loading]);
+
 
   const performSearch = useCallback(async (term: string) => {
     if (!user || term.length < 2) { setSearchResults([]); return; }
@@ -234,6 +303,25 @@ export default function DashboardPage() {
       default: return null;
     }
   };
+
+  const handleAddNote = async (data: QuickNoteFormValues) => {
+    if (!user) return;
+    try {
+        await addDoc(collection(db, 'quickNotes'), {
+            userId: user.uid,
+            content: data.content,
+            createdAt: Timestamp.now(),
+        });
+        noteForm.reset();
+    } catch (error) {
+        console.error("Error adding quick note:", error);
+    }
+  };
+
+  const handleDeleteNote = async (noteId: string) => {
+    await deleteDoc(doc(db, 'quickNotes', noteId));
+  };
+
 
   const handleToggleVisibility = (panelId: string) => { setVisiblePanels(prev => ({...prev, [panelId]: !prev[panelId]})); };
 
@@ -340,13 +428,44 @@ export default function DashboardPage() {
             </Card>
         )
     },
+    'quick-notes': {
+        title: 'Notas Rápidas',
+        content: (
+            <Card className="h-full flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><StickyNote /> Notas Rápidas</CardTitle>
+                    <CardDescription>Anote lembretes importantes do dia a dia.</CardDescription>
+                </CardHeader>
+                <CardContent className="flex-grow flex flex-col gap-4">
+                    <form onSubmit={noteForm.handleSubmit(handleAddNote)} className="flex gap-2">
+                        <Textarea {...noteForm.register('content')} placeholder="Ligar para o cliente X..." className="h-10 resize-none"/>
+                        <Button type="submit" disabled={noteForm.formState.isSubmitting}>
+                            {noteForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Add'}
+                        </Button>
+                    </form>
+                    <ScrollArea className="flex-grow">
+                        <div className="space-y-2 pr-4">
+                            {quickNotes.map(note => (
+                                <div key={note.id} className="text-sm p-2 bg-muted/50 rounded-md flex justify-between items-start gap-2">
+                                    <p className="flex-grow whitespace-pre-wrap break-words">{note.content}</p>
+                                    <Button variant="ghost" size="icon" className="h-5 w-5 shrink-0" onClick={() => handleDeleteNote(note.id)}>
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                </CardContent>
+            </Card>
+        )
+    },
     'order-status-chart': {
       title: 'Ordens por Status',
       content: <OrderStatusChart data={chartData.orderStatus} />
     },
     'monthly-revenue-chart': {
-      title: 'Faturamento Mensal',
-      content: <MonthlyRevenueChart data={chartData.monthlyRevenue} />
+      title: 'Faturamento',
+      content: <MonthlyRevenueChart data={chartData.monthlyRevenue} period={chartPeriod} />
     },
     'service-type-chart': {
         title: 'Serviços por Tipo',
@@ -365,7 +484,7 @@ export default function DashboardPage() {
         </Card>
       )
     },
-  }), [stats, loading, criticalDeadlines, chartData, recentActivity]);
+  }), [stats, loading, criticalDeadlines, chartData, recentActivity, quickNotes, noteForm]);
   
   if (!isMounted) return <DashboardSkeleton />;
 
@@ -385,35 +504,37 @@ export default function DashboardPage() {
                         <DialogTitle>Personalizar Painel</DialogTitle>
                         <DialogDescription>Selecione os painéis que você deseja exibir.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4 py-4">
-                      <h3 className="mb-2 font-semibold text-lg">Métricas Rápidas</h3>
-                      <div className="space-y-2">
-                        {smallPanelIds.map(panelId => {
-                          const panel = (panels as any)[panelId];
-                          if (!panel) return null;
-                          return (
-                            <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                              <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                              <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                            </div>
-                          )
-                        })}
-                      </div>
-                      <Separator />
-                      <h3 className="mb-2 font-semibold text-lg">Painéis Detalhados</h3>
-                      <div className="space-y-2">
-                         {largePanelIds.map(panelId => {
-                          const panel = (panels as any)[panelId];
-                          if (!panel) return null;
-                          return (
-                            <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
-                              <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
-                              <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    <ScrollArea className="max-h-[60vh]">
+                        <div className="space-y-4 py-4 pr-4">
+                        <h3 className="mb-2 font-semibold text-lg">Métricas Rápidas</h3>
+                        <div className="space-y-2">
+                            {smallPanelIds.map(panelId => {
+                            const panel = (panels as any)[panelId];
+                            if (!panel) return null;
+                            return (
+                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                </div>
+                            )
+                            })}
+                        </div>
+                        <Separator />
+                        <h3 className="mb-2 font-semibold text-lg">Painéis Detalhados</h3>
+                        <div className="space-y-2">
+                            {largePanelIds.map(panelId => {
+                            const panel = (panels as any)[panelId];
+                            if (!panel) return null;
+                            return (
+                                <div key={panelId} className="flex items-center justify-between rounded-lg border p-3">
+                                <Label htmlFor={`switch-${panelId}`} className="font-normal">{panel.title}</Label>
+                                <Switch id={`switch-${panelId}`} checked={visiblePanels[panelId] !== false} onCheckedChange={() => handleToggleVisibility(panelId)} />
+                                </div>
+                            )
+                            })}
+                        </div>
+                        </div>
+                    </ScrollArea>
                 </DialogContent>
             </Dialog>
         </div>
@@ -486,6 +607,14 @@ export default function DashboardPage() {
                 })}
             </div>
             
+             <Tabs value={chartPeriod} onValueChange={(value) => setChartPeriod(value as any)}>
+                <TabsList className="grid w-full grid-cols-3 max-w-sm mb-4">
+                    <TabsTrigger value="30d">Últimos 30 dias</TabsTrigger>
+                    <TabsTrigger value="this_month">Este Mês</TabsTrigger>
+                    <TabsTrigger value="6m">Últimos 6 meses</TabsTrigger>
+                </TabsList>
+            </Tabs>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
                 {largePanelIds.map(panelId => {
                   const panel = (panels as any)[panelId];
@@ -498,5 +627,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
