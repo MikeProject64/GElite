@@ -3,11 +3,10 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDocs } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { useSettings } from '@/components/settings-provider';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -18,13 +17,11 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Briefcase, Eye, Building2, User, Upload, Trash2 } from 'lucide-react';
+import { Loader2, ArrowLeft, Briefcase, Building2, User, Upload } from 'lucide-react';
 import { ServiceOrder, Collaborator } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { Separator } from '@/components/ui/separator';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -41,7 +38,6 @@ export default function ColaboradorDetailPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { settings } = useSettings();
 
   const [collaborator, setCollaborator] = useState<Collaborator | null>(null);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
@@ -55,37 +51,34 @@ export default function ColaboradorDetailPage() {
 
     setIsLoading(true);
 
+    const unsubscribes: (() => void)[] = [];
+
     const collaboratorRef = doc(db, 'collaborators', collaboratorId);
-    const unsubscribeCollab = onSnapshot(collaboratorRef, (docSnap) => {
+    unsubscribes.push(onSnapshot(collaboratorRef, (docSnap) => {
       if (docSnap.exists() && docSnap.data().userId === user.uid) {
         setCollaborator({ id: docSnap.id, ...docSnap.data() } as Collaborator);
       } else {
         toast({ variant: 'destructive', title: 'Erro', description: 'Colaborador não encontrado.' });
         router.push('/dashboard/colaboradores');
       }
-    });
+    }));
 
     const ordersQuery = query(
       collection(db, 'serviceOrders'),
       where('userId', '==', user.uid),
       where('collaboratorId', '==', collaboratorId)
     );
-    const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
+    unsubscribes.push(onSnapshot(ordersQuery, (snapshot) => {
       const orders = snapshot.docs
         .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
         .sort((a, b) => b.createdAt.toDate().getTime() - a.createdAt.toDate().getTime());
       setServiceOrders(orders);
-      setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching service orders for collaborator:", error);
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar o histórico de serviços.' });
-        setIsLoading(false);
-    });
+    }));
 
-    return () => {
-      unsubscribeCollab();
-      unsubscribeOrders();
-    };
+    // Promise to wait for both initial fetches
+    Promise.all([getDocs(ordersQuery), getDocs(collaboratorRef as any)]).finally(() => setIsLoading(false));
+
+    return () => unsubscribes.forEach(unsub => unsub());
   }, [user, collaboratorId, router, toast]);
 
   const handlePhotoUpload = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -95,7 +88,6 @@ export default function ColaboradorDetailPage() {
     setIsUploading(true);
     
     try {
-      // Delete old photo if it exists
       if (collaborator.photoURL) {
         try {
             const oldPhotoRef = ref(storage, collaborator.photoURL);
@@ -108,11 +100,8 @@ export default function ColaboradorDetailPage() {
       }
 
       const storageRef = ref(storage, `collaborators/${collaborator.id}/${file.name}`);
-       // Add user ID to file metadata for security rule verification
       const metadata = {
-        customMetadata: {
-          'userId': user.uid,
-        },
+        customMetadata: { 'userId': user.uid },
       };
 
       const snapshot = await uploadBytes(storageRef, file, metadata);
@@ -146,6 +135,8 @@ export default function ColaboradorDetailPage() {
   if (!collaborator) {
     return null;
   }
+  
+  const activeOrderCount = serviceOrders.filter(o => !['Concluída', 'Cancelada'].includes(o.status)).length;
 
   return (
     <div className="flex flex-col gap-6">
@@ -170,6 +161,7 @@ export default function ColaboradorDetailPage() {
                 </Avatar>
                 <CardTitle className="pt-2">{collaborator.name}</CardTitle>
                 <CardDescription className='capitalize'>{collaborator.type === 'collaborator' ? 'Colaborador' : 'Setor'}</CardDescription>
+                {activeOrderCount > 0 && <Badge variant="secondary">Em Andamento: {activeOrderCount}</Badge>}
             </CardHeader>
             <CardContent className='text-center'>
                 <p className="text-sm text-muted-foreground">{collaborator.description || 'Nenhuma descrição informada.'}</p>
@@ -189,8 +181,8 @@ export default function ColaboradorDetailPage() {
         
         <Card className="lg:col-span-2">
             <CardHeader>
-            <CardTitle>Ordens de Serviço Atribuídas</CardTitle>
-            <CardDescription>Serviços sob a responsabilidade de {collaborator.name}.</CardDescription>
+            <CardTitle>Histórico de Ordens de Serviço</CardTitle>
+            <CardDescription>Todos os serviços que já foram atribuídos a {collaborator.name}.</CardDescription>
             </CardHeader>
             <CardContent>
             {serviceOrders.length > 0 ? (
@@ -205,17 +197,15 @@ export default function ColaboradorDetailPage() {
                 </TableHeader>
                 <TableBody>
                     {serviceOrders.map(order => (
-                    <TableRow key={order.id}>
+                    <TableRow key={order.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/servicos/${order.id}`)}>
                         <TableCell>
-                            <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
+                            <span className="font-mono text-sm font-medium hover:underline">
                                 #{order.id.substring(0, 6).toUpperCase()}
-                            </Link>
+                            </span>
                         </TableCell>
                         <TableCell>
-                            <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
-                            <div className="text-sm text-muted-foreground">
-                                <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
-                            </div>
+                            <div className="font-medium hover:underline">{order.serviceType}</div>
+                            <div className="text-sm text-muted-foreground">{order.clientName}</div>
                         </TableCell>
                         <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                         <TableCell><Badge variant={getStatusVariant(order.status)}>{order.status}</Badge></TableCell>
@@ -229,7 +219,6 @@ export default function ColaboradorDetailPage() {
             </CardContent>
         </Card>
       </div>
-
     </div>
   );
 }

@@ -20,13 +20,11 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Search, Trash2, Briefcase, User, Building2, Check, ChevronsUpDown } from 'lucide-react';
-import { Collaborator } from '@/types';
+import { Loader2, MoreHorizontal, PlusCircle, Search, Trash2, Briefcase, User, Building2 } from 'lucide-react';
+import { Collaborator, ServiceOrder } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 
 const collaboratorFormSchema = z.object({
@@ -42,12 +40,14 @@ export default function ColaboradoresPage() {
   const { toast } = useToast();
   const { settings } = useSettings();
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCollaborator, setEditingCollaborator] = useState<Collaborator | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingCollaboratorId, setDeletingCollaboratorId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'collaborator' | 'sector'>('all');
 
   const form = useForm<CollaboratorFormValues>({
     resolver: zodResolver(collaboratorFormSchema),
@@ -57,28 +57,34 @@ export default function ColaboradoresPage() {
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
-    const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
 
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const collaboratorList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Collaborator));
-      setCollaborators(collaboratorList);
-      setIsLoading(false);
-    }, (error: any) => {
-        console.error("Error fetching collaborators: ", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao buscar dados",
-            description: "Não foi possível carregar os colaboradores.",
-        });
-        setIsLoading(false);
+    const qCollab = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const unsubCollab = onSnapshot(qCollab, (snapshot) => {
+      setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
 
-    return () => unsubscribe();
-  }, [user, toast]);
+    const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('status', 'in', activeStatuses));
+    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
+      setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
+    });
+
+    // Check when both listeners have fired at least once
+    Promise.all([
+      new Promise(resolve => onSnapshot(qCollab, resolve)),
+      new Promise(resolve => onSnapshot(qOrders, resolve))
+    ]).then(() => setIsLoading(false));
+
+    return () => {
+      unsubCollab();
+      unsubOrders();
+    };
+  }, [user, settings.serviceStatuses]);
   
+  const getActiveOrderCount = (collaboratorId: string) => {
+    return serviceOrders.filter(order => order.collaboratorId === collaboratorId).length;
+  };
+
   useEffect(() => {
     if (isDialogOpen) {
       if (editingCollaborator) {
@@ -90,11 +96,12 @@ export default function ColaboradoresPage() {
   }, [isDialogOpen, editingCollaborator, form]);
 
   const filteredCollaborators = useMemo(() => {
-    if (!searchTerm) return collaborators;
-    return collaborators.filter(c =>
-      c.name.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [collaborators, searchTerm]);
+    return collaborators.filter(c => {
+        const searchMatch = !searchTerm || c.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const typeMatch = typeFilter === 'all' || c.type === typeFilter;
+        return searchMatch && typeMatch;
+    });
+  }, [collaborators, searchTerm, typeFilter]);
 
   const handleAddNew = () => {
     setEditingCollaborator(null);
@@ -226,17 +233,22 @@ export default function ColaboradoresPage() {
           </DialogContent>
         </Dialog>
       
-      <div className="mb-4">
-          <div className="relative">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            id="search-item"
-            placeholder="Buscar por nome..."
-            className="pl-8"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
+      <div className="flex justify-between items-center gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+                id="search-item"
+                placeholder="Buscar por nome..."
+                className="pl-8"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant={typeFilter === 'all' ? 'secondary' : 'outline'} onClick={() => setTypeFilter('all')}>Todos</Button>
+            <Button size="sm" variant={typeFilter === 'collaborator' ? 'secondary' : 'outline'} onClick={() => setTypeFilter('collaborator')}>Colaboradores</Button>
+            <Button size="sm" variant={typeFilter === 'sector' ? 'secondary' : 'outline'} onClick={() => setTypeFilter('sector')}>Setores</Button>
+          </div>
       </div>
 
       {isLoading ? (
@@ -248,54 +260,58 @@ export default function ColaboradoresPage() {
             <Briefcase className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-4 text-lg font-semibold">Nenhum item encontrado.</h3>
             <p className="text-sm text-muted-foreground">
-              {searchTerm ? "Tente um termo de busca diferente." : "Comece adicionando seu primeiro colaborador ou setor."}
+              {searchTerm || typeFilter !== 'all' ? "Tente um filtro ou termo de busca diferente." : "Comece adicionando seu primeiro colaborador ou setor."}
             </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredCollaborators.map((c) => (
-             <Card key={c.id} className="flex flex-col">
-                <CardHeader className="flex flex-row items-start justify-between gap-4">
-                  <Link href={`/dashboard/colaboradores/${c.id}`} className='flex items-start gap-4'>
-                    <Avatar className="h-12 w-12 border">
-                        <AvatarImage src={c.photoURL} alt={c.name} />
-                        <AvatarFallback>
-                          {c.type === 'collaborator' ? <User className="h-6 w-6"/> : <Building2 className="h-6 w-6"/>}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className='flex-1'>
-                        <CardTitle className="text-base">{c.name}</CardTitle>
-                        <CardDescription className='capitalize text-xs'>{c.type === 'collaborator' ? 'Colaborador' : 'Setor'}</CardDescription>
-                    </div>
-                  </Link>
-                   <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                          <Button aria-haspopup="true" size="icon" variant="ghost">
-                          <MoreHorizontal className="h-4 w-4" />
-                          <span className="sr-only">Toggle menu</span>
-                          </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuItem onClick={() => handleEdit(c)}>Editar</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(c.id)}>
-                             <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
-                          </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                </CardHeader>
-                <CardContent className="flex-grow space-y-2">
-                  <p className="text-sm text-muted-foreground line-clamp-2">{c.description || 'Nenhuma descrição.'}</p>
-                </CardContent>
-                <CardFooter>
-                   <Button variant="outline" size="sm" className='w-full' asChild>
-                     <Link href={`/dashboard/colaboradores/${c.id}`}>Ver Serviços</Link>
-                   </Button>
-                </CardFooter>
-            </Card>
-          ))}
+          {filteredCollaborators.map((c) => {
+            const activeCount = getActiveOrderCount(c.id);
+            return (
+                <Card key={c.id} className="flex flex-col">
+                    <CardHeader className="flex flex-row items-start justify-between gap-4">
+                    <Link href={`/dashboard/colaboradores/${c.id}`} className='flex items-start gap-4 flex-1 overflow-hidden'>
+                        <Avatar className="h-12 w-12 border shrink-0">
+                            <AvatarImage src={c.photoURL} alt={c.name} />
+                            <AvatarFallback>
+                            {c.type === 'collaborator' ? <User className="h-6 w-6"/> : <Building2 className="h-6 w-6"/>}
+                            </AvatarFallback>
+                        </Avatar>
+                        <div className='flex-1 overflow-hidden'>
+                            <CardTitle className="text-base truncate">{c.name}</CardTitle>
+                            <CardDescription className='capitalize text-xs'>{c.type === 'collaborator' ? 'Colaborador' : 'Setor'}</CardDescription>
+                        </div>
+                    </Link>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button aria-haspopup="true" size="icon" variant="ghost">
+                            <MoreHorizontal className="h-4 w-4" />
+                            <span className="sr-only">Toggle menu</span>
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleEdit(c)}>Editar</DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(c.id)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                        </DropdownMenu>
+                    </CardHeader>
+                    <CardContent className="flex-grow space-y-2">
+                        {activeCount > 0 && <Badge variant="secondary">Em Andamento: {activeCount}</Badge>}
+                        <p className="text-sm text-muted-foreground line-clamp-2">{c.description || 'Nenhuma descrição.'}</p>
+                    </CardContent>
+                    <CardFooter>
+                    <Button variant="outline" size="sm" className='w-full' asChild>
+                        <Link href={`/dashboard/colaboradores/${c.id}`}>Ver Detalhes</Link>
+                    </Button>
+                    </CardFooter>
+                </Card>
+            )
+          })}
         </div>
       )}
        <CardFooter className='mt-4'>
@@ -310,7 +326,7 @@ export default function ColaboradoresPage() {
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
                 Esta ação não pode ser desfeita. Isso excluirá permanentemente o item. Se ele estiver associado a ordens de serviço, o nome será mantido, mas o vínculo será perdido.
-            </AlertDialogDescription>
+            </Description>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeletingCollaboratorId(null)}>Cancelar</AlertDialogCancel>

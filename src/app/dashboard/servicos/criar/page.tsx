@@ -29,7 +29,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from '@/types';
+import type { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from '@/types';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -46,10 +46,7 @@ const serviceOrderSchema = z.object({
 
 const newCustomerSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  phone: z.string().refine(val => {
-    const digits = val.replace(/\D/g, '');
-    return digits.length >= 10 && digits.length <= 11;
-  }, {
+  phone: z.string().refine(val => val.replace(/\D/g, '').length >= 10, {
     message: "O telefone deve conter entre 10 e 11 dígitos numéricos."
   }),
 });
@@ -66,6 +63,7 @@ function CreateServiceOrderForm() {
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [activeOrders, setActiveOrders] = useState<ServiceOrder[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isVersioning, setIsVersioning] = useState(false);
@@ -94,6 +92,15 @@ function CreateServiceOrderForm() {
     resolver: zodResolver(newCustomerSchema),
     defaultValues: { name: '', phone: '' },
   });
+  
+  const collaboratorsWithTaskCount = useMemo(() => {
+    const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+    
+    return collaborators.map(c => {
+        const count = activeOrders.filter(o => o.collaboratorId === c.id && activeStatuses.includes(o.status)).length;
+        return { ...c, activeTaskCount: count };
+    });
+  }, [collaborators, activeOrders, settings.serviceStatuses]);
 
   useEffect(() => {
     if (!user) return;
@@ -170,14 +177,23 @@ function CreateServiceOrderForm() {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch Collaborators
+  // Fetch Collaborators and Active Orders
   useEffect(() => {
     if (!user) return;
-    const q = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const qCollab = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const unsubCollab = onSnapshot(qCollab, (querySnapshot) => {
       setCollaborators(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
-    return () => unsubscribe();
+
+    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
+    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
+      setActiveOrders(snapshot.docs.map(doc => doc.data() as ServiceOrder));
+    });
+
+    return () => {
+      unsubCollab();
+      unsubOrders();
+    };
   }, [user]);
   
   useEffect(() => {
@@ -377,8 +393,15 @@ function CreateServiceOrderForm() {
                   <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {collaborators.map(collaborator => (
-                        <SelectItem key={collaborator.id} value={collaborator.id}>{collaborator.name}</SelectItem>
+                      {collaboratorsWithTaskCount.map(collaborator => (
+                        <SelectItem key={collaborator.id} value={collaborator.id}>
+                          <div className="flex justify-between w-full">
+                            <span>{collaborator.name}</span>
+                            <span className="text-muted-foreground text-xs">
+                              ({collaborator.activeTaskCount} {collaborator.activeTaskCount === 1 ? 'ativa' : 'ativas'})
+                            </span>
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -550,4 +573,3 @@ function CreateServiceOrderTitle() {
     const isVersioning = !!searchParams.get('versionOf');
     return <>{isVersioning ? 'Criar Nova Versão da OS' : 'Criar Nova Ordem de Serviço'}</>;
 }
-
