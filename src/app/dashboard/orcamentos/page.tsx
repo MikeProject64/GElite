@@ -116,7 +116,7 @@ export default function OrcamentosPage() {
         const existing = quotesByOriginalId.get(originalId);
 
         if (!existing || (quote.version || 1) > (existing.version || 1)) {
-            ordersByOriginalId.set(originalId, quote);
+            quotesByOriginalId.set(originalId, quote);
         }
     });
 
@@ -305,75 +305,4 @@ export default function OrcamentosPage() {
                          </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
-                    <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>
-                    <TableCell>
-                        <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
-                    </TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
-                                <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
-                            </DropdownMenuItem>
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger disabled={quote.status === 'Convertido'}>
-                                    <Thermometer className="mr-2 h-4 w-4"/>
-                                    <span>Alterar Status</span>
-                                </DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                    <DropdownMenuSubContent>
-                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Pendente')} disabled={quote.status === 'Pendente'}>Pendente</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Aprovado')} disabled={quote.status === 'Aprovado'}>Aprovado</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Recusado')} disabled={quote.status === 'Recusado'}>Recusado</DropdownMenuItem>
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                            </DropdownMenuSub>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                ))}
-                </TableBody>
-            </Table>
-          </div>
-          )}
-        </CardContent>
-         <CardFooter>
-            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                    <span>Linhas por página:</span>
-                    <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                        <SelectTrigger className="h-8 w-[70px]">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <span>Página {currentPage} de {totalPages}</span>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}>
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages || isLoading}>
-                        Próximo
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
-            </div>
-        </CardFooter>
-      </Card>
-    </div>
-  );
-}
+                    <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}
