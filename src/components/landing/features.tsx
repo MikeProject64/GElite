@@ -3,10 +3,7 @@
 
 import Image from 'next/image';
 import { ClipboardList, Users, Wrench, CheckCircle } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
 import type { UserSettings } from '@/types';
-import { cn } from '@/lib/utils';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollReveal } from './scroll-reveal';
 
 interface FeaturesProps {
@@ -43,39 +40,8 @@ const featuresData = [
   },
 ];
 
-
 export function Features({ landingPageImages }: FeaturesProps) {
-  const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
-  const featureRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const isMobile = useIsMobile();
 
-  useEffect(() => {
-    if (isMobile) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            const index = parseInt(entry.target.getAttribute('data-index') || '0', 10);
-            setActiveFeatureIndex(index);
-          }
-        });
-      },
-      { rootMargin: '-50% 0px -50% 0px', threshold: 0 }
-    );
-
-    const currentRefs = featureRefs.current;
-    currentRefs.forEach((ref) => {
-      if (ref) observer.observe(ref);
-    });
-
-    return () => {
-      currentRefs.forEach((ref) => {
-        if (ref) observer.unobserve(ref);
-      });
-    };
-  }, [isMobile]);
-  
   const features = featuresData.map(f => ({...f, image: landingPageImages?.[f.imageKey] || f.image }));
 
   return (
@@ -90,91 +56,38 @@ export function Features({ landingPageImages }: FeaturesProps) {
           </p>
         </ScrollReveal>
         
-        {/* Mobile View - Simple Scroll */}
-        {isMobile && (
-            <div className="space-y-16">
-              {features.map((feature, index) => (
-                <div key={index} className="grid gap-8 items-center">
-                  <ScrollReveal className="flex flex-col justify-center space-y-4">
-                    <div className="flex items-center gap-3">
-                       <div className="p-3 bg-primary/10 rounded-full">{feature.icon}</div>
-                      <h3 className="text-2xl font-bold font-headline">{feature.title}</h3>
-                    </div>
-                    <p className="text-muted-foreground font-body">{feature.description}</p>
-                     <ul className="space-y-2 font-body">
-                      {feature.benefits.map((benefit, i) => (
-                        <li key={i} className="flex items-center gap-2">
-                          <CheckCircle className="w-5 h-5 text-green-500" />
-                          <span>{benefit}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </ScrollReveal>
-                  <ScrollReveal delay={100} className="flex justify-center">
-                     <Image
-                        src={feature.image}
-                        alt={feature.title}
-                        width={550}
-                        height={450}
-                        className="mx-auto aspect-video overflow-hidden rounded-xl object-cover shadow-lg"
-                        data-ai-hint={feature.imageHint}
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                    />
-                  </ScrollReveal>
+        <div className="space-y-16">
+          {features.map((feature, index) => (
+            <ScrollReveal key={index} className="grid md:grid-cols-2 gap-8 lg:gap-16 items-center">
+              <div className={`flex flex-col justify-center space-y-4 ${index % 2 !== 0 ? 'md:order-last' : ''}`}>
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-primary/10 rounded-full">{feature.icon}</div>
+                  <h3 className="text-2xl font-bold font-headline">{feature.title}</h3>
                 </div>
-              ))}
-            </div>
-        )}
-        
-        {/* Desktop View - Sticky Scroll */}
-        {!isMobile && (
-          <div className="grid md:grid-cols-2 gap-16 items-start">
-            <div className="space-y-24">
-              {features.map((feature, index) => (
-                <div
-                  key={index}
-                  ref={(el) => (featureRefs.current[index] = el)}
-                  data-index={index}
-                  className={cn(
-                    "transition-opacity duration-500",
-                    activeFeatureIndex === index ? "opacity-100" : "opacity-30"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="p-3 bg-primary/10 rounded-full">{feature.icon}</div>
-                    <h3 className="text-2xl font-bold font-headline">{feature.title}</h3>
-                  </div>
-                  <p className="mt-4 text-muted-foreground font-body">{feature.description}</p>
-                  <ul className="mt-4 space-y-2 font-body">
-                    {feature.benefits.map((benefit, i) => (
-                      <li key={i} className="flex items-center gap-2">
-                        <CheckCircle className="w-5 h-5 text-green-500" />
-                        <span>{benefit}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-            <div className="sticky top-28 h-[500px] flex items-center justify-center">
-              {features.map((feature, index) => (
+                <p className="text-muted-foreground font-body">{feature.description}</p>
+                <ul className="space-y-2 font-body">
+                  {feature.benefits.map((benefit, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-green-500" />
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex justify-center">
                 <Image
-                  key={index}
-                  src={feature.image}
-                  alt={feature.title}
-                  width={550}
-                  height={450}
-                  className={cn(
-                    "mx-auto aspect-video overflow-hidden rounded-xl object-cover shadow-lg transition-opacity duration-500 absolute inset-0",
-                    activeFeatureIndex === index ? "opacity-100" : "opacity-0"
-                  )}
-                  data-ai-hint={feature.imageHint}
-                  sizes="50vw"
+                    src={feature.image}
+                    alt={feature.title}
+                    width={550}
+                    height={450}
+                    className="mx-auto aspect-video overflow-hidden rounded-xl object-cover shadow-lg"
+                    data-ai-hint={feature.imageHint}
+                    sizes="(max-width: 768px) 100vw, 50vw"
                 />
-              ))}
-            </div>
-          </div>
-        )}
+              </div>
+            </ScrollReveal>
+          ))}
+        </div>
       </div>
     </section>
   );
