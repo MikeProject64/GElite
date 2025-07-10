@@ -8,7 +8,8 @@ import { collection, query, where, orderBy, doc, updateDoc, getDocs, onSnapshot 
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
-import { format } from 'date-fns';
+import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addMonths, startOfToday, endOfToday } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,10 +19,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ServiceOrder } from '@/types';
+import { cn } from '@/lib/utils';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -43,7 +48,12 @@ export default function ServicosPage() {
   
   const [allServiceOrders, setAllServiceOrders] = useState<ServiceOrder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', collaboratorName: '', clientName: '' });
+  const [filters, setFilters] = useState({ 
+    status: '', 
+    collaboratorName: '', 
+    clientName: '',
+    dueDate: undefined as DateRange | undefined,
+  });
   const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
@@ -93,7 +103,15 @@ export default function ServicosPage() {
         const statusMatch = filters.status ? order.status === filters.status : true;
         const collaboratorMatch = filters.collaboratorName ? (order.collaboratorName || '').toLowerCase().includes(filters.collaboratorName.toLowerCase()) : true;
         const clientMatch = filters.clientName ? order.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        return statusMatch && collaboratorMatch && clientMatch;
+        
+        let dateMatch = true;
+        if (filters.dueDate && order.dueDate) {
+            const orderDueDate = order.dueDate.toDate();
+            if (filters.dueDate.from) dateMatch &&= (orderDueDate >= filters.dueDate.from);
+            if (filters.dueDate.to) dateMatch &&= (orderDueDate <= filters.dueDate.to);
+        }
+
+        return statusMatch && collaboratorMatch && clientMatch && dateMatch;
     });
   }, [latestServiceOrders, filters]);
 
@@ -108,7 +126,7 @@ export default function ServicosPage() {
     setCurrentPage(1);
   }, [filters]);
 
-  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+  const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
   
@@ -119,6 +137,8 @@ export default function ServicosPage() {
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
+  
+  const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
 
 
   return (
@@ -155,7 +175,7 @@ export default function ServicosPage() {
             </CardTitle>
              <CardDescription>Use os filtros abaixo para refinar a visualização das suas ordens de serviço.</CardDescription>
           </CardHeader>
-          <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
+          <CardContent className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="client-filter">Filtrar por Cliente</Label>
                 <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
@@ -178,8 +198,42 @@ export default function ServicosPage() {
                     </SelectContent>
                 </Select>
               </div>
+               <div className="grid gap-2">
+                <Label htmlFor="date-filter">Filtrar por Prazo</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !filters.dueDate && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filters.dueDate?.from ? (
+                                filters.dueDate.to ? (
+                                    <>
+                                        {format(filters.dueDate.from, "dd/MM/yy")} - {format(filters.dueDate.to, "dd/MM/yy")}
+                                    </>
+                                ) : (
+                                    format(filters.dueDate.from, "dd/MM/yyyy")
+                                )
+                            ) : (
+                                <span>Selecione um período</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="range" selected={filters.dueDate} onSelect={(range) => handleFilterChange('dueDate', range)} numberOfMonths={2} />
+                    </PopoverContent>
+                </Popover>
+            </div>
           </CardContent>
         </Card>
+        
+        {isAnyFilterActive && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-medium">Filtros ativos:</span>
+            {filters.status && <Badge variant="secondary" className="gap-1">Status: {filters.status} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('status', '')}><X className="h-3 w-3"/></Button></Badge>}
+            {filters.clientName && <Badge variant="secondary" className="gap-1">Cliente: {filters.clientName} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('clientName', '')}><X className="h-3 w-3"/></Button></Badge>}
+            {filters.collaboratorName && <Badge variant="secondary" className="gap-1">Colaborador: {filters.collaboratorName} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('collaboratorName', '')}><X className="h-3 w-3"/></Button></Badge>}
+            {filters.dueDate && <Badge variant="secondary" className="gap-1">Prazo <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('dueDate', undefined)}><X className="h-3 w-3"/></Button></Badge>}
+          </div>
+        )}
 
       <Card>
         <CardHeader>
@@ -195,7 +249,7 @@ export default function ServicosPage() {
             <div className="text-center py-10">
                 <Wrench className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3>
-                <p className="text-sm text-muted-foreground">{filters.status || filters.clientName || filters.collaboratorName ? "Tente um filtro diferente." : "Que tal criar a primeira?"}</p>
+                <p className="text-sm text-muted-foreground">{isAnyFilterActive ? "Tente um filtro diferente." : "Que tal criar a primeira?"}</p>
             </div>
           ) : (
           <div className="overflow-x-auto">

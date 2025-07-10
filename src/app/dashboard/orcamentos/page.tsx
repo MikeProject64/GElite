@@ -9,6 +9,9 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format } from 'date-fns';
 import { Quote } from '@/types';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -18,9 +21,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+
 
 const getStatusVariant = (status: Quote['status']) => {
   switch (status) {
@@ -48,7 +53,11 @@ export default function OrcamentosPage() {
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', clientName: '' });
+  const [filters, setFilters] = useState({ 
+    status: '', 
+    clientName: '',
+    createdAt: undefined as DateRange | undefined
+  });
 
   useEffect(() => {
     const statusFromUrl = searchParams.get('status');
@@ -103,13 +112,24 @@ export default function OrcamentosPage() {
     return latestQuotes.filter(quote => {
         const statusMatch = filters.status ? quote.status === filters.status : true;
         const clientMatch = filters.clientName ? quote.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        return statusMatch && clientMatch;
+        
+        let dateMatch = true;
+        if (filters.createdAt && quote.createdAt) {
+            const quoteCreationDate = quote.createdAt.toDate();
+            if (filters.createdAt.from) dateMatch &&= (quoteCreationDate >= filters.createdAt.from);
+            if (filters.createdAt.to) dateMatch &&= (quoteCreationDate <= filters.createdAt.to);
+        }
+
+        return statusMatch && clientMatch && dateMatch;
     });
   }, [latestQuotes, filters]);
   
-  const handleFilterChange = (filterName: keyof typeof filters, value: string) => {
+  const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
+  
+  const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
+
 
   const totalQuotesCount = useMemo(() => {
     return latestQuotes.length;
@@ -148,7 +168,7 @@ export default function OrcamentosPage() {
                 </span>
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid sm:grid-cols-2 gap-4">
+          <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="client-filter">Filtrar por Cliente</Label>
                 <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
@@ -168,8 +188,41 @@ export default function OrcamentosPage() {
                     </SelectContent>
                 </Select>
               </div>
+               <div className="grid gap-2">
+                <Label htmlFor="date-filter">Filtrar por Data de Criação</Label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !filters.createdAt && "text-muted-foreground")}>
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {filters.createdAt?.from ? (
+                                filters.createdAt.to ? (
+                                    <>
+                                        {format(filters.createdAt.from, "dd/MM/yy")} - {format(filters.createdAt.to, "dd/MM/yy")}
+                                    </>
+                                ) : (
+                                    format(filters.createdAt.from, "dd/MM/yyyy")
+                                )
+                            ) : (
+                                <span>Selecione um período</span>
+                            )}
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar mode="range" selected={filters.createdAt} onSelect={(range) => handleFilterChange('createdAt', range)} numberOfMonths={2} />
+                    </PopoverContent>
+                </Popover>
+            </div>
           </CardContent>
         </Card>
+        
+        {isAnyFilterActive && (
+            <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium">Filtros ativos:</span>
+                {filters.status && <Badge variant="secondary" className="gap-1">Status: {filters.status} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('status', '')}><X className="h-3 w-3"/></Button></Badge>}
+                {filters.clientName && <Badge variant="secondary" className="gap-1">Cliente: {filters.clientName} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('clientName', '')}><X className="h-3 w-3"/></Button></Badge>}
+                {filters.createdAt && <Badge variant="secondary" className="gap-1">Data <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('createdAt', undefined)}><X className="h-3 w-3"/></Button></Badge>}
+            </div>
+        )}
 
       <Card>
         <CardHeader>
@@ -181,11 +234,11 @@ export default function OrcamentosPage() {
             <div className="flex justify-center items-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : quotes.length === 0 ? (
+          ) : filteredQuotes.length === 0 ? (
             <div className="text-center py-10">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhum orçamento encontrado.</h3>
-                <p className="text-sm text-muted-foreground">Que tal criar o primeiro?</p>
+                <p className="text-sm text-muted-foreground">{isAnyFilterActive ? "Tente um filtro diferente." : "Que tal criar o primeiro?"}</p>
             </div>
           ) : (
           <div className="overflow-x-auto">
