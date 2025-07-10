@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -196,7 +196,12 @@ export default function BaseDeClientesPage() {
 
       if (editingCustomer) {
         const customerRef = doc(db, 'customers', editingCustomer.id);
-        await updateDoc(customerRef, payload);
+        const logEntry = {
+            timestamp: Timestamp.now(),
+            userEmail: user?.email || 'Sistema',
+            description: 'Dados do cliente atualizados.',
+        };
+        await updateDoc(customerRef, { ...payload, activityLog: arrayUnion(logEntry) });
         toast({ title: "Sucesso!", description: "Cliente atualizado." });
       } else {
         const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
@@ -207,10 +212,18 @@ export default function BaseDeClientesPage() {
           return;
         }
 
+        const logEntry = {
+            timestamp: Timestamp.now(),
+            userEmail: user?.email || 'Sistema',
+            description: 'Cliente cadastrado.',
+            entityName: payload.name, // Store name for easy lookup in activity log
+        };
+
         await addDoc(collection(db, 'customers'), {
           ...payload,
           userId: user.uid,
           createdAt: Timestamp.now(),
+          activityLog: [logEntry],
         });
         toast({ title: "Sucesso!", description: "Cliente cadastrado." });
       }
@@ -600,6 +613,3 @@ export default function BaseDeClientesPage() {
 }
 
     
-
-    
-

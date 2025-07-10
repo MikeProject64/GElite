@@ -3,7 +3,7 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy, getDoc } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy, getDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -126,10 +126,17 @@ export default function OrcamentoDetailPage() {
   }, [quote?.clientId]);
 
   const handleStatusChange = async (newStatus: Quote['status']) => {
-    if (!quote) return;
+    if (!quote || !user) return;
     try {
       const quoteRef = doc(db, 'quotes', quote.id);
-      await updateDoc(quoteRef, { status: newStatus });
+      
+      const logEntry = {
+        timestamp: Timestamp.now(),
+        userEmail: user?.email || 'Sistema',
+        description: `Status do orçamento alterado de "${quote.status}" para "${newStatus}".`
+      };
+
+      await updateDoc(quoteRef, { status: newStatus, activityLog: arrayUnion(logEntry) });
       
       if (newStatus === 'Aprovado') {
         toast({
@@ -178,7 +185,12 @@ export default function OrcamentoDetailPage() {
         const docRef = await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
         
         const quoteRef = doc(db, 'quotes', quote.id);
-        await updateDoc(quoteRef, { status: 'Convertido' });
+        const logEntry = {
+          timestamp: Timestamp.now(),
+          userEmail: user?.email || 'Sistema',
+          description: `Orçamento convertido para a OS #${docRef.id.substring(0,6).toUpperCase()}`
+        };
+        await updateDoc(quoteRef, { status: 'Convertido', activityLog: arrayUnion(logEntry) });
 
         toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
         router.push(`/dashboard/servicos/${docRef.id}`);
@@ -205,6 +217,7 @@ export default function OrcamentoDetailPage() {
         delete (templateData as any).clientName;
         delete (templateData as any).originalQuoteId;
         delete (templateData as any).version;
+        delete (templateData as any).activityLog;
         
         await addDoc(collection(db, 'quotes'), templateData);
 
@@ -481,3 +494,5 @@ export default function OrcamentoDetailPage() {
     </div>
   );
 }
+
+    

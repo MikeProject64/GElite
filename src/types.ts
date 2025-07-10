@@ -154,6 +154,7 @@ export interface Customer {
   createdAt: Timestamp;
   customFields?: CustomFields;
   tagIds?: string[];
+  activityLog?: ActivityLogEntry[];
 }
 
 type CustomFields = Record<string, any>;
@@ -162,6 +163,7 @@ export interface ActivityLogEntry {
   timestamp: Timestamp;
   userEmail: string;
   description: string;
+  entityName?: string; // e.g., customer name for context
 }
 
 export type ServiceOrderPriority = 'baixa' | 'media' | 'alta';
@@ -206,6 +208,7 @@ export interface Quote {
   templateName?: string;
   originalQuoteId?: string;
   version?: number;
+  activityLog?: ActivityLogEntry[];
 }
 
 export interface RecentActivity {
@@ -262,3 +265,5 @@ export interface QuickNote {
     content: string;
     createdAt: Timestamp;
 }
+
+    

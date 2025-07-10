@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter, notFound } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, collection, query, where, addDoc, Timestamp, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, collection, query, where, addDoc, Timestamp, orderBy, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useForm } from 'react-hook-form';
@@ -147,11 +147,11 @@ export default function ClienteDetailPage() {
     const allItems: TimelineItem[] = [];
   
     // Add customer creation event if data is valid
-    if (customer.createdAt && typeof customer.createdAt.toDate === 'function') {
+    if (customer.activityLog && customer.activityLog.length > 0) {
       allItems.push({
         id: `creation-${customer.id}`,
         type: 'creation',
-        date: customer.createdAt.toDate(),
+        date: customer.activityLog[0].timestamp.toDate(),
         data: customer,
       });
     }
