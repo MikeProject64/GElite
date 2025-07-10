@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Carousel, CarouselContent, CarouselItem } from '@/components/ui/carousel';
 import type { UserSettings } from '@/types';
 import { ScrollReveal } from './scroll-reveal';
+import { Star } from 'lucide-react';
 
 interface TestimonialsProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -19,23 +20,34 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
       name: "Carlos Silva",
       title: "Sócio-Diretor, Ar Frio Refrigeração",
       avatar: "CS",
-      image: landingPageImages?.testimonial1Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial1Image || "https://placehold.co/100x100.png",
+      rating: 5,
     },
     {
       quote: "Como autônomo, organização é tudo. Este software me deu o controle que eu precisava para gerenciar meus serviços e clientes sem dor de cabeça. Recomendo!",
       name: "Fernanda Lima",
       title: "Técnica de Eletrônicos",
       avatar: "FL",
-      image: landingPageImages?.testimonial2Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial2Image || "https://placehold.co/100x100.png",
+      rating: 5,
     },
     {
       quote: "Finalmente encontramos um sistema que entende as necessidades de uma assistência técnica. O controle de inventário e o histórico de clientes são fantásticos.",
       name: "Roberto Nunes",
       title: "Gerente, ConsertaTudo Celulares",
       avatar: "RN",
-      image: landingPageImages?.testimonial3Image || "https://placehold.co/100x100.png"
+      image: landingPageImages?.testimonial3Image || "https://placehold.co/100x100.png",
+      rating: 5,
     }
   ];
+
+  const renderStars = (rating: number) => (
+    <div className="flex items-center gap-1 mb-4">
+      {Array.from({ length: rating }).map((_, i) => (
+        <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+      ))}
+    </div>
+  );
 
   return (
     <section id="testimonials" className="w-full py-12 md:py-24 lg:py-32">
@@ -58,6 +70,7 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
                   <div className="p-1 h-full flex">
                     <Card className="p-6 shadow-sm h-full">
                       <CardContent className="p-0">
+                        {renderStars(testimonial.rating)}
                         <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
                           “{testimonial.quote}”
                         </blockquote>
@@ -86,6 +99,7 @@ export function Testimonials({ landingPageImages }: TestimonialsProps) {
             <ScrollReveal key={index} delay={index * 100} className="h-full">
               <Card className="p-6 shadow-sm h-full">
                 <CardContent className="p-0">
+                  {renderStars(testimonial.rating)}
                   <blockquote className="text-lg font-body leading-relaxed text-foreground mb-4">
                     “{testimonial.quote}”
                   </blockquote>
