@@ -34,7 +34,7 @@ const featureMap: Record<string, string> = {
 export function Pricing() {
   const [plans, setPlans] = useState<Plan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [interval, setInterval] = useState<'month' | 'year'>('year');
+  const [interval, setInterval] = useState<'month' | 'year'>('month');
 
   useEffect(() => {
     const q = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'));
