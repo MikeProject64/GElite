@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { collectionGroup, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { format, formatDistanceToNow, startOfToday, subDays, startOfMonth } from 'date-fns';
@@ -26,6 +26,7 @@ type EnrichedActivity = ActivityLogEntry & {
   entityId: string;
   entityType: 'serviço' | 'orçamento' | 'cliente';
   entityCode?: string;
+  entityName?: string;
 };
 
 const getActivityIcon = (type: EnrichedActivity['entityType']) => {
@@ -72,59 +73,86 @@ export default function AtividadesPage() {
     useEffect(() => {
         if (!user) return;
         setIsLoading(true);
-
-        const activityQuery = query(
-            collectionGroup(db, 'activityLog'),
-            where('userId', '==', user.uid),
-            orderBy('timestamp', 'desc')
-        );
-
-        const unsubscribe = onSnapshot(activityQuery, (snapshot) => {
-            const enrichedActivities: EnrichedActivity[] = [];
-            snapshot.forEach(doc => {
-                const data = doc.data() as ActivityLogEntry;
-                const pathSegments = doc.ref.path.split('/');
-                const entityType = pathSegments[0]; // 'serviceOrders', 'quotes', 'customers'
-                const entityId = pathSegments[1];
-
-                let mappedType: EnrichedActivity['entityType'] | null = null;
-                let entityCode = `#${entityId.substring(0, 6).toUpperCase()}`;
-
-                if (entityType === 'serviceOrders') mappedType = 'serviço';
-                if (entityType === 'quotes') mappedType = 'orçamento';
-                if (entityType === 'customers') {
-                    mappedType = 'cliente';
-                    entityCode = data.entityName || 'Cliente'; // Assuming entityName is stored in log
+    
+        const collectionsToQuery: { name: 'serviceOrders' | 'quotes' | 'customers', type: EnrichedActivity['entityType'] }[] = [
+            { name: 'serviceOrders', type: 'serviço' },
+            { name: 'quotes', type: 'orçamento' },
+            { name: 'customers', type: 'cliente' },
+        ];
+    
+        const unsubscribes: (() => void)[] = [];
+        let allFetchedActivities: EnrichedActivity[] = [];
+        let loadedCollections = 0;
+    
+        const handleSnapshot = (
+            snapshot: any,
+            collectionType: EnrichedActivity['entityType'],
+            collectionName: string
+        ) => {
+            const newActivities = snapshot.docs.flatMap((doc: any) => {
+                const data = doc.data();
+                if (!data.activityLog || !Array.isArray(data.activityLog)) {
+                    return [];
                 }
-                
-                if (mappedType) {
-                    enrichedActivities.push({
-                        ...data,
-                        entityId: entityId,
-                        entityType: mappedType,
-                        entityCode: entityCode
-                    });
-                }
+                return data.activityLog.map((log: ActivityLogEntry) => ({
+                    ...log,
+                    entityId: doc.id,
+                    entityType: collectionType,
+                    entityCode: data.id ? `#${doc.id.substring(0, 6).toUpperCase()}` : data.name,
+                    entityName: data.serviceType || data.title || data.name,
+                }));
             });
+    
+            // Replace old activities from this collection with new ones
+            allFetchedActivities = allFetchedActivities.filter(act => act.entityType !== collectionType);
+            allFetchedActivities.push(...newActivities);
+    
+            // Sort all activities together by timestamp
+            allFetchedActivities.sort((a, b) => b.timestamp.toDate().getTime() - a.timestamp.toDate().getTime());
+            
+            setAllActivities([...allFetchedActivities]);
+        };
 
-            setAllActivities(enrichedActivities);
-            setIsLoading(false);
-        }, (error) => {
-            console.error("Error fetching activity log:", error);
-            setIsLoading(false);
+        collectionsToQuery.forEach(({ name, type }) => {
+            const q = query(collection(db, name), where('userId', '==', user.uid));
+            const unsubscribe = onSnapshot(q, 
+                (snapshot) => {
+                    if (loadedCollections < collectionsToQuery.length) {
+                        loadedCollections++;
+                        if (loadedCollections === collectionsToQuery.length) {
+                            setIsLoading(false);
+                        }
+                    }
+                    handleSnapshot(snapshot, type, name);
+                },
+                (error) => {
+                    console.error(`Error fetching ${name}:`, error);
+                    setIsLoading(false);
+                }
+            );
+            unsubscribes.push(unsubscribe);
         });
 
-        return () => unsubscribe();
+        // Handle case where user has no data in any collection
+        if (collectionsToQuery.length === 0) {
+            setIsLoading(false);
+        }
+    
+        return () => unsubscribes.forEach(unsub => unsub());
     }, [user]);
 
     const filteredActivities = useMemo(() => {
         return allActivities.filter(activity => {
             const typeMatch = filters.type === 'all' || activity.entityType === filters.type;
             let dateMatch = true;
-            if (filters.dateRange) {
+            if (filters.dateRange && activity.timestamp) {
                 const activityDate = activity.timestamp.toDate();
                 if (filters.dateRange.from) dateMatch &&= (activityDate >= filters.dateRange.from);
-                if (filters.dateRange.to) dateMatch &&= (activityDate <= filters.dateRange.to);
+                if (filters.dateRange.to) {
+                     const toDate = new Date(filters.dateRange.to);
+                     toDate.setHours(23, 59, 59, 999); // Include the whole end day
+                     dateMatch &&= (activityDate <= toDate);
+                }
             }
             return typeMatch && dateMatch;
         });
@@ -223,7 +251,7 @@ export default function AtividadesPage() {
                                         </TableCell>
                                         <TableCell>
                                             <p className="font-medium">{activity.description}</p>
-                                            <p className="text-xs text-muted-foreground">{activity.entityCode}</p>
+                                            <p className="text-xs text-muted-foreground">{activity.entityName}</p>
                                         </TableCell>
                                         <TableCell className='text-xs text-muted-foreground'>{activity.userEmail}</TableCell>
                                         <TableCell className="text-right text-muted-foreground text-xs">
@@ -255,5 +283,3 @@ export default function AtividadesPage() {
         </div>
     )
 }
-
-    
