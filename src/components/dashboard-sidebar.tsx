@@ -49,12 +49,13 @@ const NavItem: React.FC<{
       href={href}
       onClick={onClick}
       className={cn(
-        'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+        'flex h-10 items-center justify-start gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+        isCollapsed && 'justify-center',
         isActive && 'bg-muted text-primary'
       )}
     >
-      <Icon className="h-5 w-5" />
-      {!isCollapsed && <span>{label}</span>}
+      <Icon className="h-5 w-5 shrink-0" />
+      <span className={cn('truncate', isCollapsed && 'sr-only')}>{label}</span>
     </Link>
   );
 
@@ -80,11 +81,12 @@ const NavActionButton: React.FC<{
     <button
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary'
+        'flex h-10 w-full items-center justify-start gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+        isCollapsed && 'justify-center'
       )}
     >
-      {icon}
-      {!isCollapsed && <span>{label}</span>}
+      {React.cloneElement(icon as React.ReactElement, { className: "h-5 w-5 shrink-0"})}
+      <span className={cn('truncate', isCollapsed && 'sr-only')}>{label}</span>
     </button>
   );
 
@@ -137,33 +139,33 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 items-center border-b px-4 shrink-0 lg:h-[60px] lg:px-6">
-        <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+      <div className="flex h-14 items-center border-b px-4 shrink-0 lg:h-[60px]">
+        <Link href="/dashboard" className={cn("flex items-center gap-2 font-semibold", isCollapsed && 'justify-center')}>
            {logoURL ? (
             <Image src={logoURL} alt={siteName} width={24} height={24} className="h-6 w-6 object-contain" />
           ) : (
             <Icon className="h-6 w-6 text-primary" />
           )}
-          {!isCollapsed && <span className="">{siteName}</span>}
+          <span className={cn(isCollapsed && 'sr-only')}>{siteName}</span>
         </Link>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 py-4 text-sm font-medium lg:px-4">
+      <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4 text-sm font-medium">
         {mainNavItems.map(({ href, label, icon, flag }) => {
             const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
             if (!showFeature) return null;
             const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
             return <NavItem key={href} href={href} label={label} icon={icon} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />
         })}
-
-        <div className="flex-1" />
-
+      </nav>
+        
+      <nav className="mt-auto space-y-1 border-t px-2 py-4">
         <NavItem href="/dashboard/configuracoes" label="Configurações" icon={Settings} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/configuracoes')} onClick={onLinkClick}/>
         <NavItem href="/dashboard/subscription" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/subscription')} onClick={onLinkClick}/>
         
         <NavActionButton
           label="Alterar Tema"
-          icon={<Sun className="h-5 w-5" />}
+          icon={<Sun />}
           isCollapsed={isCollapsed}
         >
           <DropdownMenuContent side="right" align="start">
@@ -176,7 +178,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         <NavActionButton
           label="Sair"
           icon={
-            <Avatar className="h-5 w-5">
+            <Avatar>
               <AvatarFallback className="text-xs bg-muted text-muted-foreground">
                 {user?.email?.[0].toUpperCase() ?? 'U'}
               </AvatarFallback>
@@ -225,7 +227,7 @@ export function DashboardSidebar() {
   
   return (
     <TooltipProvider delayDuration={0}>
-      <div className={cn("hidden border-r bg-card md:block", isCollapsed ? "w-[68px]" : "w-[280px]", "transition-all duration-300 ease-in-out relative")}>
+      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[68px]" : "w-[260px]", "transition-all duration-300 ease-in-out relative")}>
           <DashboardNavContent isCollapsed={isCollapsed} />
           <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] -right-4 h-8 w-8 rounded-full border bg-card hover:bg-muted">
             <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />

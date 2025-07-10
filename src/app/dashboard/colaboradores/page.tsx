@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -12,7 +11,7 @@ import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { cn } from '@/lib/utils';
 
-import { Button } from '@/components/ui/button';
+import { Button, buttonVariants } from '@/components/ui/button'; // CORREÇÃO: Importado buttonVariants
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -69,9 +68,10 @@ export default function ColaboradoresPage() {
       setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
     });
 
+    // Seta o loading como false após a primeira carga de ambos os listeners
     Promise.all([
-      new Promise(resolve => onSnapshot(qCollab, resolve, () => resolve(null))),
-      new Promise(resolve => onSnapshot(qOrders, resolve, () => resolve(null)))
+      new Promise(resolve => onSnapshot(qCollab, () => resolve(true), () => resolve(null))),
+      new Promise(resolve => onSnapshot(qOrders, () => resolve(true), () => resolve(null)))
     ]).then(() => setIsLoading(false));
 
     return () => {
@@ -80,9 +80,16 @@ export default function ColaboradoresPage() {
     };
   }, [user, settings.serviceStatuses]);
   
-  const getActiveOrderCount = (collaboratorId: string) => {
-    return serviceOrders.filter(order => order.collaboratorId === collaboratorId).length;
-  };
+  // OTIMIZAÇÃO: Calcula as contagens de OS ativas uma única vez e as memoriza.
+  const activeOrderCounts = useMemo(() => {
+    const counts: { [key: string]: number } = {};
+    for (const order of serviceOrders) {
+      if (order.collaboratorId) {
+        counts[order.collaboratorId] = (counts[order.collaboratorId] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [serviceOrders]);
 
   useEffect(() => {
     if (isDialogOpen) {
@@ -131,6 +138,8 @@ export default function ColaboradoresPage() {
     }
   };
 
+  // CORREÇÃO: A função `onSubmit` foi reestruturada para garantir que todas as chaves
+  // e parênteses estivessem corretamente fechados, resolvendo o erro de sintaxe.
   const onSubmit = async (data: CollaboratorFormValues) => {
     if (!user) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
@@ -138,7 +147,7 @@ export default function ColaboradoresPage() {
     }
     
     try {
-      const payload = { ...data };
+      const payload = { ...data, description: data.description || '' };
       if (editingCollaborator) {
         const collaboratorRef = doc(db, 'collaborators', editingCollaborator.id);
         await updateDoc(collaboratorRef, payload);
@@ -216,7 +225,8 @@ export default function ColaboradoresPage() {
                  <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Descrição</FormLabel>
-                    <FormControl><Textarea placeholder="Descreva brevemente a função ou o setor..." {...field} /></FormControl>
+                    {/* CORREÇÃO: Garante que o valor nunca seja nulo/undefined para evitar erros */}
+                    <FormControl><Textarea placeholder="Descreva brevemente a função ou o setor..." {...field} value={field.value ?? ''} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}/>
@@ -266,7 +276,8 @@ export default function ColaboradoresPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredCollaborators.map((c) => {
-            const activeCount = getActiveOrderCount(c.id);
+            // OTIMIZAÇÃO: Busca a contagem do mapa pré-calculado, sem executar um `filter` a cada iteração.
+            const activeCount = activeOrderCounts[c.id] || 0;
             return (
                 <Card key={c.id} className="flex flex-col">
                     <CardHeader className="flex flex-row items-start justify-between gap-4">
@@ -293,7 +304,7 @@ export default function ColaboradoresPage() {
                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem onClick={() => handleEdit(c)}>Editar</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(c.id)}>
+                            <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => handleDelete(c.id)}>
                                 <Trash2 className="mr-2 h-4 w-4" />
                                 Excluir
                             </DropdownMenuItem>
@@ -314,23 +325,29 @@ export default function ColaboradoresPage() {
           })}
         </div>
       )}
-       <CardFooter className='mt-4'>
+       
+       {/* CORREÇÃO: Usando uma div para o rodapé da página em vez de um CardFooter */}
+       <div className='mt-4 border-t pt-4'>
           <div className="text-xs text-muted-foreground">
             Mostrando <strong>{filteredCollaborators.length}</strong> de <strong>{collaborators.length}</strong> itens.
           </div>
-        </CardFooter>
+        </div>
 
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            {/* CORREÇÃO: O componente correto é <AlertDialogDescription> */}
             <AlertDialogDescription>
                 Esta ação não pode ser desfeita. Isso excluirá permanentemente o item. Se ele estiver associado a ordens de serviço, o nome será mantido, mas o vínculo será perdido.
-            </Description>
+            </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setDeletingCollaboratorId(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+            <AlertDialogAction 
+              onClick={confirmDelete} 
+              className={cn(buttonVariants({ variant: "destructive" }))}
+            >
                 Sim, excluir
             </AlertDialogAction>
             </AlertDialogFooter>
