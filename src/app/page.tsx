@@ -14,6 +14,8 @@ import { TargetAudience } from '@/components/landing/target-audience';
 import { Testimonials } from '@/components/landing/testimonials';
 import { Comparison } from '@/components/landing/comparison';
 import { FreeTrial } from '@/components/landing/free-trial';
+import { Faq } from '@/components/landing/faq';
+import { FinalCta } from '@/components/landing/final-cta';
 
 // Force dynamic rendering to ensure fresh data on every request.
 export const revalidate = 0;
@@ -56,6 +58,8 @@ export default async function Home() {
         <Pricing />
         <Guarantee />
         <Gallery landingPageImages={landingPageImages} />
+        <Faq />
+        <FinalCta />
       </main>
       <Footer />
     </div>
