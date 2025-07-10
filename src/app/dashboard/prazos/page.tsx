@@ -1,7 +1,8 @@
 
+
 'use client'
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -11,13 +12,13 @@ import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { dateFnsLocalizer, Event } from 'react-big-calendar';
+import { dateFnsLocalizer, Event as BigCalendarEvent } from 'react-big-calendar';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
-import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle } from "lucide-react";
+import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle, User, DollarSign } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -49,38 +50,63 @@ const localizer = dateFnsLocalizer({
   },
 });
 
+const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+};
+
 const getDueDateStatus = (dueDate: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
     
     if (isPast(dueDate) && !isToday(dueDate)) {
-      return { text: `Vencido há ${differenceInDays(new Date(), dueDate)} dia(s)`, variant: 'destructive' as const };
+      return { text: `Vencido há ${differenceInDays(new Date(), dueDate)} dia(s)`, variant: 'destructive' as const, color: 'hsl(var(--destructive))' };
     }
     if (isToday(dueDate)) {
-      return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600' };
+      return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600', color: 'hsl(48, 96%, 58%)' };
     }
     const daysUntilDue = differenceInDays(dueDate, new Date());
     if (daysUntilDue < 0) { // Should be handled by isPast, but as a fallback
-        return { text: `Vencido`, variant: 'destructive' as const };
+        return { text: `Vencido`, variant: 'destructive' as const, color: 'hsl(var(--destructive))' };
     }
     if (daysUntilDue <= 3) {
-      return { text: `Vence em ${daysUntilDue + 1} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600' };
+      return { text: `Vence em ${daysUntilDue + 1} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600', color: 'hsl(210, 70%, 60%)' };
     }
-    return { text: `Vence em ${daysUntilDue + 1} dias`, variant: 'outline' as const };
+    return { text: `Vence em ${daysUntilDue + 1} dias`, variant: 'outline' as const, color: 'hsl(var(--primary))' };
 };
 
-const getEventStyle = (event: Event) => {
+const getEventStyle = (event: BigCalendarEvent) => {
     const order = event.resource as ServiceOrder;
-    const dueDate = order.dueDate.toDate();
-    let backgroundColor = 'hsl(var(--primary))';
-
-    if (order.status === 'Concluída') backgroundColor = 'hsl(var(--accent))';
-    if (order.status === 'Em Andamento') backgroundColor = 'hsl(210, 70%, 60%)';
-    if (isPast(dueDate) && !isToday(dueDate)) backgroundColor = 'hsl(var(--destructive))';
-    if (isToday(dueDate)) backgroundColor = 'hsl(48, 96%, 58%)';
-
-    return { style: { backgroundColor, color: 'white', border: 'none', borderRadius: '4px' } };
+    if (order.status === 'Concluída' || order.status === 'Cancelada') {
+        return { style: { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))' } };
+    }
+    const { color } = getDueDateStatus(order.dueDate.toDate());
+    return { style: { backgroundColor: color, color: 'white', border: 'none', borderRadius: '4px' } };
 };
+
+const CalendarTooltip: React.FC<{ event: BigCalendarEvent }> = ({ event }) => {
+    const order = event.resource as ServiceOrder;
+    return (
+        <div className="p-2 bg-background shadow-lg rounded-md border text-sm max-w-xs">
+            <p className="font-bold mb-1">{order.serviceType}</p>
+            <p className="text-xs text-muted-foreground">OS #{order.id.substring(0, 6).toUpperCase()}</p>
+            <div className="mt-2 space-y-1">
+                 <div className="flex items-center gap-2"><User className="h-3.5 w-3.5" /><span>{order.clientName}</span></div>
+                 <div className="flex items-center gap-2"><User className="h-3.5 w-3.5" /><span>{order.collaboratorName}</span></div>
+                 <div className="flex items-center gap-2"><DollarSign className="h-3.5 w-3.5" /><span>{formatCurrency(order.totalValue)}</span></div>
+            </div>
+        </div>
+    );
+};
+
+const CalendarLegend: React.FC = () => (
+    <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-xs mb-4">
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-destructive"></div><span>Vencido</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-[hsl(48,96%,58%)]"></div><span>Vence Hoje</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-[hsl(210,70%,60%)]"></div><span>Vence em até 3 dias</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-primary"></div><span>A vencer</span></div>
+        <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-muted border"></div><span>Finalizado/Cancelado</span></div>
+    </div>
+);
 
 
 export default function PrazosPage() {
@@ -122,7 +148,7 @@ export default function PrazosPage() {
             const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
             const fetchedOrders = querySnapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
-                .filter(order => order.dueDate && activeStatuses.includes(order.status))
+                .filter(order => order.dueDate)
                 .sort((a,b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
             setOrders(fetchedOrders);
             setIsLoading(false);
@@ -139,16 +165,22 @@ export default function PrazosPage() {
         return () => unsubscribe();
     }, [user, toast, settings.serviceStatuses]);
 
+    const activeOrders = useMemo(() => {
+        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+        return orders.filter(order => activeStatuses.includes(order.status));
+    }, [orders, settings.serviceStatuses]);
+
+
     const overdueCount = useMemo(() => {
         if (isLoading) return 0;
-        return orders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
-    }, [orders, isLoading]);
+        return activeOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+    }, [activeOrders, isLoading]);
 
     const filteredOrders = useMemo(() => {
         const now = new Date();
         now.setHours(0,0,0,0);
         
-        let tempOrders = orders;
+        let tempOrders = activeOrders;
 
         if (activeFilter === 'today') {
             tempOrders = tempOrders.filter(o => isToday(o.dueDate.toDate()));
@@ -164,16 +196,16 @@ export default function PrazosPage() {
         }
         
         return tempOrders;
-    }, [orders, activeFilter]);
+    }, [activeOrders, activeFilter]);
 
 
-    const calendarEvents = useMemo(() => filteredOrders.map(order => ({
+    const calendarEvents = useMemo(() => orders.map(order => ({
         title: `${order.clientName} - ${order.serviceType}`,
         start: order.dueDate.toDate(),
         end: order.dueDate.toDate(),
         allDay: true,
         resource: order,
-    })), [filteredOrders]);
+    })), [orders]);
 
     const handleRowClick = (orderId: string) => {
         router.push(`/dashboard/servicos/${orderId}`);
@@ -270,14 +302,14 @@ export default function PrazosPage() {
                                                     const dueDate = order.dueDate.toDate();
                                                     const statusInfo = getDueDateStatus(dueDate);
                                                     return (
-                                                        <TableRow key={order.id}>
+                                                        <TableRow key={order.id} className="cursor-pointer" onClick={() => handleRowClick(order.id)}>
                                                             <TableCell className="font-medium">
-                                                                <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">
+                                                                <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline" onClick={e => e.stopPropagation()}>
                                                                     {order.clientName}
                                                                 </Link>
                                                             </TableCell>
                                                             <TableCell className="hidden sm:table-cell">
-                                                                <Link href={`/dashboard/servicos/${order.id}`} className="hover:underline">
+                                                                <Link href={`/dashboard/servicos/${order.id}`} className="hover:underline" onClick={e => e.stopPropagation()}>
                                                                     {order.serviceType}
                                                                 </Link>
                                                             </TableCell>
@@ -291,6 +323,8 @@ export default function PrazosPage() {
                                     )}
                                 </>
                             ) : (
+                                <>
+                                 <CalendarLegend />
                                 <div className="h-[600px]">
                                     <BigCalendar
                                         localizer={localizer}
@@ -312,15 +346,19 @@ export default function PrazosPage() {
                                         }}
                                         eventPropGetter={getEventStyle}
                                         onSelectEvent={(event) => handleRowClick((event.resource as ServiceOrder).id)}
+                                        components={{
+                                            tooltip: CalendarTooltip,
+                                        }}
                                     />
                                 </div>
+                                </>
                             )}
                         </>
                     )}
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Mostrando <strong>{filteredOrders.length}</strong> de <strong>{orders.length}</strong> ordens de serviço ativas.
+                        Mostrando <strong>{filteredOrders.length}</strong> de <strong>{activeOrders.length}</strong> ordens de serviço ativas.
                     </div>
                 </CardFooter>
             </Card>
