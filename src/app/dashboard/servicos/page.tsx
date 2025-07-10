@@ -17,9 +17,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -38,8 +38,6 @@ const getStatusVariant = (status: string) => {
   }
 };
 
-const ITEMS_PER_PAGE = 15;
-
 export default function ServicosPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -54,7 +52,10 @@ export default function ServicosPage() {
     clientName: '',
     dueDate: undefined as DateRange | undefined,
   });
+  
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
+  
 
   useEffect(() => {
     if (!user) return;
@@ -86,6 +87,27 @@ export default function ServicosPage() {
     return () => unsubscribe();
   }, [user, toast]);
 
+  const handleStatusChange = async (orderId: string, currentStatus: string, newStatus: string) => {
+    if (currentStatus === newStatus) return;
+    
+    try {
+        const orderRef = doc(db, 'serviceOrders', orderId);
+        const updateData: any = { status: newStatus };
+        
+        if (newStatus === 'Concluída') {
+            updateData.completedAt = new Date();
+        } else {
+            updateData.completedAt = null;
+        }
+
+        await updateDoc(orderRef, updateData);
+        toast({ title: "Sucesso!", description: "Status da ordem de serviço atualizado." });
+    } catch (error) {
+        console.error("Error updating status: ", error);
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar o status." });
+    }
+  };
+
   const latestServiceOrders = useMemo(() => {
     const ordersByOriginalId = new Map<string, ServiceOrder>();
     allServiceOrders.forEach(order => {
@@ -116,15 +138,15 @@ export default function ServicosPage() {
   }, [latestServiceOrders, filters]);
 
   // Pagination Logic
-  const totalPages = Math.ceil(filteredOrders.length / ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters]);
+  }, [filters, itemsPerPage]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
@@ -288,6 +310,18 @@ export default function ServicosPage() {
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
+                                {order.attachments && order.attachments.length > 0 && (
+                                     <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Esta OS possui anexos.</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
                                 <div>
                                     <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
                                     <div className="text-sm text-muted-foreground">
@@ -320,6 +354,21 @@ export default function ServicosPage() {
                                 <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
                                     <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
                                 </DropdownMenuItem>
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger disabled={order.status === 'Cancelada'}>
+                                        <CheckCircle2 className="mr-2 h-4 w-4"/>
+                                        <span>Alterar Status</span>
+                                    </DropdownMenuSubTrigger>
+                                    <DropdownMenuPortal>
+                                        <DropdownMenuSubContent>
+                                            {settings.serviceStatuses?.map(status => (
+                                                <DropdownMenuItem key={status} onClick={() => handleStatusChange(order.id, order.status, status)} disabled={order.status === status}>
+                                                    {status}
+                                                </DropdownMenuItem>
+                                            ))}
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuSub>
                             </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
@@ -333,6 +382,19 @@ export default function ServicosPage() {
         </CardContent>
          <CardFooter>
             <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                    <span>Linhas por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                        <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
                 <span>Página {currentPage} de {totalPages}</span>
                 <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}>

@@ -19,9 +19,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -58,6 +58,9 @@ export default function OrcamentosPage() {
     clientName: '',
     createdAt: undefined as DateRange | undefined
   });
+  
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const statusFromUrl = searchParams.get('status');
@@ -90,6 +93,18 @@ export default function OrcamentosPage() {
 
     return () => unsubscribe();
   }, [user, toast]);
+  
+  const handleStatusChange = async (quoteId: string, currentStatus: Quote['status'], newStatus: Quote['status']) => {
+    if (currentStatus === newStatus) return;
+    try {
+      const quoteRef = doc(db, 'quotes', quoteId);
+      await updateDoc(quoteRef, { status: newStatus });
+      toast({ title: 'Sucesso!', description: 'Status do orçamento atualizado.' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
+    }
+  };
+
 
   const latestQuotes = useMemo(() => {
     if (quotes.length === 0) return [];
@@ -101,7 +116,7 @@ export default function OrcamentosPage() {
         const existing = quotesByOriginalId.get(originalId);
 
         if (!existing || (quote.version || 1) > (existing.version || 1)) {
-            quotesByOriginalId.set(originalId, quote);
+            ordersByOriginalId.set(originalId, quote);
         }
     });
 
@@ -124,8 +139,26 @@ export default function OrcamentosPage() {
     });
   }, [latestQuotes, filters]);
   
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage);
+  const paginatedQuotes = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredQuotes.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredQuotes, currentPage, itemsPerPage]);
+
   const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
+  };
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage(currentPage - 1);
   };
   
   const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
@@ -234,7 +267,7 @@ export default function OrcamentosPage() {
             <div className="flex justify-center items-center h-40">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : filteredQuotes.length === 0 ? (
+          ) : paginatedQuotes.length === 0 ? (
             <div className="text-center py-10">
                 <FileText className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhum orçamento encontrado.</h3>
@@ -254,7 +287,7 @@ export default function OrcamentosPage() {
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredQuotes.map((quote) => (
+                {paginatedQuotes.map((quote) => (
                     <TableRow key={quote.id}>
                      <TableCell>
                         <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">
@@ -289,6 +322,19 @@ export default function OrcamentosPage() {
                             <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
                                 <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
                             </DropdownMenuItem>
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger disabled={quote.status === 'Convertido'}>
+                                    <Thermometer className="mr-2 h-4 w-4"/>
+                                    <span>Alterar Status</span>
+                                </DropdownMenuSubTrigger>
+                                <DropdownMenuPortal>
+                                    <DropdownMenuSubContent>
+                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Pendente')} disabled={quote.status === 'Pendente'}>Pendente</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Aprovado')} disabled={quote.status === 'Aprovado'}>Aprovado</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Recusado')} disabled={quote.status === 'Recusado'}>Recusado</DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuPortal>
+                            </DropdownMenuSub>
                         </DropdownMenuContent>
                         </DropdownMenu>
                     </TableCell>
@@ -300,9 +346,32 @@ export default function OrcamentosPage() {
           )}
         </CardContent>
          <CardFooter>
-          <div className="text-xs text-muted-foreground">
-            Mostrando <strong>{filteredQuotes.length}</strong> de <strong>{totalQuotesCount}</strong> orçamentos.
-          </div>
+            <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                    <span>Linhas por página:</span>
+                    <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
+                        <SelectTrigger className="h-8 w-[70px]">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="10">10</SelectItem>
+                            <SelectItem value="20">20</SelectItem>
+                            <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <span>Página {currentPage} de {totalPages}</span>
+                <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}>
+                        <ChevronLeft className="h-4 w-4" />
+                        Anterior
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages || isLoading}>
+                        Próximo
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
         </CardFooter>
       </Card>
     </div>
