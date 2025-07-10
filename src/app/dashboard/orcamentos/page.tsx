@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
+import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
 import { Quote } from '@/types';
 import { DateRange } from 'react-day-picker';
@@ -19,9 +20,9 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent, DropdownMenuPortal } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -162,11 +163,6 @@ export default function OrcamentosPage() {
   };
   
   const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
-
-
-  const totalQuotesCount = useMemo(() => {
-    return latestQuotes.length;
-  }, [latestQuotes]);
 
   return (
     <div className="flex flex-col gap-4">
