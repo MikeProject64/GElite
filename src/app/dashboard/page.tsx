@@ -3,7 +3,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2 } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2, CheckCircle, Target } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -52,6 +52,8 @@ interface DashboardStats {
     totalCustomers: number;
     overdueOrders: number;
     pendingQuotes: number;
+    dueToday: number;
+    newCustomersToday: number;
 }
 
 const quickNoteSchema = z.object({
@@ -78,7 +80,7 @@ const getStatusColor = (status: string) => {
     return `hsl(var(--chart-${colorIndex + 1}))`;
 };
 
-const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'total-customers'];
+const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'daily-summary'];
 const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'quick-notes', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
 const allPanelIds = [...smallPanelIds, ...largePanelIds];
 
@@ -101,7 +103,7 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0 });
+  const [stats, setStats] = useState<DashboardStats>({ activeOrders: 0, totalCustomers: 0, overdueOrders: 0, pendingQuotes: 0, dueToday: 0, newCustomersToday: 0 });
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
   const [chartData, setChartData] = useState<ChartData>({ orderStatus: [], monthlyRevenue: [], serviceTypes: [] });
   const [criticalDeadlines, setCriticalDeadlines] = useState<ServiceOrder[]>([]);
@@ -160,7 +162,10 @@ export default function DashboardPage() {
         const customerCount = allCustomers.length;
         const overdueCount = fetchedOrders.filter(o => o.dueDate && typeof o.dueDate.toDate === 'function' && !['Concluída', 'Cancelada'].includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
         const pendingQuotesCount = allQuotes.filter(q => q.status === 'Pendente').length;
-        setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount });
+        const dueTodayCount = fetchedOrders.filter(o => o.dueDate && typeof o.dueDate.toDate === 'function' && isToday(o.dueDate.toDate())).length;
+        const newCustomersTodayCount = allCustomers.filter(c => c.createdAt && typeof c.createdAt.toDate === 'function' && isToday(c.createdAt.toDate())).length;
+
+        setStats({ activeOrders: activeCount, totalCustomers: customerCount, overdueOrders: overdueCount, pendingQuotes: pendingQuotesCount, dueToday: dueTodayCount, newCustomersToday: newCustomersTodayCount });
         
         const activeOrdersWithDueDates = fetchedOrders.filter(o => activeStatuses.includes(o.status) && o.dueDate && typeof o.dueDate.toDate === 'function');
         const overdue = activeOrdersWithDueDates.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).sort((a,b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
@@ -348,9 +353,9 @@ export default function DashboardPage() {
       title: 'Serviços Vencidos',
       content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Serviços Vencidos</CardTitle><AlertTriangle className="h-4 w-4 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{loading ? <Skeleton className="h-8 w-12" /> : stats.overdueOrders}</div><p className="text-xs text-muted-foreground">Que passaram do prazo</p></CardContent></Card>
     },
-    'total-customers': {
-      title: 'Total de Clientes',
-      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Clientes</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.totalCustomers}</div><p className="text-xs text-muted-foreground">Clientes na sua base</p></CardContent></Card>
+    'daily-summary': {
+      title: 'Resumo do Dia',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Resumo do Dia</CardTitle><Target className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="space-y-2 pt-2">{loading ? <Skeleton className="h-16 w-full" /> : <><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Prazos para hoje</span><span className="font-bold">{stats.dueToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Novos clientes hoje</span><span className="font-bold">{stats.newCustomersToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Orçamentos pendentes</span><span className="font-bold">{stats.pendingQuotes}</span></div></>}</div></CardContent></Card>
     },
     'quick-action-buttons': {
         title: 'Ações Rápidas',
