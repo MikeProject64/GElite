@@ -88,9 +88,10 @@ function CreateQuoteForm() {
   useEffect(() => {
     const templateId = searchParams.get('templateId');
     const versionOfId = searchParams.get('versionOf');
+    const clientIdParam = searchParams.get('clientId');
 
-    const fetchTemplate = async () => {
-        const templateRef = doc(db, 'quotes', templateId!);
+    const fetchTemplate = async (templateId: string) => {
+        const templateRef = doc(db, 'quotes', templateId);
         const templateSnap = await getDoc(templateRef);
         if(templateSnap.exists()) {
             const templateData = templateSnap.data() as Quote;
@@ -108,9 +109,9 @@ function CreateQuoteForm() {
         }
     }
 
-    const fetchBaseQuote = async () => {
+    const fetchBaseQuote = async (versionOfId: string) => {
         setIsVersioning(true);
-        const quoteRef = doc(db, 'quotes', versionOfId!);
+        const quoteRef = doc(db, 'quotes', versionOfId);
         const quoteSnap = await getDoc(quoteRef);
         if (quoteSnap.exists()) {
             const data = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
@@ -138,7 +139,10 @@ function CreateQuoteForm() {
         if (versionOfId) {
             fetchBaseQuote().finally(() => setIsInitializing(false));
         } else if (templateId) {
-            fetchTemplate().finally(() => setIsInitializing(false));
+            fetchTemplate(templateId).finally(() => setIsInitializing(false));
+        } else if (clientIdParam) {
+            form.setValue('clientId', clientIdParam, { shouldValidate: true });
+            setIsInitializing(false);
         } else {
             setIsInitializing(false);
         }
@@ -251,6 +255,8 @@ function CreateQuoteForm() {
         </div>
     );
   }
+  
+  const clientIdFromUrl = searchParams.get('clientId');
 
   return (
     <>
@@ -272,12 +278,12 @@ function CreateQuoteForm() {
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning}>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning || !!clientIdFromUrl}>
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
                   <div className="relative" ref={dropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)} disabled={isVersioning}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)} disabled={isVersioning || !!clientIdFromUrl}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>
@@ -411,7 +417,7 @@ function CreateQuoteForm() {
                 )}
 
               <div className="flex justify-end gap-2 pt-4">
-                  <Button type="button" variant="ghost" onClick={() => router.push('/dashboard/orcamentos')}>Cancelar</Button>
+                  <Button type="button" variant="ghost" onClick={() => router.back()}>Cancelar</Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
                       {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                       Salvar Orçamento

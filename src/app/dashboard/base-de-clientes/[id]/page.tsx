@@ -20,7 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { Loader2, ArrowLeft, User, Mail, Phone, Home, History, Save, ClipboardList, Info, MessageSquare, Wrench, FileText, UserPlus } from 'lucide-react';
+import { Loader2, ArrowLeft, User, Mail, Phone, Home, History, Save, ClipboardList, Info, MessageSquare, Wrench, FileText, UserPlus, PlusCircle, FilePlus as FilePlusIcon } from 'lucide-react';
 import Link from 'next/link';
 import { Customer, ServiceOrder, Quote, TimelineNote, TimelineItem } from '@/types';
 import { cn } from '@/lib/utils';
@@ -271,14 +271,24 @@ export default function ClienteDetailPage() {
 
   return (
     <div className="flex flex-col gap-6">
-       <div className="flex items-center gap-4">
-        <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-          <Link href="/dashboard/base-de-clientes"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
-        </Button>
-        <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
-            <User className='h-5 w-5' />
-            Detalhes do Cliente
-        </h1>
+       <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+                <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                <Link href="/dashboard/base-de-clientes"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
+                </Button>
+                <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
+                    <User className='h-5 w-5' />
+                    Detalhes do Cliente
+                </h1>
+            </div>
+             <div className="flex gap-2">
+                <Button size="sm" asChild>
+                    <Link href={`/dashboard/servicos/criar?clientId=${customerId}`}><PlusCircle className="mr-2 h-4 w-4" />Nova O.S.</Link>
+                </Button>
+                 <Button size="sm" variant="outline" asChild>
+                    <Link href={`/dashboard/orcamentos/criar?clientId=${customerId}`}><FilePlusIcon className="mr-2 h-4 w-4" />Novo Orçamento</Link>
+                </Button>
+            </div>
       </div>
       
       <Card>

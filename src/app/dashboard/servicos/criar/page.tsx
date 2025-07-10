@@ -100,6 +100,7 @@ function CreateServiceOrderForm() {
     
     const templateId = searchParams.get('templateId');
     const versionOfId = searchParams.get('versionOf');
+    const clientIdParam = searchParams.get('clientId');
     setIsVersioning(!!versionOfId);
 
     const initializeForm = async () => {
@@ -149,6 +150,8 @@ function CreateServiceOrderForm() {
             } else {
                 toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
             }
+        } else if (clientIdParam) {
+            form.setValue('clientId', clientIdParam, { shouldValidate: true });
         }
         setIsInitializing(false);
     };
@@ -294,7 +297,8 @@ function CreateServiceOrderForm() {
         </div>
     );
   }
-
+  
+  const clientIdFromUrl = searchParams.get('clientId');
 
   return (
     <>
@@ -310,12 +314,12 @@ function CreateServiceOrderForm() {
                 <FormItem className="flex flex-col">
                   <div className="flex items-center justify-between">
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning}>
+                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning || !!clientIdFromUrl}>
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
                   <div className="relative" ref={customerDropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isVersioning}>
+                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isVersioning || !!clientIdFromUrl}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
                       </span>
@@ -546,3 +550,4 @@ function CreateServiceOrderTitle() {
     const isVersioning = !!searchParams.get('versionOf');
     return <>{isVersioning ? 'Criar Nova Versão da OS' : 'Criar Nova Ordem de Serviço'}</>;
 }
+
