@@ -4,12 +4,11 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, orderBy, doc, updateDoc, getDocs, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, doc, updateDoc, writeBatch, getDocs, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
-import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, addMonths, startOfToday, endOfToday } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
+import { format } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -19,14 +18,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2 } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ServiceOrder } from '@/types';
+import { ServiceOrder, ServiceOrderPriority } from '@/types';
 import { cn } from '@/lib/utils';
 import { DateRange } from 'react-day-picker';
 import { Calendar } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const getStatusVariant = (status: string) => {
   switch (status) {
@@ -37,6 +37,15 @@ const getStatusVariant = (status: string) => {
         return (Math.abs(hash) % 2 === 0) ? 'secondary' : 'outline';
   }
 };
+
+const priorityMap: Record<ServiceOrderPriority, { label: string; icon: React.FC<any>; color: string }> = {
+    baixa: { label: 'Baixa', icon: ArrowDown, color: 'text-gray-500' },
+    media: { label: 'Média', icon: Minus, color: 'text-yellow-500' },
+    alta: { label: 'Alta', icon: ArrowUp, color: 'text-red-500' },
+};
+
+const priorityOrder: Record<ServiceOrderPriority, number> = { alta: 3, media: 2, baixa: 1 };
+
 
 export default function ServicosPage() {
   const { user } = useAuth();
@@ -55,7 +64,8 @@ export default function ServicosPage() {
   
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
-  
+  const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
+  const [sortConfig, setSortConfig] = useState<{ key: keyof ServiceOrder | 'priority', direction: 'ascending' | 'descending' } | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -87,26 +97,28 @@ export default function ServicosPage() {
     return () => unsubscribe();
   }, [user, toast]);
 
-  const handleStatusChange = async (orderId: string, currentStatus: string, newStatus: string) => {
-    if (currentStatus === newStatus) return;
-    
-    try {
-        const orderRef = doc(db, 'serviceOrders', orderId);
-        const updateData: any = { status: newStatus };
-        
-        if (newStatus === 'Concluída') {
-            updateData.completedAt = new Date();
-        } else {
-            updateData.completedAt = null;
-        }
+  const handleBulkStatusChange = async (newStatus: string) => {
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    if (selectedIds.length === 0) return;
 
-        await updateDoc(orderRef, updateData);
-        toast({ title: "Sucesso!", description: "Status da ordem de serviço atualizado." });
+    const batch = writeBatch(db);
+    selectedIds.forEach(id => {
+        const orderRef = doc(db, 'serviceOrders', id);
+        const updateData: any = { status: newStatus };
+        if (newStatus === 'Concluída') updateData.completedAt = new Date();
+        else updateData.completedAt = null;
+        batch.update(orderRef, updateData);
+    });
+
+    try {
+        await batch.commit();
+        toast({ title: "Sucesso!", description: `${selectedIds.length} ordem(ns) de serviço atualizada(s).` });
+        setSelectedRows({});
     } catch (error) {
-        console.error("Error updating status: ", error);
-        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar o status." });
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar as ordens de serviço." });
     }
   };
+
 
   const latestServiceOrders = useMemo(() => {
     const ordersByOriginalId = new Map<string, ServiceOrder>();
@@ -120,47 +132,73 @@ export default function ServicosPage() {
     return Array.from(ordersByOriginalId.values());
   }, [allServiceOrders]);
 
-  const filteredOrders = useMemo(() => {
-    return latestServiceOrders.filter(order => {
+  const sortedAndFilteredOrders = useMemo(() => {
+    let sortableItems = [...latestServiceOrders];
+
+    sortableItems = sortableItems.filter(order => {
         const statusMatch = filters.status ? order.status === filters.status : true;
         const collaboratorMatch = filters.collaboratorName ? (order.collaboratorName || '').toLowerCase().includes(filters.collaboratorName.toLowerCase()) : true;
         const clientMatch = filters.clientName ? order.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        
         let dateMatch = true;
         if (filters.dueDate && order.dueDate) {
             const orderDueDate = order.dueDate.toDate();
             if (filters.dueDate.from) dateMatch &&= (orderDueDate >= filters.dueDate.from);
             if (filters.dueDate.to) dateMatch &&= (orderDueDate <= filters.dueDate.to);
         }
-
         return statusMatch && collaboratorMatch && clientMatch && dateMatch;
     });
-  }, [latestServiceOrders, filters]);
 
-  // Pagination Logic
-  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
-  const paginatedOrders = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredOrders, currentPage, itemsPerPage]);
+    if (sortConfig !== null) {
+        sortableItems.sort((a, b) => {
+            let aValue: any;
+            let bValue: any;
+
+            if (sortConfig.key === 'priority') {
+                aValue = priorityOrder[a.priority || 'media'];
+                bValue = priorityOrder[b.priority || 'media'];
+            } else {
+                 aValue = a[sortConfig.key];
+                 bValue = b[sortConfig.key];
+            }
+
+            if (aValue < bValue) return sortConfig.direction === 'ascending' ? -1 : 1;
+            if (aValue > bValue) return sortConfig.direction === 'ascending' ? 1 : -1;
+            return 0;
+        });
+    }
+
+    return sortableItems;
+  }, [latestServiceOrders, filters, sortConfig]);
+  
+  const requestSort = (key: keyof ServiceOrder | 'priority') => {
+    let direction: 'ascending' | 'descending' = 'ascending';
+    if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
+        direction = 'descending';
+    }
+    setSortConfig({ key, direction });
+  };
+
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filters, itemsPerPage]);
+    setSelectedRows({});
+  }, [filters, itemsPerPage, sortConfig]);
+
+  const totalPages = Math.ceil(sortedAndFilteredOrders.length / itemsPerPage);
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return sortedAndFilteredOrders.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedAndFilteredOrders, currentPage, itemsPerPage]);
 
   const handleFilterChange = (filterName: keyof typeof filters, value: any) => {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
   
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
-  
+  const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
+  const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
   const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
+
+  const numSelected = Object.values(selectedRows).filter(Boolean).length;
 
 
   return (
@@ -171,17 +209,13 @@ export default function ServicosPage() {
              <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
                 <Link href="/dashboard/servicos/modelos">
                     <LayoutTemplate className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Modelos
-                    </span>
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Modelos</span>
                 </Link>
             </Button>
             <Button size="sm" className="h-8 gap-1" asChild>
                 <Link href="/dashboard/servicos/criar">
                     <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                        Nova Ordem de Serviço
-                    </span>
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Nova Ordem de Serviço</span>
                 </Link>
             </Button>
         </div>
@@ -189,59 +223,22 @@ export default function ServicosPage() {
 
        <Card>
           <CardHeader>
-            <CardTitle>
-                <span className="flex items-center gap-2">
-                    <Filter className="h-5 w-5"/>
-                    Filtros de Acompanhamento
-                </span>
-            </CardTitle>
+            <CardTitle><span className="flex items-center gap-2"><Filter className="h-5 w-5"/>Filtros de Acompanhamento</span></CardTitle>
              <CardDescription>Use os filtros abaixo para refinar a visualização das suas ordens de serviço.</CardDescription>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="client-filter">Filtrar por Cliente</Label>
-                <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="collaborator-filter">Filtrar por Colaborador</Label>
-                <Input id="collaborator-filter" placeholder="Nome do colaborador..." value={filters.collaboratorName} onChange={e => handleFilterChange('collaboratorName', e.target.value)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="status-filter">Filtrar por Status</Label>
+              <div className="grid gap-2"><Label htmlFor="client-filter">Filtrar por Cliente</Label><Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} /></div>
+              <div className="grid gap-2"><Label htmlFor="collaborator-filter">Filtrar por Colaborador</Label><Input id="collaborator-filter" placeholder="Nome do colaborador..." value={filters.collaboratorName} onChange={e => handleFilterChange('collaboratorName', e.target.value)} /></div>
+              <div className="grid gap-2"><Label htmlFor="status-filter">Filtrar por Status</Label>
                  <Select value={filters.status} onValueChange={value => handleFilterChange('status', value === 'all' ? '' : value)}>
-                    <SelectTrigger id="status-filter">
-                        <SelectValue placeholder="Todos os Status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="all">Todos os Status</SelectItem>
-                        {settings.serviceStatuses?.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
-                        ))}
-                    </SelectContent>
+                    <SelectTrigger id="status-filter"><SelectValue placeholder="Todos os Status" /></SelectTrigger>
+                    <SelectContent><SelectItem value="all">Todos os Status</SelectItem>{settings.serviceStatuses?.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
-               <div className="grid gap-2">
-                <Label htmlFor="date-filter">Filtrar por Prazo</Label>
+               <div className="grid gap-2"><Label htmlFor="date-filter">Filtrar por Prazo</Label>
                 <Popover>
-                    <PopoverTrigger asChild>
-                        <Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !filters.dueDate && "text-muted-foreground")}>
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {filters.dueDate?.from ? (
-                                filters.dueDate.to ? (
-                                    <>
-                                        {format(filters.dueDate.from, "dd/MM/yy")} - {format(filters.dueDate.to, "dd/MM/yy")}
-                                    </>
-                                ) : (
-                                    format(filters.dueDate.from, "dd/MM/yyyy")
-                                )
-                            ) : (
-                                <span>Selecione um período</span>
-                            )}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="range" selected={filters.dueDate} onSelect={(range) => handleFilterChange('dueDate', range)} numberOfMonths={2} />
-                    </PopoverContent>
+                    <PopoverTrigger asChild><Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !filters.dueDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{filters.dueDate?.from ? (filters.dueDate.to ? (<>{format(filters.dueDate.from, "dd/MM/yy")} - {format(filters.dueDate.to, "dd/MM/yy")}</>) : (format(filters.dueDate.from, "dd/MM/yyyy"))) : (<span>Selecione um período</span>)}</Button></PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start"><Calendar mode="range" selected={filters.dueDate} onSelect={(range) => handleFilterChange('dueDate', range)} numberOfMonths={2} /></PopoverContent>
                 </Popover>
             </div>
           </CardContent>
@@ -258,30 +255,55 @@ export default function ServicosPage() {
         )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Controle e Acompanhamento de Serviços</CardTitle>
-          <CardDescription>Visualize e gerencie todas as ordens de serviço em um único lugar.</CardDescription>
+        <CardHeader className="flex flex-row items-center justify-between">
+            <div>
+              <CardTitle>Controle e Acompanhamento de Serviços</CardTitle>
+              <CardDescription>Visualize e gerencie todas as ordens de serviço em um único lugar.</CardDescription>
+            </div>
+             {numSelected > 0 && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline">Ações ({numSelected}) <MoreHorizontal className="ml-2 h-4 w-4" /></Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Ações em Massa</DropdownMenuLabel>
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger><CheckCircle2 className="mr-2 h-4 w-4"/>Alterar Status</DropdownMenuSubTrigger>
+                            <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                {settings.serviceStatuses?.map(status => (
+                                    <DropdownMenuItem key={status} onClick={() => handleBulkStatusChange(status)}>{status}</DropdownMenuItem>
+                                ))}
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="flex justify-center items-center h-40">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-            </div>
+            <div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>
           ) : paginatedOrders.length === 0 ? (
-            <div className="text-center py-10">
-                <Wrench className="mx-auto h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3>
-                <p className="text-sm text-muted-foreground">{isAnyFilterActive ? "Tente um filtro diferente." : "Que tal criar a primeira?"}</p>
-            </div>
+            <div className="text-center py-10"><Wrench className="mx-auto h-12 w-12 text-muted-foreground" /><h3 className="mt-4 text-lg font-semibold">Nenhuma ordem de serviço encontrada.</h3><p className="text-sm text-muted-foreground">{isAnyFilterActive ? "Tente um filtro diferente." : "Que tal criar a primeira?"}</p></div>
           ) : (
           <div className="overflow-x-auto">
             <Table>
                 <TableHeader>
                 <TableRow>
-                    <TableHead className='w-[100px]'>OS (Versão)</TableHead>
+                    <TableHead className="w-12"><Checkbox onCheckedChange={(checked) => {
+                        const newSelectedRows: Record<string, boolean> = {};
+                        if(checked) { paginatedOrders.forEach(order => newSelectedRows[order.id] = true); }
+                        setSelectedRows(newSelectedRows);
+                    }}
+                    checked={numSelected > 0 && numSelected === paginatedOrders.length}
+                    indeterminate={numSelected > 0 && numSelected < paginatedOrders.length}
+                    /></TableHead>
+                    <TableHead className="w-24">OS (Versão)</TableHead>
                     <TableHead>Serviço / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Colaborador</TableHead>
-                    <TableHead className="hidden md:table-cell">Vencimento</TableHead>
+                    <TableHead className="hidden md:table-cell cursor-pointer" onClick={() => requestSort('dueDate')} >Vencimento {sortConfig?.key === 'dueDate' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />)}</TableHead>
+                    <TableHead className="w-24 cursor-pointer" onClick={() => requestSort('priority')}><ChevronsUpDown className="inline h-4 w-4 mr-1" />Prioridade</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
@@ -289,87 +311,37 @@ export default function ServicosPage() {
                 <TableBody>
                 {paginatedOrders.map((order) => {
                     const hasPendencies = !order.collaboratorId && order.status === 'Pendente';
+                    const priorityInfo = order.priority ? priorityMap[order.priority] : null;
                     return (
-                        <TableRow key={order.id}>
-                         <TableCell>
-                            <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
-                                #{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})
-                            </Link>
-                          </TableCell>
+                        <TableRow key={order.id} data-state={selectedRows[order.id] && "selected"}>
+                         <TableCell><Checkbox checked={!!selectedRows[order.id]} onCheckedChange={checked => setSelectedRows(prev => ({...prev, [order.id]: !!checked}))} /></TableCell>
+                         <TableCell><Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">#{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})</Link></TableCell>
                         <TableCell>
                            <div className="flex items-center gap-2">
-                                {hasPendencies && (
-                                    <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <AlertTriangle className="h-4 w-4 text-amber-500" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Pendências: definir prazo e responsável.</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                {order.attachments && order.attachments.length > 0 && (
-                                     <TooltipProvider>
-                                        <Tooltip>
-                                            <TooltipTrigger>
-                                                <Paperclip className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Esta OS possui anexos.</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </TooltipProvider>
-                                )}
-                                <div>
-                                    <Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link>
-                                    <div className="text-sm text-muted-foreground">
-                                        <Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link>
-                                    </div>
-                                </div>
+                                {hasPendencies && (<TooltipProvider><Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger><TooltipContent><p>Pendências: definir prazo e responsável.</p></TooltipContent></Tooltip></TooltipProvider>)}
+                                {order.attachments && order.attachments.length > 0 && (<TooltipProvider><Tooltip><TooltipTrigger><Paperclip className="h-4 w-4 text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Esta OS possui anexos.</p></TooltipContent></Tooltip></TooltipProvider>)}
+                                <div><Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link><div className="text-sm text-muted-foreground"><Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link></div></div>
                             </div>
                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                            {order.collaboratorId ? (
-                                <Link href={`/dashboard/colaboradores/${order.collaboratorId}`} className="hover:underline">{order.collaboratorName}</Link>
-                            ) : (
-                                'Não definido'
-                            )}
-                        </TableCell>
+                        <TableCell className="hidden md:table-cell">{order.collaboratorId ? (<Link href={`/dashboard/colaboradores/${order.collaboratorId}`} className="hover:underline">{order.collaboratorName}</Link>) : ('Não definido')}</TableCell>
                         <TableCell className="hidden md:table-cell">{order.dueDate ? format(order.dueDate.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
                         <TableCell>
-                            <Badge variant={getStatusVariant(order.status)}>{order.status}</Badge>
+                            {priorityInfo ? (
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger>
+                                            <span className="sr-only">{priorityInfo.label}</span>
+                                            <priorityInfo.icon className={cn("h-5 w-5", priorityInfo.color)} />
+                                        </TooltipTrigger>
+                                        <TooltipContent>Prioridade {priorityInfo.label}</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ) : null}
                         </TableCell>
+                        <TableCell><Badge variant={getStatusVariant(order.status)}>{order.status}</Badge></TableCell>
                         <TableCell>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost">
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}>
-                                    <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
-                                </DropdownMenuItem>
-                                <DropdownMenuSub>
-                                    <DropdownMenuSubTrigger disabled={order.status === 'Cancelada'}>
-                                        <CheckCircle2 className="mr-2 h-4 w-4"/>
-                                        <span>Alterar Status</span>
-                                    </DropdownMenuSubTrigger>
-                                    <DropdownMenuPortal>
-                                        <DropdownMenuSubContent>
-                                            {settings.serviceStatuses?.map(status => (
-                                                <DropdownMenuItem key={status} onClick={() => handleStatusChange(order.id, order.status, status)} disabled={order.status === status}>
-                                                    {status}
-                                                </DropdownMenuItem>
-                                            ))}
-                                        </DropdownMenuSubContent>
-                                    </DropdownMenuPortal>
-                                </DropdownMenuSub>
-                            </DropdownMenuContent>
+                            <DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
+                            <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel><DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}><Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar</DropdownMenuItem></DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
                         </TableRow>
@@ -382,29 +354,14 @@ export default function ServicosPage() {
         </CardContent>
          <CardFooter>
             <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
-                <div className="flex items-center gap-2">
-                    <span>Linhas por página:</span>
-                    <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                        <SelectTrigger className="h-8 w-[70px]">
-                            <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="10">10</SelectItem>
-                            <SelectItem value="20">20</SelectItem>
-                            <SelectItem value="50">50</SelectItem>
-                        </SelectContent>
-                    </Select>
+                <div className="flex-1">
+                    {numSelected > 0 && `${numSelected} de ${sortedAndFilteredOrders.length} linha(s) selecionada(s).`}
                 </div>
-                <span>Página {currentPage} de {totalPages}</span>
-                <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}>
-                        <ChevronLeft className="h-4 w-4" />
-                        Anterior
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages || isLoading}>
-                        Próximo
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
+                <div className="flex items-center gap-2"><span>Linhas por página:</span><Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}><SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem></SelectContent></Select></div>
+                <div className='flex-1 text-center'>Página {currentPage} de {totalPages}</div>
+                <div className="flex flex-1 justify-end items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={handlePrevPage} disabled={currentPage <= 1 || isLoading}><ChevronLeft className="h-4 w-4" />Anterior</Button>
+                    <Button variant="outline" size="sm" onClick={handleNextPage} disabled={currentPage >= totalPages || isLoading}>Próximo<ChevronRight className="h-4 w-4" /></Button>
                 </div>
             </div>
         </CardFooter>

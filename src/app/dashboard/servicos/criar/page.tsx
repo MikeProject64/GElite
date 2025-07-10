@@ -24,13 +24,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Badge } from '@/components/ui/badge';
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Customer, Collaborator, ServiceOrder } from '@/types';
+import { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from '@/types';
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -40,6 +39,7 @@ const serviceOrderSchema = z.object({
   collaboratorId: z.string({ required_error: "Por favor, selecione um colaborador." }).min(1, "Por favor, selecione um colaborador."),
   totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
   status: z.string({ required_error: "O status é obrigatório." }),
+  priority: z.enum(['baixa', 'media', 'alta']).default('media'),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
   customFields: z.record(z.any()).optional(),
 });
@@ -84,6 +84,7 @@ function CreateServiceOrderForm() {
       collaboratorId: '',
       totalValue: 0,
       status: settings.serviceStatuses?.[0] || 'Pendente',
+      priority: 'media',
       dueDate: new Date(),
       customFields: {},
     },
@@ -140,6 +141,7 @@ function CreateServiceOrderForm() {
                     totalValue: templateData.totalValue,
                     collaboratorId: templateData.collaboratorId,
                     status: templateData.status,
+                    priority: templateData.priority || 'media',
                     dueDate: templateData.dueDate.toDate(),
                     customFields: templateData.customFields || {},
                 });
@@ -412,20 +414,36 @@ function CreateServiceOrderForm() {
                   <FormMessage />
                 </FormItem>
               )}/>
-              <FormField control={form.control} name="status" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {settings.serviceStatuses?.map(status => (
-                        <SelectItem key={status} value={status}>{status}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}/>
+              <div className="grid grid-cols-2 gap-4">
+                <FormField control={form.control} name="status" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Status *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                        {settings.serviceStatuses?.map(status => (
+                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                        ))}
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}/>
+                <FormField control={form.control} name="priority" render={({ field }) => (
+                    <FormItem>
+                    <FormLabel>Prioridade *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                        <FormControl><SelectTrigger><SelectValue placeholder="Defina a prioridade" /></SelectTrigger></FormControl>
+                        <SelectContent>
+                            <SelectItem value="baixa">Baixa</SelectItem>
+                            <SelectItem value="media">Média</SelectItem>
+                            <SelectItem value="alta">Alta</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <FormMessage />
+                    </FormItem>
+                )}/>
+              </div>
 
                 {settings.serviceOrderCustomFields && settings.serviceOrderCustomFields.length > 0 && (
                     <>

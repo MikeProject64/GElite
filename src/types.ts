@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 import type { Stripe } from 'stripe';
 
@@ -163,6 +164,8 @@ export interface ActivityLogEntry {
   description: string;
 }
 
+export type ServiceOrderPriority = 'baixa' | 'media' | 'alta';
+
 export interface ServiceOrder {
     id: string;
     userId: string;
@@ -174,6 +177,7 @@ export interface ServiceOrder {
     collaboratorName?: string;
     totalValue: number;
     status: string;
+    priority?: ServiceOrderPriority;
     dueDate: Timestamp;
     attachments?: { name: string; url: string; }[];
     createdAt: Timestamp;
