@@ -119,6 +119,25 @@ export default function ServicosPage() {
     }
   };
 
+  const handleBulkPriorityChange = async (newPriority: ServiceOrderPriority) => {
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    if (selectedIds.length === 0) return;
+
+    const batch = writeBatch(db);
+    selectedIds.forEach(id => {
+        const orderRef = doc(db, 'serviceOrders', id);
+        batch.update(orderRef, { priority: newPriority });
+    });
+
+    try {
+        await batch.commit();
+        toast({ title: "Sucesso!", description: `Prioridade de ${selectedIds.length} ordem(ns) de serviço atualizada.` });
+        setSelectedRows({});
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar as prioridades." });
+    }
+  };
+
 
   const latestServiceOrders = useMemo(() => {
     const ordersByOriginalId = new Map<string, ServiceOrder>();
@@ -277,6 +296,16 @@ export default function ServicosPage() {
                                 </DropdownMenuSubContent>
                             </DropdownMenuPortal>
                         </DropdownMenuSub>
+                        <DropdownMenuSub>
+                            <DropdownMenuSubTrigger><ChevronsUpDown className="mr-2 h-4 w-4"/>Alterar Prioridade</DropdownMenuSubTrigger>
+                             <DropdownMenuPortal>
+                                <DropdownMenuSubContent>
+                                    <DropdownMenuItem onClick={() => handleBulkPriorityChange('baixa')}>Baixa</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleBulkPriorityChange('media')}>Média</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleBulkPriorityChange('alta')}>Alta</DropdownMenuItem>
+                                </DropdownMenuSubContent>
+                            </DropdownMenuPortal>
+                        </DropdownMenuSub>
                     </DropdownMenuContent>
                 </DropdownMenu>
             )}
@@ -303,7 +332,12 @@ export default function ServicosPage() {
                     <TableHead>Serviço / Cliente</TableHead>
                     <TableHead className="hidden md:table-cell">Colaborador</TableHead>
                     <TableHead className="hidden md:table-cell cursor-pointer" onClick={() => requestSort('dueDate')} >Vencimento {sortConfig?.key === 'dueDate' && (sortConfig.direction === 'ascending' ? <ArrowUp className="inline h-4 w-4" /> : <ArrowDown className="inline h-4 w-4" />)}</TableHead>
-                    <TableHead className="w-24 cursor-pointer" onClick={() => requestSort('priority')}><ChevronsUpDown className="inline h-4 w-4 mr-1" />Prioridade</TableHead>
+                    <TableHead className="w-24 cursor-pointer" onClick={() => requestSort('priority')}>
+                        <div className="flex items-center gap-1">
+                            <ChevronsUpDown className="h-4 w-4" />
+                            <span>Prioridade</span>
+                        </div>
+                    </TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
