@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
-import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle, User, DollarSign, ArrowUp, ArrowDown, BarChartHorizontal } from "lucide-react";
+import { Loader2, CalendarClock, Calendar as CalendarIcon, List, AlertTriangle, User, DollarSign, ArrowUp, ArrowDown, BarChartHorizontal, ChevronsUpDown, Minus } from "lucide-react";
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -25,7 +25,8 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
-import type { ServiceOrder } from '@/types';
+import type { ServiceOrder, ServiceOrderPriority } from '@/types';
+import { cn } from '@/lib/utils';
 
 
 // Dynamic import for the Calendar component
@@ -109,6 +110,11 @@ const CalendarLegend: React.FC = () => (
     </div>
 );
 
+const priorityMap: Record<ServiceOrderPriority, { label: string; icon: React.FC<any>; color: string }> = {
+    baixa: { label: 'Baixa', icon: ArrowDown, color: 'text-gray-500' },
+    media: { label: 'Média', icon: Minus, color: 'text-yellow-500' },
+    alta: { label: 'Alta', icon: ArrowUp, color: 'text-red-500' },
+};
 
 export function DeadlinesClient() {
     const { user } = useAuth();
@@ -122,7 +128,7 @@ export function DeadlinesClient() {
     const [isLoading, setIsLoading] = useState(true);
     const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'timeline'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
-    const [sortConfig, setSortConfig] = useState<{ key: keyof ServiceOrder, direction: 'ascending' | 'descending' } | null>(null);
+    const [sortConfig, setSortConfig] = useState<{ key: keyof ServiceOrder | 'priority', direction: 'ascending' | 'descending' } | null>(null);
 
     useEffect(() => {
         const filterFromUrl = searchParams.get('filter');
@@ -176,7 +182,7 @@ export function DeadlinesClient() {
         return activeOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
     }, [activeOrders, isLoading]);
 
-    const requestSort = (key: keyof ServiceOrder) => {
+    const requestSort = (key: keyof ServiceOrder | 'priority') => {
         let direction: 'ascending' | 'descending' = 'ascending';
         if (sortConfig && sortConfig.key === key && sortConfig.direction === 'ascending') {
             direction = 'descending';
@@ -205,8 +211,8 @@ export function DeadlinesClient() {
 
         if (sortConfig !== null) {
             tempOrders.sort((a, b) => {
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
+                const aValue = a[sortConfig.key as keyof ServiceOrder];
+                const bValue = b[sortConfig.key as keyof ServiceOrder];
                 
                 let comparison = 0;
                 if (aValue instanceof Timestamp && bValue instanceof Timestamp) {
@@ -248,6 +254,7 @@ export function DeadlinesClient() {
     };
 
     return (
+      <TooltipProvider>
         <>
             {!isLoading && overdueCount > 0 && (
                 <Alert variant="destructive">
@@ -272,32 +279,30 @@ export function DeadlinesClient() {
                     <CardDescription>Visualize e gerencie os vencimentos das ordens de serviço.</CardDescription>
                   </div>
                    <div className="flex items-center gap-2">
-                        <TooltipProvider>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')}>
-                                        <List className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Visualizar em Lista</p></TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant={viewMode === 'calendar' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('calendar')}>
-                                        <CalendarIcon className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Visualizar em Calendário</p></TooltipContent>
-                            </Tooltip>
-                             <Tooltip>
-                                <TooltipTrigger asChild>
-                                    <Button variant={viewMode === 'timeline' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('timeline')}>
-                                        <BarChartHorizontal className="h-4 w-4" />
-                                    </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p>Visualizar em Cronograma</p></TooltipContent>
-                            </Tooltip>
-                        </TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant={viewMode === 'list' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('list')}>
+                                    <List className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Visualizar em Lista</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant={viewMode === 'calendar' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('calendar')}>
+                                    <CalendarIcon className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Visualizar em Calendário</p></TooltipContent>
+                        </Tooltip>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant={viewMode === 'timeline' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('timeline')}>
+                                    <BarChartHorizontal className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent><p>Visualizar em Cronograma</p></TooltipContent>
+                        </Tooltip>
                    </div>
                 </CardHeader>
                 <CardContent>
@@ -430,5 +435,6 @@ export function DeadlinesClient() {
                 </CardFooter>
             </Card>
         </>
+      </TooltipProvider>
     );
 }
