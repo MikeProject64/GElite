@@ -69,7 +69,6 @@ export default function ColaboradoresPage() {
       setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
     });
 
-    // Check when both listeners have fired at least once
     Promise.all([
       new Promise(resolve => onSnapshot(qCollab, resolve, () => resolve(null))),
       new Promise(resolve => onSnapshot(qOrders, resolve, () => resolve(null)))
