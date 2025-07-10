@@ -122,11 +122,12 @@ export default function ColaboradoresPage() {
     try {
       await deleteDoc(doc(db, 'collaborators', deletingCollaboratorId));
       toast({ title: "Sucesso!", description: "Item excluído." });
-      setDeletingCollaboratorId(null);
-      setIsAlertOpen(false);
     } catch (error) {
       console.error("Error deleting document: ", error);
       toast({ variant: "destructive", title: "Erro ao excluir", description: "Falha ao excluir o item." });
+    } finally {
+      setDeletingCollaboratorId(null);
+      setIsAlertOpen(false);
     }
   };
 
