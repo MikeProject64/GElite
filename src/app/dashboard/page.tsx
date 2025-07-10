@@ -3,14 +3,14 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, SlidersHorizontal, StickyNote, Trash2 } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2 } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import type { RecentActivity, ServiceOrder, Quote, Customer, Collaborator, QuickNote } from '@/types';
 import Link from 'next/link';
-import { formatDistanceToNow, format, subMonths, startOfMonth, isPast, isToday, startOfToday, endOfToday, startOfISOWeek, endOfISOWeek, endOfMonth } from 'date-fns';
+import { formatDistanceToNow, format, subMonths, startOfMonth, isPast, isToday, startOfISOWeek, endOfISOWeek, endOfMonth } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Input } from '@/components/ui/input';
 import { OrderStatusChart } from '@/components/dashboard/order-status-chart';
@@ -61,8 +61,8 @@ type QuickNoteFormValues = z.infer<typeof quickNoteSchema>;
 
 const getStatusColor = (status: string) => {
     const STATUS_COLORS: { [key: string]: string } = {
-      'Pendente': 'hsl(var(--destructive))',
-      'Em Andamento': 'hsl(var(--chart-4))',
+      'Pendente': 'hsl(var(--chart-4))',
+      'Em Andamento': 'hsl(var(--chart-1))',
       'Concluída': 'hsl(var(--chart-2))',
       'Cancelada': 'hsl(var(--chart-5))',
     };

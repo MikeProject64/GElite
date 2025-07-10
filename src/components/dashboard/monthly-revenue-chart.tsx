@@ -22,13 +22,13 @@ export function MonthlyRevenueChart({ data, period }: MonthlyRevenueChartProps) 
   const chartConfig = {
     total: {
       label: 'Faturamento',
-      color: 'hsl(var(--primary))',
+      color: 'hsl(var(--chart-2))',
     },
   } satisfies ChartConfig;
   
   const yAxisFormatter = (value: number) => {
-    if (period === '6m') {
-        return `R$${value / 1000}k`;
+    if (value >= 1000 && period === '6m') {
+        return `R$${(value / 1000).toFixed(0)}k`;
     }
     return formatCurrency(value);
   }

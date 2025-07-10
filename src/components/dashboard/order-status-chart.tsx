@@ -34,7 +34,7 @@ export function OrderStatusChart({ data }: OrderStatusChartProps) {
     <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle className="flex items-center gap-2"><Wrench /> Ordens por Status</CardTitle>
-        <CardDescription>Distribuição de todas as ordens de serviço cadastradas.</CardDescription>
+        <CardDescription>Distribuição das ordens de serviço no período selecionado.</CardDescription>
       </CardHeader>
       <CardContent className="flex-1 pb-0">
         <ChartContainer
@@ -67,5 +67,3 @@ export function OrderStatusChart({ data }: OrderStatusChartProps) {
     </Card>
   );
 }
-
-    
