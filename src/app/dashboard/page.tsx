@@ -80,8 +80,8 @@ const getStatusColor = (status: string) => {
     return `hsl(var(--chart-${colorIndex + 1}))`;
 };
 
-const smallPanelIds = ['active-orders', 'pending-quotes', 'overdue-orders', 'daily-summary'];
-const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'recent-activity', 'quick-notes', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
+const smallPanelIds = ['active-orders', 'pending-quotes', 'total-customers', 'overdue-orders'];
+const largePanelIds = ['quick-action-buttons', 'critical-deadlines', 'daily-summary', 'recent-activity', 'quick-notes', 'order-status-chart', 'monthly-revenue-chart', 'service-type-chart'];
 const allPanelIds = [...smallPanelIds, ...largePanelIds];
 
 const initialPanelVisibility = allPanelIds.reduce((acc, id) => ({ ...acc, [id]: true }), {});
@@ -349,13 +349,13 @@ export default function DashboardPage() {
       title: 'Orçamentos Pendentes',
       content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Orçamentos Pendentes</CardTitle><Hourglass className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.pendingQuotes}</div><p className="text-xs text-muted-foreground">Aguardando aprovação</p></CardContent></Card>
     },
+     'total-customers': {
+      title: 'Total de Clientes',
+      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total de Clientes</CardTitle><Users className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{loading ? <Skeleton className="h-8 w-12" /> : stats.totalCustomers}</div><p className="text-xs text-muted-foreground">Clientes cadastrados na base</p></CardContent></Card>
+    },
     'overdue-orders': {
       title: 'Serviços Vencidos',
       content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Serviços Vencidos</CardTitle><AlertTriangle className="h-4 w-4 text-destructive" /></CardHeader><CardContent><div className="text-2xl font-bold text-destructive">{loading ? <Skeleton className="h-8 w-12" /> : stats.overdueOrders}</div><p className="text-xs text-muted-foreground">Que passaram do prazo</p></CardContent></Card>
-    },
-    'daily-summary': {
-      title: 'Resumo do Dia',
-      content: <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Resumo do Dia</CardTitle><Target className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="space-y-2 pt-2">{loading ? <Skeleton className="h-16 w-full" /> : <><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Prazos para hoje</span><span className="font-bold">{stats.dueToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Novos clientes hoje</span><span className="font-bold">{stats.newCustomersToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Orçamentos pendentes</span><span className="font-bold">{stats.pendingQuotes}</span></div></>}</div></CardContent></Card>
     },
     'quick-action-buttons': {
         title: 'Ações Rápidas',
@@ -432,6 +432,11 @@ export default function DashboardPage() {
                 <CardFooter><Button asChild variant="secondary" size="sm" className="w-full"><Link href="/dashboard/prazos">Ver todos os prazos</Link></Button></CardFooter>
             </Card>
         )
+    },
+     'daily-summary': {
+        title: 'Resumo do Dia',
+        content: <Card className="h-full flex flex-col"><CardHeader><CardTitle className="flex items-center gap-2"><Target className="h-5 w-5" /> Resumo do Dia</CardTitle><CardDescription>Um panorama instantâneo das prioridades de hoje.</CardDescription></CardHeader><CardContent className="flex-grow flex flex-col justify-center space-y-4">{loading ? <Skeleton className="h-24 w-full" /> : <><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Prazos para hoje</span><span className="font-bold text-lg">{stats.dueToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Novos clientes hoje</span><span className="font-bold text-lg">{stats.newCustomersToday}</span></div><div className="flex items-center justify-between"><span className="text-sm text-muted-foreground">Orçamentos pendentes</span><span className="font-bold text-lg">{stats.pendingQuotes}</span></div></>}
+        </CardContent></Card>
     },
     'quick-notes': {
         title: 'Notas Rápidas',
