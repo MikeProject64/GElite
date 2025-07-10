@@ -64,15 +64,15 @@ export default function ColaboradoresPage() {
     });
 
     const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
-    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('status', 'in', activeStatuses));
+    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('status', 'in', activeStatuses.length > 0 ? activeStatuses : ['non-existent-status']));
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
     });
 
     // Check when both listeners have fired at least once
     Promise.all([
-      new Promise(resolve => onSnapshot(qCollab, resolve)),
-      new Promise(resolve => onSnapshot(qOrders, resolve))
+      new Promise(resolve => onSnapshot(qCollab, resolve, () => resolve(null))),
+      new Promise(resolve => onSnapshot(qOrders, resolve, () => resolve(null)))
     ]).then(() => setIsLoading(false));
 
     return () => {
