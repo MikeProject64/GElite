@@ -29,6 +29,9 @@ import { Customer, ServiceOrder, ServiceAgreement } from '@/types';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { cn } from '@/lib/utils';
+
 
 const agreementSchema = z.object({
     title: z.string().min(5, { message: "O título deve ter pelo menos 5 caracteres." }),
@@ -58,6 +61,7 @@ export default function ContratosPage() {
     
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
     const [editingAgreement, setEditingAgreement] = useState<ServiceAgreement | null>(null);
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [deletingAgreementId, setDeletingAgreementId] = useState<string | null>(null);
@@ -159,6 +163,10 @@ export default function ContratosPage() {
             toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar o contrato.' });
         }
     };
+    
+    const filteredCustomers = useMemo(() => 
+        customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())),
+    [customers, searchTerm]);
 
     return (
         <div className="flex flex-col gap-4">
@@ -175,7 +183,44 @@ export default function ContratosPage() {
                     <DialogHeader><DialogTitle>{editingAgreement ? 'Editar Contrato' : 'Novo Contrato'}</DialogTitle></DialogHeader>
                     <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                         <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título do Contrato *</FormLabel><FormControl><Input placeholder="Ex: Manutenção Mensal de TI" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={form.control} name="clientId" render={({ field }) => (<FormItem><FormLabel>Cliente *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um cliente" /></SelectTrigger></FormControl><SelectContent><Command><CommandInput placeholder="Buscar cliente..." /><CommandList>{customers.map(c => (<CommandItem key={c.id} onSelect={() => field.onChange(c.id)}>{c.name}</CommandItem>))}</CommandList></Command></SelectContent></Select><FormMessage /></FormItem>)} />
+                        
+                        <FormField
+                            control={form.control}
+                            name="clientId"
+                            render={({ field }) => (
+                                <FormItem className="flex flex-col">
+                                <FormLabel>Cliente *</FormLabel>
+                                <Popover open={isCustomerDropdownOpen} onOpenChange={setIsCustomerDropdownOpen}>
+                                    <PopoverTrigger asChild>
+                                        <FormControl>
+                                            <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                                                {field.value ? customers.find((c) => c.id === field.value)?.name : "Selecione um cliente"}
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                            </Button>
+                                        </FormControl>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+                                    <Command>
+                                        <CommandInput placeholder="Buscar cliente..." onValueChange={setSearchTerm}/>
+                                        <CommandList>
+                                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                                            <CommandGroup>
+                                                {filteredCustomers.map((c) => (
+                                                    <CommandItem value={c.name} key={c.id} onSelect={() => { form.setValue("clientId", c.id); setIsCustomerDropdownOpen(false); }}>
+                                                        <Check className={cn("mr-2 h-4 w-4", c.id === field.value ? "opacity-100" : "opacity-0")} />
+                                                        {c.name}
+                                                    </CommandItem>
+                                                ))}
+                                            </CommandGroup>
+                                        </CommandList>
+                                    </Command>
+                                    </PopoverContent>
+                                </Popover>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
                         <FormField control={form.control} name="serviceOrderTemplateId" render={({ field }) => (<FormItem><FormLabel>Modelo de O.S. a ser gerada *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Selecione um modelo" /></SelectTrigger></FormControl><SelectContent>{serviceOrderTemplates.map(t => (<SelectItem key={t.id} value={t.id}>{t.templateName}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="frequency" render={({ field }) => (<FormItem><FormLabel>Frequência *</FormLabel><Select onValueChange={field.onChange} value={field.value}><FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl><SelectContent>{Object.entries(frequencyMap).map(([key, value]) => (<SelectItem key={key} value={key}>{value}</SelectItem>))}</SelectContent></Select><FormMessage /></FormItem>)} />
                         <FormField control={form.control} name="startDate" render={({ field }) => (<FormItem className="flex flex-col"><FormLabel>Data de Início/Primeira O.S. *</FormLabel><Popover><PopoverTrigger asChild><FormControl><Button variant={"outline"}><CalendarIcon className="mr-2 h-4 w-4" />{field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}</Button></FormControl></PopoverTrigger><PopoverContent className="w-auto p-0" align="start"><Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus /></PopoverContent></Popover><FormMessage /></FormItem>)} />
