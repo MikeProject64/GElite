@@ -17,25 +17,28 @@ export default function AdminLayout({
   const pathname = usePathname();
 
   useEffect(() => {
+    // This effect handles the redirection logic.
+    // It will run after the initial render and whenever dependencies change.
     if (loading) {
-      return; // Wait until loading state is resolved
+      return; // Don't do anything while auth state is resolving
     }
 
     if (user && isAdmin) {
-      // If the admin is on the login page, redirect them away to the dashboard
+      // If a logged-in admin is on the login page, redirect to dashboard
       if (pathname === '/admin/login') {
-        router.push('/admin/dashboard');
+        router.replace('/admin/dashboard');
       }
     } else {
-      // If the user is NOT an admin (or not logged in)
-      // and they are NOT on the login page, redirect them away to the login page.
+      // If a user is not an admin (or not logged in) and tries to access a protected admin page
       if (pathname !== '/admin/login') {
-        router.push('/admin/login');
+        router.replace('/admin/login');
       }
     }
   }, [user, isAdmin, loading, router, pathname]);
 
-  // Display a global loader while authentication is in progress or during redirects.
+  // This block determines what to render based on the current state.
+  
+  // 1. Show a loader if auth state is still loading.
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -44,7 +47,17 @@ export default function AdminLayout({
     );
   }
 
-  // If the user is a confirmed admin and is NOT on the login page, show the admin layout.
+  // 2. If the user is an admin and is on the login page, they are about to be redirected.
+  // Show a loader to prevent the login page from "flashing" on the screen.
+  if (isAdmin && pathname === '/admin/login') {
+     return (
+      <div className="flex items-center justify-center h-screen bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  
+  // 3. If the user is a confirmed admin and NOT on the login page, show the admin layout.
   if (isAdmin && pathname !== '/admin/login') {
     return (
       <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
@@ -58,8 +71,8 @@ export default function AdminLayout({
     );
   }
 
-  // In all other cases (e.g., user is not an admin, or is on the login page while not authenticated),
-  // just render the children without the admin sidebar. This covers the login page itself
-  // and the brief period during redirection.
+  // 4. In all other cases (e.g., user is not an admin, or is on the login page while not authenticated),
+  // just render the children. This covers the login page itself and the brief period during redirection
+  // for non-admin users, where we want the UI to be blank before showing the login screen.
   return <>{children}</>;
 }
