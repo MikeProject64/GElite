@@ -66,6 +66,7 @@ export default function ContratosPage() {
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [deletingAgreementId, setDeletingAgreementId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
 
     const form = useForm<AgreementFormValues>({
         resolver: zodResolver(agreementSchema),
@@ -105,6 +106,13 @@ export default function ContratosPage() {
             a.clientName.toLowerCase().includes(searchTerm.toLowerCase())
         );
     }, [agreements, searchTerm]);
+    
+    const filteredCustomers = useMemo(() => {
+        return customers.filter(customer =>
+            customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+            customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
+        );
+    }, [customers, customerSearchTerm]);
 
     const handleAddNew = () => { setEditingAgreement(null); setIsDialogOpen(true); };
     const handleEdit = (agreement: ServiceAgreement) => { setEditingAgreement(agreement); setIsDialogOpen(true); };
@@ -164,10 +172,6 @@ export default function ContratosPage() {
         }
     };
     
-    const filteredCustomers = useMemo(() => 
-        customers.filter(c => c.name.toLowerCase().includes(searchTerm.toLowerCase())),
-    [customers, searchTerm]);
-
     return (
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
@@ -201,7 +205,7 @@ export default function ContratosPage() {
                                     </PopoverTrigger>
                                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                                     <Command>
-                                        <CommandInput placeholder="Buscar cliente..." onValueChange={setSearchTerm}/>
+                                        <CommandInput placeholder="Buscar cliente..." onValueChange={setCustomerSearchTerm}/>
                                         <CommandList>
                                             <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                                             <CommandGroup>
@@ -263,3 +267,4 @@ export default function ContratosPage() {
         </div>
     );
 }
+
