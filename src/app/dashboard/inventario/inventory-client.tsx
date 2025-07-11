@@ -5,17 +5,18 @@ import { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, orderBy, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, orderBy, doc, deleteDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useRouter } from 'next/navigation';
-
+import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
@@ -23,9 +24,9 @@ import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2, DollarSig
 import { InventoryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
 
-
 const itemFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
+  description: z.string().optional(),
   quantity: z.coerce.number().min(0, { message: 'A quantidade inicial não pode ser negativa.' }),
   cost: z.coerce.number().min(0, { message: 'O custo não pode ser negativo.' }),
   minStock: z.coerce.number().min(0, { message: 'O estoque mínimo não pode ser negativo.' }).optional(),
@@ -54,7 +55,7 @@ export function InventoryClient() {
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
-    defaultValues: { name: '', quantity: 0, cost: 0, minStock: 0 },
+    defaultValues: { name: '', description: '', quantity: 0, cost: 0, minStock: 0 },
   });
 
   useEffect(() => {
@@ -84,7 +85,7 @@ export function InventoryClient() {
   
   useEffect(() => {
     if (isDialogOpen) {
-      form.reset({ name: '', quantity: 0, cost: 0, minStock: 0 });
+      form.reset({ name: '', description: '', quantity: 0, cost: 0, minStock: 0 });
     }
   }, [isDialogOpen, form]);
 
@@ -128,6 +129,7 @@ export function InventoryClient() {
     try {
       const itemPayload = {
         name: data.name,
+        description: data.description || '',
         quantity: data.quantity,
         initialQuantity: data.quantity,
         cost: data.cost,
@@ -135,6 +137,7 @@ export function InventoryClient() {
         userId: user.uid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
+        photoURL: '',
       };
       const itemRef = await addDoc(collection(db, 'inventory'), itemPayload);
 
@@ -190,6 +193,13 @@ export function InventoryClient() {
                   <FormItem>
                     <FormLabel>Nome do Item *</FormLabel>
                     <FormControl><Input placeholder="Ex: Filtro de Ar" {...field} /></FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
+                <FormField control={form.control} name="description" render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Descrição</FormLabel>
+                    <FormControl><Textarea placeholder="Ex: Filtro de Ar Condicionado automotivo..." {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )}/>
@@ -265,54 +275,31 @@ export function InventoryClient() {
                 </p>
             </div>
           ) : (
-          <div className="overflow-x-auto">
-            <Table>
-                <TableHeader>
-                <TableRow>
-                    <TableHead>Item</TableHead>
-                    <TableHead>Quantidade</TableHead>
-                    <TableHead>Custo Unitário</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead><span className="sr-only">Ações</span></TableHead>
-                </TableRow>
-                </TableHeader>
-                <TableBody>
-                {filteredItems.map((item) => {
-                    const isLowStock = item.minStock && item.quantity <= item.minStock;
-                    return (
-                        <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
-                        <TableCell className="font-medium">{item.name}</TableCell>
-                        <TableCell>{item.quantity}</TableCell>
-                        <TableCell>{formatCurrency(item.cost)}</TableCell>
-                        <TableCell>
-                            {isLowStock ? (
-                                <Badge variant="destructive" className="gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>
-                            ) : (
-                                <Badge variant="outline">Normal</Badge>
-                            )}
-                        </TableCell>
-                        <TableCell>
-                            <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-                                <MoreHorizontal className="h-4 w-4" />
-                                <span className="sr-only">Toggle menu</span>
-                                </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                    Excluir Item
-                                </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
-                        </TableCell>
-                        </TableRow>
-                    );
-                })}
-                </TableBody>
-            </Table>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredItems.map((item) => {
+              const isLowStock = item.minStock && item.quantity <= item.minStock;
+              return (
+                <Card key={item.id} className="flex flex-col cursor-pointer overflow-hidden" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
+                    <div className="relative aspect-video bg-muted">
+                        <Image src={item.photoURL || 'https://placehold.co/600x400.png'} alt={item.name} fill className="object-cover" />
+                        {isLowStock && <Badge variant="destructive" className="absolute top-2 right-2 gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>}
+                    </div>
+                    <CardHeader>
+                        <CardTitle className='truncate'>{item.name}</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex-grow flex justify-between items-end">
+                        <div>
+                            <p className="text-2xl font-bold">{item.quantity}</p>
+                            <p className="text-sm text-muted-foreground">unidades</p>
+                        </div>
+                        <div>
+                            <p className="text-sm font-semibold">{formatCurrency(item.cost)}</p>
+                            <p className="text-xs text-muted-foreground text-right">custo/un.</p>
+                        </div>
+                    </CardContent>
+                </Card>
+              );
+            })}
           </div>
           )}
         </CardContent>

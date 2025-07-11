@@ -239,6 +239,8 @@ export interface InventoryItem {
     id: string;
     userId: string;
     name: string;
+    description?: string;
+    photoURL?: string;
     quantity: number;
     initialQuantity: number;
     cost: number;
