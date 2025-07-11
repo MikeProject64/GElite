@@ -74,6 +74,7 @@ const featureFlagsFormSchema = z.object({
     clientes: z.boolean().default(true),
     colaboradores: z.boolean().default(true),
     inventario: z.boolean().default(true),
+    contratos: z.boolean().default(true),
   }).default({}),
 });
 type FeatureFlagsFormValues = z.infer<typeof featureFlagsFormSchema>;
@@ -81,6 +82,7 @@ type FeatureFlagsFormValues = z.infer<typeof featureFlagsFormSchema>;
 const featureList = [
     { id: 'servicos', label: 'Serviços', description: 'Gerenciamento de Ordens de Serviço.' },
     { id: 'orcamentos', label: 'Orçamentos', description: 'Criação e gestão de propostas.' },
+    { id: 'contratos', label: 'Contratos', description: 'Gestão de contratos e serviços recorrentes.' },
     { id: 'prazos', label: 'Prazos', description: 'Visualização de prazos em lista e calendário.' },
     { id: 'atividades', label: 'Atividades', description: 'Histórico de atividades do sistema.' },
     { id: 'clientes', label: 'Clientes', description: 'Base de clientes (CRM).' },
@@ -283,7 +285,8 @@ function FeatureFlagsForm() {
         defaultValues: {
             featureFlags: {
                 servicos: true, orcamentos: true, prazos: true,
-                atividades: true, clientes: true, colaboradores: true, inventario: true
+                atividades: true, clientes: true, colaboradores: true, inventario: true,
+                contratos: true,
             }
         },
     });
