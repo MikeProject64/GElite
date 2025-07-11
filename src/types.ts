@@ -37,7 +37,7 @@ export interface UserSettings {
     clientes?: boolean;
     colaboradores?: boolean;
     inventario?: boolean;
-    contratos?: boolean; // Novo
+    contratos?: boolean;
   };
   landingPageImages?: {
     heroImage?: string;
@@ -120,7 +120,7 @@ export interface Plan {
     clientes: boolean;
     colaboradores: boolean;
     inventario: boolean;
-    contratos: boolean; // Novo
+    contratos: boolean;
   };
   createdAt: Timestamp;
   stripeProductId?: string;
@@ -197,7 +197,7 @@ export interface ServiceOrder {
     templateName?: string;
     originalServiceOrderId?: string;
     version?: number;
-    generatedByAgreementId?: string; // Novo
+    generatedByAgreementId?: string;
 }
 
 export interface ServiceAgreement {

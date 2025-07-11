@@ -11,7 +11,7 @@ import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { cn } from '@/lib/utils';
 
-import { Button, buttonVariants } from '@/components/ui/button'; // CORREÇÃO: Importado buttonVariants
+import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -62,13 +62,12 @@ export default function ColaboradoresPage() {
       setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
 
-    const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+    const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
     const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('status', 'in', activeStatuses.length > 0 ? activeStatuses : ['non-existent-status']));
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
     });
 
-    // Seta o loading como false após a primeira carga de ambos os listeners
     Promise.all([
       new Promise(resolve => onSnapshot(qCollab, () => resolve(true), () => resolve(null))),
       new Promise(resolve => onSnapshot(qOrders, () => resolve(true), () => resolve(null)))
@@ -80,7 +79,6 @@ export default function ColaboradoresPage() {
     };
   }, [user, settings.serviceStatuses]);
   
-  // OTIMIZAÇÃO: Calcula as contagens de OS ativas uma única vez e as memoriza.
   const activeOrderCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
     for (const order of serviceOrders) {
@@ -138,8 +136,6 @@ export default function ColaboradoresPage() {
     }
   };
 
-  // CORREÇÃO: A função `onSubmit` foi reestruturada para garantir que todas as chaves
-  // e parênteses estivessem corretamente fechados, resolvendo o erro de sintaxe.
   const onSubmit = async (data: CollaboratorFormValues) => {
     if (!user) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
@@ -225,7 +221,6 @@ export default function ColaboradoresPage() {
                  <FormField control={form.control} name="description" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Descrição</FormLabel>
-                    {/* CORREÇÃO: Garante que o valor nunca seja nulo/undefined para evitar erros */}
                     <FormControl><Textarea placeholder="Descreva brevemente a função ou o setor..." {...field} value={field.value ?? ''} /></FormControl>
                     <FormMessage />
                   </FormItem>
@@ -276,7 +271,6 @@ export default function ColaboradoresPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredCollaborators.map((c) => {
-            // OTIMIZAÇÃO: Busca a contagem do mapa pré-calculado, sem executar um `filter` a cada iteração.
             const activeCount = activeOrderCounts[c.id] || 0;
             return (
                 <Card key={c.id} className="flex flex-col">
@@ -326,7 +320,6 @@ export default function ColaboradoresPage() {
         </div>
       )}
        
-       {/* CORREÇÃO: Usando uma div para o rodapé da página em vez de um CardFooter */}
        <div className='mt-4 border-t pt-4'>
           <div className="text-xs text-muted-foreground">
             Mostrando <strong>{filteredCollaborators.length}</strong> de <strong>{collaborators.length}</strong> itens.
@@ -337,7 +330,6 @@ export default function ColaboradoresPage() {
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            {/* CORREÇÃO: O componente correto é <AlertDialogDescription> */}
             <AlertDialogDescription>
                 Esta ação não pode ser desfeita. Isso excluirá permanentemente o item. Se ele estiver associado a ordens de serviço, o nome será mantido, mas o vínculo será perdido.
             </AlertDialogDescription>

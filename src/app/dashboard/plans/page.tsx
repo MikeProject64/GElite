@@ -343,7 +343,7 @@ export default function AdminPlansPage() {
                         <h4 className="font-semibold mb-2">Funções Inclusas:</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
                             {featureList.map(feature => (
-                                plan.features[feature.id] && (
+                                plan.features[feature.id as keyof typeof plan.features] && (
                                     <li key={feature.id} className="flex items-center gap-2">
                                         <CheckCircle className="h-4 w-4 text-green-500" />
                                         <span>{feature.label}</span>
