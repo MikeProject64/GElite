@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { format } from 'date-fns';
+import { format, startOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
@@ -23,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check, Filter, CalendarIcon } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { InventoryItem, InventoryMovement, ServiceOrder } from '@/types';
@@ -31,6 +31,10 @@ import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DateRange } from 'react-day-picker';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
 
 const movementSchema = z.object({
   quantity: z.coerce.number().positive({ message: "A quantidade deve ser maior que zero." }),
@@ -59,6 +63,10 @@ export default function InventarioItemDetailPage() {
     const [isOrderDropdownOpen, setIsOrderDropdownOpen] = useState(false);
     const [orderSearchTerm, setOrderSearchTerm] = useState('');
     
+    // State for history filters
+    const [movementTypeFilter, setMovementTypeFilter] = useState<'all' | 'entrada' | 'saída'>('all');
+    const [dateRangeFilter, setDateRangeFilter] = useState<DateRange | undefined>(undefined);
+    
     const itemId = Array.isArray(id) ? id[0] : id;
 
     const form = useForm<MovementFormValues>({
@@ -78,13 +86,13 @@ export default function InventarioItemDetailPage() {
                 notFound();
             }
         });
-
-        // Corrected query for movements: added userId filter and orderBy
+        
+        // Kardex needs to be ordered by date ASC to calculate balance
         const movementsQuery = query(
             collection(db, 'inventoryMovements'), 
             where('userId', '==', user.uid),
             where('itemId', '==', itemId),
-            orderBy('createdAt', 'desc')
+            orderBy('createdAt', 'asc') 
         );
         const unsubMovements = onSnapshot(movementsQuery, (snapshot) => {
             const fetchedMovements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryMovement));
@@ -92,26 +100,20 @@ export default function InventarioItemDetailPage() {
             setIsLoading(false);
         }, (error) => {
             console.error("Error fetching inventory movements:", error);
-            // This might require a composite index. The error will guide the user.
             toast({ variant: 'destructive', title: 'Erro ao buscar histórico', description: 'Falha ao carregar as movimentações. Um índice pode ser necessário no Firestore.' });
             setIsLoading(false);
         });
 
-        // More robust query for service orders to avoid index issues.
         const ordersQuery = query(
             collection(db, 'serviceOrders'), 
             where('userId', '==', user.uid),
             orderBy('createdAt', 'desc')
         );
         const unsubOrders = onSnapshot(ordersQuery, (snapshot) => {
-            // Filter out templates on the client side
             const fetchedOrders = snapshot.docs
                 .map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder))
                 .filter(order => !order.isTemplate);
             setServiceOrders(fetchedOrders);
-        }, (error) => {
-            console.error("Error fetching service orders:", error);
-            toast({ variant: 'destructive', title: 'Erro ao buscar OS', description: 'Falha ao carregar as Ordens de Serviço.' });
         });
         
         return () => {
@@ -119,7 +121,7 @@ export default function InventarioItemDetailPage() {
             unsubMovements();
             unsubOrders();
         };
-    }, [user, itemId, notFound, toast]);
+    }, [user, itemId, toast]);
 
     const filteredServiceOrders = useMemo(() => 
         serviceOrders.filter(order => 
@@ -128,6 +130,36 @@ export default function InventarioItemDetailPage() {
             (order.id || '').toLowerCase().includes(orderSearchTerm.toLowerCase())
         ), [serviceOrders, orderSearchTerm]);
     
+    // Calculate balance and apply filters to movements
+    const processedMovements = useMemo(() => {
+        if (!item) return [];
+
+        let balance = item.initialQuantity || 0;
+        const withBalance = movements.map(m => {
+            if (m.type === 'entrada') {
+                balance += m.quantity;
+            } else {
+                balance -= m.quantity;
+            }
+            return { ...m, balance };
+        });
+        
+        const filtered = withBalance.filter(m => {
+            const typeMatch = movementTypeFilter === 'all' || m.type === movementTypeFilter;
+            let dateMatch = true;
+            if (dateRangeFilter?.from) {
+                dateMatch &&= m.createdAt.toDate() >= startOfDay(dateRangeFilter.from);
+            }
+            if (dateRangeFilter?.to) {
+                dateMatch &&= m.createdAt.toDate() < startOfDay(new Date(dateRangeFilter.to.getTime() + 86400000));
+            }
+            return typeMatch && dateMatch;
+        });
+        
+        // Reverse for display (most recent first)
+        return filtered.reverse();
+    }, [movements, item, movementTypeFilter, dateRangeFilter]);
+
     const handleOpenDialog = (type: 'entrada' | 'saída') => {
         setDialogType(type);
         form.reset({ quantity: 1, notes: '', serviceOrderId: '' });
@@ -245,8 +277,36 @@ export default function InventarioItemDetailPage() {
                     <CardTitle className="flex items-center gap-2"><History className="h-5 w-5"/> Histórico de Movimentações (Kardex)</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    {movements.length === 0 ? (
-                        <p className="text-center text-muted-foreground py-4">Nenhuma movimentação registrada.</p>
+                    <div className="grid sm:grid-cols-3 gap-4 mb-4 p-4 border rounded-lg bg-muted/50">
+                        <div className="grid gap-2">
+                            <Label htmlFor="type-filter">Filtrar por Tipo</Label>
+                            <Select value={movementTypeFilter} onValueChange={(v) => setMovementTypeFilter(v as any)}>
+                                <SelectTrigger id="type-filter"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="all">Todos</SelectItem>
+                                    <SelectItem value="entrada">Entradas</SelectItem>
+                                    <SelectItem value="saída">Saídas</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="date-filter">Filtrar por Data</Label>
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !dateRangeFilter && "text-muted-foreground")}>
+                                        <CalendarIcon className="mr-2 h-4 w-4" />
+                                        {dateRangeFilter?.from ? (dateRangeFilter.to ? `${format(dateRangeFilter.from, "dd/MM/yy")} - ${format(dateRangeFilter.to, "dd/MM/yy")}` : format(dateRangeFilter.from, "dd/MM/yyyy")) : (<span>Selecione um período</span>)}
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                    <Calendar mode="range" selected={dateRangeFilter} onSelect={setDateRangeFilter} numberOfMonths={1} />
+                                </PopoverContent>
+                            </Popover>
+                        </div>
+                    </div>
+
+                    {processedMovements.length === 0 ? (
+                        <p className="text-center text-muted-foreground py-4">Nenhuma movimentação para o filtro selecionado.</p>
                     ) : (
                         <Table>
                             <TableHeader>
@@ -254,13 +314,14 @@ export default function InventarioItemDetailPage() {
                                     <TableHead>Data</TableHead>
                                     <TableHead>Tipo</TableHead>
                                     <TableHead>Quantidade</TableHead>
+                                    <TableHead>Saldo</TableHead>
                                     <TableHead>OS Associada</TableHead>
                                     <TableHead>Notas</TableHead>
                                     <TableHead>Anexo</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {movements.map(m => (
+                                {processedMovements.map(m => (
                                     <TableRow key={m.id}>
                                         <TableCell>{format(m.createdAt.toDate(), 'dd/MM/yy HH:mm', { locale: ptBR })}</TableCell>
                                         <TableCell>
@@ -269,16 +330,15 @@ export default function InventarioItemDetailPage() {
                                         <TableCell className={`font-medium ${m.type === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
                                             {m.type === 'entrada' ? '+' : '-'}{m.quantity}
                                         </TableCell>
+                                        <TableCell className="font-bold">{m.balance}</TableCell>
                                          <TableCell>
                                             {m.serviceOrderId ? (
                                                 <Button variant="link" asChild className="p-0 h-auto font-mono text-sm">
-                                                    <Link href={`/dashboard/servicos/${m.serviceOrderId}`}>
+                                                    <Link href={`/dashboard/servicos/${m.serviceOrderId}`} target="_blank">
                                                         {m.serviceOrderCode}
                                                     </Link>
                                                 </Button>
-                                            ) : (
-                                                '-'
-                                            )}
+                                            ) : ('-')}
                                         </TableCell>
                                         <TableCell>{m.notes}</TableCell>
                                         <TableCell>

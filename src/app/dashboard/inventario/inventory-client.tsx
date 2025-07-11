@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -122,7 +121,8 @@ export function InventoryClient() {
     try {
       const itemPayload = {
         name: data.name,
-        quantity: data.quantity, // Initial quantity
+        quantity: data.quantity,
+        initialQuantity: data.quantity, // Save the initial quantity for balance calculation
         cost: data.cost,
         userId: user.uid,
         createdAt: Timestamp.now(),
@@ -130,7 +130,7 @@ export function InventoryClient() {
       };
       const itemRef = await addDoc(collection(db, 'inventory'), itemPayload);
 
-      // Create the initial stock movement
+      // Create the initial stock movement only if there's an initial quantity
       if (data.quantity > 0) {
           await addDoc(collection(db, 'inventoryMovements'), {
               itemId: itemRef.id,

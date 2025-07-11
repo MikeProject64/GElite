@@ -1,4 +1,3 @@
-
 import type { Timestamp } from 'firebase/firestore';
 import type { Stripe } from 'stripe';
 
@@ -241,6 +240,7 @@ export interface InventoryItem {
     userId: string;
     name: string;
     quantity: number;
+    initialQuantity: number;
     cost: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
@@ -257,6 +257,7 @@ export interface InventoryMovement {
     createdAt: Timestamp;
     serviceOrderId?: string;
     serviceOrderCode?: string;
+    balance?: number; // This is a client-side calculated field
 }
 
 export interface QuickNote {
@@ -265,5 +266,3 @@ export interface QuickNote {
     content: string;
     createdAt: Timestamp;
 }
-
-    
