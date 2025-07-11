@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,7 +10,7 @@ import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -31,11 +32,11 @@ import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
 import { cn } from '@/lib/utils';
-
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 const agreementSchema = z.object({
     title: z.string().min(5, { message: "O título deve ter pelo menos 5 caracteres." }),
-    clientId: z.string({ required_error: "Selecione um cliente." }),
+    clientId: z.string({ required_error: "Selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
     serviceOrderTemplateId: z.string({ required_error: "Selecione um modelo de O.S." }),
     frequency: z.enum(['monthly', 'quarterly', 'semiannually', 'annually']),
     startDate: z.date({ required_error: "A data de início é obrigatória." }),
@@ -62,11 +63,14 @@ export default function ContratosPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
     const [editingAgreement, setEditingAgreement] = useState<ServiceAgreement | null>(null);
     const [isAlertOpen, setIsAlertOpen] = useState(false);
     const [deletingAgreementId, setDeletingAgreementId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+    
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
 
     const form = useForm<AgreementFormValues>({
         resolver: zodResolver(agreementSchema),
@@ -100,6 +104,16 @@ export default function ContratosPage() {
         }
     }, [isDialogOpen, editingAgreement, form]);
 
+    useEffect(() => {
+        function handleClickOutside(event: MouseEvent) {
+          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+            setIsCustomerDropdownOpen(false);
+          }
+        }
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, [dropdownRef]);
+
     const filteredAgreements = useMemo(() => {
         return agreements.filter(a =>
             a.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -107,12 +121,10 @@ export default function ContratosPage() {
         );
     }, [agreements, searchTerm]);
     
-    const filteredCustomers = useMemo(() => {
-        return customers.filter(customer =>
-            customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-            customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
-        );
-    }, [customers, customerSearchTerm]);
+    const filteredCustomers = customers.filter(customer => 
+        customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+        customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
+    );
 
     const handleAddNew = () => { setEditingAgreement(null); setIsDialogOpen(true); };
     const handleEdit = (agreement: ServiceAgreement) => { setEditingAgreement(agreement); setIsDialogOpen(true); };
@@ -194,32 +206,50 @@ export default function ContratosPage() {
                             render={({ field }) => (
                                 <FormItem className="flex flex-col">
                                 <FormLabel>Cliente *</FormLabel>
-                                <Popover open={isCustomerDropdownOpen} onOpenChange={setIsCustomerDropdownOpen}>
-                                    <PopoverTrigger asChild>
-                                        <FormControl>
-                                            <Button variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                                                {field.value ? customers.find((c) => c.id === field.value)?.name : "Selecione um cliente"}
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                            </Button>
-                                        </FormControl>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar cliente..." onValueChange={setCustomerSearchTerm}/>
-                                        <CommandList>
-                                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
-                                            <CommandGroup>
-                                                {filteredCustomers.map((c) => (
-                                                    <CommandItem value={c.name} key={c.id} onSelect={() => { form.setValue("clientId", c.id); setIsCustomerDropdownOpen(false); }}>
-                                                        <Check className={cn("mr-2 h-4 w-4", c.id === field.value ? "opacity-100" : "opacity-0")} />
-                                                        {c.name}
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                    </PopoverContent>
-                                </Popover>
+                                <div className="relative" ref={dropdownRef}>
+                                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)}>
+                                        <span className='truncate'>
+                                            {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
+                                        </span>
+                                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                    {isCustomerDropdownOpen && (
+                                    <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
+                                        <div className="p-2">
+                                        <Input
+                                            placeholder="Buscar cliente..."
+                                            value={customerSearchTerm}
+                                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                                            autoFocus
+                                        />
+                                        </div>
+                                        <ScrollArea className="h-48">
+                                        {filteredCustomers.length > 0 ? (
+                                            filteredCustomers.map((customer) => (
+                                            <button
+                                                type="button"
+                                                key={customer.id}
+                                                className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
+                                                onClick={() => {
+                                                    field.onChange(customer.id);
+                                                    setIsCustomerDropdownOpen(false);
+                                                    setCustomerSearchTerm('');
+                                                }}
+                                            >
+                                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                                <div>
+                                                <p>{customer.name}</p>
+                                                <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                                                </div>
+                                            </button>
+                                            ))
+                                        ) : (
+                                            <p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+                                        )}
+                                        </ScrollArea>
+                                    </div>
+                                    )}
+                                </div>
                                 <FormMessage />
                                 </FormItem>
                             )}
@@ -267,4 +297,3 @@ export default function ContratosPage() {
         </div>
     );
 }
-

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -81,7 +82,7 @@ function CreateServiceOrderForm() {
       problemDescription: '',
       collaboratorId: '',
       totalValue: 0,
-      status: settings.serviceStatuses?.[0] || 'Pendente',
+      status: settings.serviceStatuses?.[0]?.name || 'Pendente',
       priority: 'media',
       dueDate: new Date(),
       customFields: {},
@@ -94,7 +95,7 @@ function CreateServiceOrderForm() {
   });
   
   const collaboratorsWithTaskCount = useMemo(() => {
-    const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+    const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
     
     return collaborators.map(c => {
         const count = activeOrders.filter(o => o.collaboratorId === c.id && activeStatuses.includes(o.status)).length;
@@ -449,7 +450,7 @@ function CreateServiceOrderForm() {
                         <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
                         <SelectContent>
                         {settings.serviceStatuses?.map(status => (
-                            <SelectItem key={status} value={status}>{status}</SelectItem>
+                            <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
                         ))}
                         </SelectContent>
                     </Select>
