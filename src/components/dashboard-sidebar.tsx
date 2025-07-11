@@ -26,6 +26,7 @@ import {
   ChevronsLeft,
   ClipboardList,
   Menu,
+  FileSignature, // Novo ícone
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -130,6 +131,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     { href: '/dashboard', label: 'Painel', icon: Home, flag: 'servicos' },
     { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList, flag: 'servicos' },
     { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText, flag: 'orcamentos' },
+    { href: '/dashboard/contratos', label: 'Contratos', icon: FileSignature, flag: 'contratos' },
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
     { href: '/dashboard/atividades', label: 'Atividades', icon: Bell, flag: 'atividades' },
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },

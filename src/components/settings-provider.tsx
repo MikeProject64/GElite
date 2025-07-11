@@ -37,6 +37,7 @@ export interface UserSettings {
     clientes?: boolean;
     colaboradores?: boolean;
     inventario?: boolean;
+    contratos?: boolean; // Novo
   };
   landingPageImages?: {
     heroImage?: string;
@@ -92,6 +93,7 @@ const defaultSettings: UserSettings = {
     clientes: true,
     colaboradores: true,
     inventario: true,
+    contratos: true, // Novo
   },
   landingPageImages: {
     heroImage: 'https://placehold.co/600x550.png',

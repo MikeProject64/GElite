@@ -5,3 +5,27 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# Defines server-side logic that can be triggered by a schedule.
+# This is ideal for recurring tasks like generating invoices, sending reports, or as in this case,
+# processing service agreements to automatically create new service orders.
+# The cron syntax is based on the standard format.
+# Learn more at https://firebase.google.com/docs/app-hosting/configure-runs#scheduled-triggers
+scheduledTriggers:
+  - id: daily-agreement-processor
+    # This schedule runs the job every day at 05:00 UTC.
+    # You can adjust this to a different time or frequency as needed.
+    # For example, 'every 5 minutes' or 'on the 1st of every month'.
+    schedule: "0 5 * * *"
+    # The timeout for the job. If it runs longer than this, it will be terminated.
+    timeoutSeconds: 300
+    # The region where the job will run.
+    region: "us-central1"
+    # Action defines what code to run. Here it's a server action defined
+    # in the specified file, exporting a function named 'processServiceAgreements'.
+    action:
+      # The server action must be an async function exported from the file.
+      # It should handle its own errors and return a response.
+      serverAction:
+        file: "src/app/dashboard/actions/process-agreements.ts"
+        function: "processServiceAgreements"

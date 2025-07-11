@@ -37,6 +37,7 @@ export interface UserSettings {
     clientes?: boolean;
     colaboradores?: boolean;
     inventario?: boolean;
+    contratos?: boolean; // Novo
   };
   landingPageImages?: {
     heroImage?: string;
@@ -119,6 +120,7 @@ export interface Plan {
     clientes: boolean;
     colaboradores: boolean;
     inventario: boolean;
+    contratos: boolean; // Novo
   };
   createdAt: Timestamp;
   stripeProductId?: string;
@@ -195,6 +197,24 @@ export interface ServiceOrder {
     templateName?: string;
     originalServiceOrderId?: string;
     version?: number;
+    generatedByAgreementId?: string; // Novo
+}
+
+export interface ServiceAgreement {
+    id: string;
+    userId: string;
+    clientId: string;
+    clientName: string;
+    title: string;
+    serviceOrderTemplateId: string;
+    serviceOrderTemplateName: string;
+    frequency: 'monthly' | 'quarterly' | 'semiannually' | 'annually';
+    nextDueDate: Timestamp;
+    startDate: Timestamp;
+    status: 'active' | 'paused' | 'finished';
+    createdAt: Timestamp;
+    notes?: string;
+    lastGeneratedAt?: Timestamp;
 }
 
 export interface Quote {
