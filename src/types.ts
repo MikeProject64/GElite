@@ -113,14 +113,14 @@ export interface Plan {
   yearlyPrice: number;
   isPublic: boolean;
   features: {
-    servicos: boolean;
-    orcamentos: boolean;
-    prazos: boolean;
-    atividades: boolean;
-    clientes: boolean;
-    colaboradores: boolean;
-    inventario: boolean;
-    contratos: boolean;
+    servicos?: boolean;
+    orcamentos?: boolean;
+    prazos?: boolean;
+    atividades?: boolean;
+    clientes?: boolean;
+    colaboradores?: boolean;
+    inventario?: boolean;
+    contratos?: boolean;
   };
   createdAt: Timestamp;
   stripeProductId?: string;

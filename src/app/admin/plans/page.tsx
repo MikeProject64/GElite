@@ -28,6 +28,7 @@ import { Badge } from '@/components/ui/badge';
 const featureList = [
     { id: 'servicos', label: 'Serviços' },
     { id: 'orcamentos', label: 'Orçamentos' },
+    { id: 'contratos', label: 'Contratos' },
     { id: 'prazos', label: 'Prazos' },
     { id: 'atividades', label: 'Atividades' },
     { id: 'clientes', label: 'Clientes' },
@@ -342,7 +343,7 @@ export default function AdminPlansPage() {
                         <h4 className="font-semibold mb-2">Funções Inclusas:</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
                             {featureList.map(feature => (
-                                plan.features[feature.id] && (
+                                (plan.features as any)[feature.id] && (
                                     <li key={feature.id} className="flex items-center gap-2">
                                         <CheckCircle className="h-4 w-4 text-green-500" />
                                         <span>{feature.label}</span>
