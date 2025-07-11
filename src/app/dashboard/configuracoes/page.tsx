@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check, Wrench, Pencil, Palette } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check, Wrench, Pencil, Palette, X } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -115,6 +115,8 @@ interface CustomFieldManagerProps {
 const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, icon, fields, onUpdateFields }) => {
     const [newFieldName, setNewFieldName] = useState('');
     const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
+    const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
+    const [editingFieldName, setEditingFieldName] = useState('');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -146,6 +148,25 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
 
     const handleRemoveField = (id: string) => {
         onUpdateFields(fields.filter(field => field.id !== id));
+    };
+
+    const handleStartEditing = (field: CustomField) => {
+      setEditingFieldId(field.id);
+      setEditingFieldName(field.name);
+    };
+
+    const handleCancelEditing = () => {
+      setEditingFieldId(null);
+      setEditingFieldName('');
+    };
+
+    const handleSaveEdit = () => {
+      if (!editingFieldId || editingFieldName.trim() === '') return;
+      const updatedFields = fields.map(field => 
+        field.id === editingFieldId ? { ...field, name: editingFieldName.trim() } : field
+      );
+      onUpdateFields(updatedFields);
+      handleCancelEditing();
     };
 
     return (
@@ -181,11 +202,24 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
                                 {fields.map(field => (
                                     <SortableItem key={field.id} id={field.id}>
                                         <div className="flex items-center justify-between w-full">
-                                            <div>
-                                                <p className="font-medium">{field.name}</p>
-                                                <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
+                                          {editingFieldId === field.id ? (
+                                            <div className="flex w-full items-center gap-2">
+                                              <Input value={editingFieldName} onChange={(e) => setEditingFieldName(e.target.value)} className="h-8" />
+                                              <Button size="icon" variant="ghost" onClick={handleSaveEdit} className="h-8 w-8 text-green-500"><Check className="h-4 w-4"/></Button>
+                                              <Button size="icon" variant="ghost" onClick={handleCancelEditing} className="h-8 w-8"><X className="h-4 w-4"/></Button>
                                             </div>
-                                            <Button size="icon" variant="ghost" onClick={() => handleRemoveField(field.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                          ) : (
+                                            <>
+                                              <div>
+                                                  <p className="font-medium">{field.name}</p>
+                                                  <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
+                                              </div>
+                                              <div className="flex items-center">
+                                                <Button size="icon" variant="ghost" onClick={() => handleStartEditing(field)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>
+                                                <Button size="icon" variant="ghost" onClick={() => handleRemoveField(field.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                              </div>
+                                            </>
+                                          )}
                                         </div>
                                     </SortableItem>
                                 ))}
