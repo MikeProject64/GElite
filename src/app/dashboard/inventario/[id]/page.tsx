@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, ChangeEvent, useRef, useMemo } from 'react';
@@ -23,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check, Filter, CalendarIcon } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check, Filter, CalendarIcon, DollarSign } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { InventoryItem, InventoryMovement, ServiceOrder } from '@/types';
@@ -232,12 +233,17 @@ export default function InventarioItemDetailPage() {
             setIsSubmitting(false);
         }
     };
+    
+    const totalItemValue = useMemo(() => {
+        if (!item) return 0;
+        return item.quantity * item.cost;
+    }, [item]);
 
     if (isLoading) {
         return (
           <div className="space-y-4">
             <div className="flex items-center gap-4"><Skeleton className="h-7 w-7" /><Skeleton className="h-7 w-48" /></div>
-            <Skeleton className="h-48 w-full" />
+            <div className="grid md:grid-cols-3 gap-6"><Skeleton className="h-48 md:col-span-1" /><Skeleton className="h-48 md:col-span-2" /></div>
             <Skeleton className="h-64 w-full" />
           </div>
         );
@@ -257,20 +263,38 @@ export default function InventarioItemDetailPage() {
                 </h1>
             </div>
 
-            <Card>
-                <CardHeader>
-                    <CardTitle>{item.name}</CardTitle>
-                    <CardDescription>Custo unitário: {formatCurrency(item.cost)}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <p className="text-4xl font-bold">{item.quantity}</p>
-                    <p className="text-sm text-muted-foreground">unidades em estoque</p>
-                </CardContent>
-                <CardFooter className="gap-2">
-                    <Button onClick={() => handleOpenDialog('entrada')}><ArrowUpCircle className="mr-2 h-4 w-4" /> Registrar Entrada</Button>
-                    <Button variant="secondary" onClick={() => handleOpenDialog('saída')}><ArrowDownCircle className="mr-2 h-4 w-4" /> Registrar Saída</Button>
-                </CardFooter>
-            </Card>
+            <div className="grid md:grid-cols-3 gap-6">
+                 <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>{item.name}</CardTitle>
+                            <CardDescription>Custo unitário: {formatCurrency(item.cost)}</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-4xl font-bold">{item.quantity}</p>
+                            <p className="text-sm text-muted-foreground">unidades em estoque</p>
+                        </CardContent>
+                    </Card>
+                     <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2"><DollarSign className='h-5 w-5'/> Valor em Estoque</CardTitle>
+                             <CardDescription>Valor total deste item no estoque.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-4xl font-bold">{formatCurrency(totalItemValue)}</p>
+                        </CardContent>
+                    </Card>
+                </div>
+                 <Card className="md:col-span-1">
+                    <CardHeader>
+                        <CardTitle>Ações Rápidas</CardTitle>
+                    </CardHeader>
+                    <CardContent className="flex flex-col gap-2">
+                        <Button onClick={() => handleOpenDialog('entrada')}><ArrowUpCircle className="mr-2 h-4 w-4" /> Registrar Entrada</Button>
+                        <Button variant="secondary" onClick={() => handleOpenDialog('saída')}><ArrowDownCircle className="mr-2 h-4 w-4" /> Registrar Saída</Button>
+                    </CardContent>
+                </Card>
+            </div>
 
             <Card>
                 <CardHeader>
@@ -444,3 +468,4 @@ export default function InventarioItemDetailPage() {
         </div>
     );
 }
+

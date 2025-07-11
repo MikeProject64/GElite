@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -18,7 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2 } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2, DollarSign } from 'lucide-react';
 import { InventoryItem } from '@/types';
 
 
@@ -94,6 +95,10 @@ export function InventoryClient() {
     );
   }, [items, searchTerm]);
 
+  const totalInventoryValue = useMemo(() => {
+    return items.reduce((total, item) => total + (item.quantity * item.cost), 0);
+  }, [items]);
+
   const handleDelete = (itemId: string) => {
     setDeletingItemId(itemId);
     setIsAlertOpen(true);
@@ -157,13 +162,16 @@ export function InventoryClient() {
 
   return (
     <>
-      <div className="flex items-center justify-end -mt-12">
-        <Button size="sm" className="h-8 gap-1" onClick={() => setIsDialogOpen(true)}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            Adicionar Item
-            </span>
-        </Button>
+      <div className="grid md:grid-cols-3 gap-6">
+          <Card className="md:col-span-3">
+              <CardHeader>
+                  <CardTitle className="flex items-center gap-2"><DollarSign className='h-5 w-5'/> Valor Total em Estoque</CardTitle>
+                  <CardDescription>Valor monetário total de todos os itens em seu inventário.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <p className="text-3xl font-bold">{formatCurrency(totalInventoryValue)}</p>
+              </CardContent>
+          </Card>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
@@ -215,8 +223,8 @@ export function InventoryClient() {
           <CardDescription>Visualize e gerencie as peças e produtos do seu negócio.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
-             <div className="relative">
+          <div className="mb-4 flex items-center justify-between gap-4">
+             <div className="relative flex-1">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 id="search-item"
@@ -226,6 +234,12 @@ export function InventoryClient() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
+             <Button size="sm" className="h-10 gap-1" onClick={() => setIsDialogOpen(true)}>
+                <PlusCircle className="h-3.5 w-3.5" />
+                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                Adicionar Item
+                </span>
+            </Button>
           </div>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
