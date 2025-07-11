@@ -45,18 +45,6 @@ const WhatsAppIcon = () => (
     </svg>
 );
 
-
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'Concluída': return 'default';
-    case 'Cancelada': return 'destructive';
-    default:
-        // Simple hash to get a deterministic but varied style for custom statuses
-        const hash = status.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
-        return (Math.abs(hash) % 2 === 0) ? 'secondary' : 'outline';
-  }
-};
-
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
@@ -84,6 +72,20 @@ export default function ServicoDetailPage() {
     resolver: zodResolver(templateFormSchema),
     defaultValues: { templateName: '' },
   });
+
+  const getStatusColor = (statusName: string) => {
+    const status = settings.serviceStatuses?.find(s => s.name === statusName);
+    return status ? `hsl(${status.color})` : 'hsl(var(--muted-foreground))';
+  };
+
+  const StatusBadge = ({ status }: { status: string }) => {
+    return (
+        <Badge style={{ backgroundColor: getStatusColor(status), color: 'hsl(var(--primary-foreground))' }} className="text-base px-3 py-1 border-transparent">
+            {status}
+        </Badge>
+    );
+  };
+
 
   useEffect(() => {
     if (!orderId || !user) return;
@@ -172,7 +174,8 @@ export default function ServicoDetailPage() {
   };
 
   const handleCancelOrder = async () => {
-    await handleStatusChange('Cancelada');
+    const canceledStatus = settings.serviceStatuses?.find(s => s.id === 'canceled')?.name || 'Cancelada';
+    await handleStatusChange(canceledStatus);
     setIsCancelAlertOpen(false);
   };
   
@@ -342,8 +345,11 @@ export default function ServicoDetailPage() {
     return null;
   }
   
-  const canManage = order.status !== 'Cancelada';
-  const canCreateNewVersion = order.status !== 'Concluída' && order.status !== 'Cancelada';
+  const canceledStatus = settings.serviceStatuses?.find(s => s.id === 'canceled')?.name || 'Cancelada';
+  const completedStatus = settings.serviceStatuses?.find(s => s.id === 'completed')?.name || 'Concluída';
+  
+  const canManage = order.status !== canceledStatus;
+  const canCreateNewVersion = order.status !== completedStatus && order.status !== canceledStatus;
 
   return (
     <div className="flex flex-col gap-6">
@@ -355,7 +361,7 @@ export default function ServicoDetailPage() {
             <Wrench className='h-5 w-5' />
             Detalhes da OS (v{order.version || 1})
         </h1>
-        <Badge variant={getStatusVariant(order.status)} className="text-base px-3 py-1">{order.status}</Badge>
+        <StatusBadge status={order.status} />
       </div>
       
       <div className="grid lg:grid-cols-3 gap-6">
@@ -431,13 +437,13 @@ export default function ServicoDetailPage() {
                       <Thermometer className="h-5 w-5 text-muted-foreground" />
                       <div>
                             <p className="text-sm text-muted-foreground">Atualizar Status</p>
-                            <Select value={order.status} onValueChange={handleStatusChange} disabled={!canManage}>
+                            <Select value={order.status} onValueChange={(val) => handleStatusChange(val)} disabled={!canManage}>
                                 <SelectTrigger className="w-[180px]">
                                     <SelectValue placeholder="Status" />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {settings.serviceStatuses?.map(status => (
-                                        <SelectItem key={status} value={status}>{status}</SelectItem>
+                                        <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
@@ -589,7 +595,7 @@ export default function ServicoDetailPage() {
                                 )}>
                                     <div className="flex justify-between items-center font-medium">
                                         <span>Versão {v.version}</span>
-                                        <Badge variant={getStatusVariant(v.status)}>{v.status}</Badge>
+                                        <Badge style={{backgroundColor: getStatusColor(v.status), color: 'hsl(var(--primary-foreground))'}} className="border-transparent">{v.status}</Badge>
                                     </div>
                                     <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
                                         <span>{format(v.createdAt.toDate(), 'dd/MM/yy')}</span>
@@ -660,7 +666,7 @@ export default function ServicoDetailPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta ação irá alterar o status da ordem de serviço para "Cancelada". Esta ação pode ser revertida manualmente.
+                        Esta ação irá alterar o status da ordem de serviço para "{canceledStatus}". Esta ação pode ser revertida manualmente.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

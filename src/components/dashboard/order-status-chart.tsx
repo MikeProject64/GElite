@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { ChartConfig, ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
 import { Wrench } from 'lucide-react';
 import React from 'react';
+import { useSettings } from '../settings-provider';
 
 interface OrderStatusChartProps {
   data: {
@@ -15,20 +16,23 @@ interface OrderStatusChartProps {
 }
 
 export function OrderStatusChart({ data }: OrderStatusChartProps) {
+  const { settings } = useSettings();
+
   const chartConfig = React.useMemo(() => {
     const config: ChartConfig = {
       count: { label: 'Ordens de Serviço' },
     };
-    if (data) {
+    if (data && settings.serviceStatuses) {
         data.forEach(item => {
+        const statusConfig = settings.serviceStatuses.find(s => s.name === item.status);
         config[item.status] = {
             label: item.status,
-            color: item.fill,
+            color: statusConfig ? `hsl(${statusConfig.color})` : item.fill,
         };
         });
     }
     return config;
-  }, [data]);
+  }, [data, settings.serviceStatuses]);
 
   return (
     <Card className="flex flex-col h-full">
@@ -54,7 +58,7 @@ export function OrderStatusChart({ data }: OrderStatusChartProps) {
               strokeWidth={5}
             >
               {data.map((entry) => (
-                <Cell key={`cell-${entry.status}`} fill={entry.fill} />
+                <Cell key={`cell-${entry.status}`} fill={chartConfig[entry.status]?.color} />
               ))}
             </Pie>
             <ChartLegend

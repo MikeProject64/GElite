@@ -9,6 +9,10 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
+import { ServiceOrder, ServiceOrderPriority } from '@/types';
+import { DateRange } from 'react-day-picker';
+import { cn } from '@/lib/utils';
+import { Calendar } from '@/components/ui/calendar';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -22,21 +26,7 @@ import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, 
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ServiceOrder, ServiceOrderPriority } from '@/types';
-import { cn } from '@/lib/utils';
-import { DateRange } from 'react-day-picker';
-import { Calendar } from '@/components/ui/calendar';
 import { Checkbox } from '@/components/ui/checkbox';
-
-const getStatusVariant = (status: string) => {
-  switch (status) {
-    case 'Concluída': return 'default';
-    case 'Cancelada': return 'destructive';
-    default:
-        const hash = status.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0);
-        return (Math.abs(hash) % 2 === 0) ? 'secondary' : 'outline';
-  }
-};
 
 const priorityMap: Record<ServiceOrderPriority, { label: string; icon: React.FC<any>; color: string }> = {
     baixa: { label: 'Baixa', icon: ArrowDown, color: 'text-gray-500' },
@@ -66,6 +56,11 @@ export default function ServicosPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedRows, setSelectedRows] = useState<Record<string, boolean>>({});
   const [sortConfig, setSortConfig] = useState<{ key: keyof ServiceOrder | 'priority', direction: 'ascending' | 'descending' } | null>(null);
+
+  const getStatusColor = (statusName: string) => {
+    const status = settings.serviceStatuses?.find(s => s.name === statusName);
+    return status ? `hsl(${status.color})` : 'hsl(var(--muted-foreground))';
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -251,7 +246,7 @@ export default function ServicosPage() {
               <div className="grid gap-2"><Label htmlFor="status-filter">Filtrar por Status</Label>
                  <Select value={filters.status} onValueChange={value => handleFilterChange('status', value === 'all' ? '' : value)}>
                     <SelectTrigger id="status-filter"><SelectValue placeholder="Todos os Status" /></SelectTrigger>
-                    <SelectContent><SelectItem value="all">Todos os Status</SelectItem>{settings.serviceStatuses?.map(status => (<SelectItem key={status} value={status}>{status}</SelectItem>))}</SelectContent>
+                    <SelectContent><SelectItem value="all">Todos os Status</SelectItem>{settings.serviceStatuses?.map(status => (<SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>))}</SelectContent>
                 </Select>
               </div>
                <div className="grid gap-2"><Label htmlFor="date-filter">Filtrar por Prazo</Label>
@@ -291,7 +286,7 @@ export default function ServicosPage() {
                             <DropdownMenuPortal>
                                 <DropdownMenuSubContent>
                                 {settings.serviceStatuses?.map(status => (
-                                    <DropdownMenuItem key={status} onClick={() => handleBulkStatusChange(status)}>{status}</DropdownMenuItem>
+                                    <DropdownMenuItem key={status.id} onClick={() => handleBulkStatusChange(status.name)}>{status.name}</DropdownMenuItem>
                                 ))}
                                 </DropdownMenuSubContent>
                             </DropdownMenuPortal>
@@ -372,7 +367,7 @@ export default function ServicosPage() {
                                 </TooltipProvider>
                             ) : null}
                         </TableCell>
-                        <TableCell><Badge variant={getStatusVariant(order.status)}>{order.status}</Badge></TableCell>
+                        <TableCell><Badge style={{ backgroundColor: getStatusColor(order.status), color: 'hsl(var(--primary-foreground))' }} className="border-transparent">{order.status}</Badge></TableCell>
                         <TableCell>
                             <DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel><DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}><Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar</DropdownMenuItem></DropdownMenuContent>

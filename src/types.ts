@@ -13,6 +13,12 @@ export interface CustomField {
   type: 'text' | 'number' | 'date';
 }
 
+export interface ServiceStatus {
+  id: string;
+  name: string;
+  color: string; // HSL color string like "210 40% 96.1%"
+}
+
 export interface UserSettings {
   siteName: string;
   iconName: string;
@@ -21,7 +27,7 @@ export interface UserSettings {
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
-  serviceStatuses?: string[];
+  serviceStatuses?: ServiceStatus[];
   tags?: Tag[];
   featureFlags?: {
     servicos?: boolean;

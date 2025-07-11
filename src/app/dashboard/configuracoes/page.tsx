@@ -5,7 +5,7 @@ import { useEffect, useState, memo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSettings, CustomField, Tag } from '@/components/settings-provider';
+import { useSettings, CustomField, Tag, ServiceStatus } from '@/components/settings-provider';
 import { useToast } from '@/hooks/use-toast';
 import { availableIcons } from '@/components/icon-map';
 import { v4 as uuidv4 } from 'uuid';
@@ -32,7 +32,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check, Wrench, Pencil } from 'lucide-react';
+import { Loader2, Save, PlusCircle, Trash2, Users, FileText, ClipboardEdit, ListChecks, Tag as TagIcon, Briefcase, GripVertical, Check, Wrench, Pencil, Palette } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
@@ -70,6 +70,15 @@ const tagColors: { name: string, value: string }[] = [
     { name: 'Índigo', value: 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/40 dark:text-indigo-300 dark:border-indigo-800' },
     { name: 'Roxo', value: 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/40 dark:text-purple-300 dark:border-purple-800' },
     { name: 'Rosa', value: 'bg-pink-100 text-pink-800 border-pink-200 dark:bg-pink-900/40 dark:text-pink-300 dark:border-pink-800' },
+];
+
+const statusColors = [
+    { name: 'Amarelo', value: '48 96% 58%', class: 'bg-yellow-400' },
+    { name: 'Laranja', value: '25 95% 53%', class: 'bg-orange-500' },
+    { name: 'Verde', value: '142 69% 51%', class: 'bg-green-500' },
+    { name: 'Azul', value: '210 70% 60%', class: 'bg-blue-500' },
+    { name: 'Roxo', value: '262 83% 58%', class: 'bg-purple-600' },
+    { name: 'Cinza', value: '215 20% 65%', class: 'bg-gray-400' },
 ];
 
 function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
@@ -262,38 +271,40 @@ CustomTagManager.displayName = "CustomTagManager";
 const CustomStatusManager = () => {
     const { settings, updateSettings } = useSettings();
     const [newStatusName, setNewStatusName] = useState('');
-    const coreStatuses = ['Pendente', 'Concluída', 'Cancelada'];
+    const [newStatusColor, setNewStatusColor] = useState(statusColors[0].value);
+    
+    const coreStatusIds = ['pending', 'in_progress', 'completed', 'canceled'];
 
-    const sensors = useSensors(
-        useSensor(PointerSensor),
-        useSensor(KeyboardSensor, {
-          coordinateGetter: sortableKeyboardCoordinates,
-        })
-    );
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }), useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }));
 
     const handleDragEnd = (event: DragEndEvent) => {
         const { active, over } = event;
         const statuses = settings.serviceStatuses || [];
         if (over && active.id !== over.id) {
-            const oldIndex = statuses.findIndex((status) => status === active.id);
-            const newIndex = statuses.findIndex((status) => status === over.id);
-            const reorderedStatuses = arrayMove(statuses, oldIndex, newIndex);
-            updateSettings({ serviceStatuses: reorderedStatuses });
+            const oldIndex = statuses.findIndex((status) => status.id === active.id);
+            const newIndex = statuses.findIndex((status) => status.id === over.id);
+            if(oldIndex > -1 && newIndex > -1) {
+                const reordered = arrayMove(statuses, oldIndex, newIndex);
+                updateSettings({ serviceStatuses: reordered });
+            }
         }
     };
 
-
     const handleAddStatus = (e: React.FormEvent) => {
         e.preventDefault();
-        if (newStatusName.trim() === '' || settings.serviceStatuses?.includes(newStatusName.trim())) return;
-        const newStatuses = [...(settings.serviceStatuses || []), newStatusName.trim()];
+        const trimmedName = newStatusName.trim();
+        if (trimmedName === '' || settings.serviceStatuses?.some(s => s.name.toLowerCase() === trimmedName.toLowerCase())) {
+            return;
+        }
+        const newStatus: ServiceStatus = { id: uuidv4(), name: trimmedName, color: newStatusColor };
+        const newStatuses = [...(settings.serviceStatuses || []), newStatus];
         updateSettings({ serviceStatuses: newStatuses });
         setNewStatusName('');
     };
 
-    const handleRemoveStatus = (statusToRemove: string) => {
-        if (coreStatuses.includes(statusToRemove)) return;
-        const newStatuses = settings.serviceStatuses?.filter(status => status !== statusToRemove);
+    const handleRemoveStatus = (idToRemove: string) => {
+        if (coreStatusIds.includes(idToRemove)) return;
+        const newStatuses = settings.serviceStatuses?.filter(status => status.id !== idToRemove);
         updateSettings({ serviceStatuses: newStatuses });
     };
 
@@ -301,25 +312,49 @@ const CustomStatusManager = () => {
         <Card className="mt-4">
             <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-lg"><ListChecks className="h-5 w-5 text-primary" /> Status de Serviço</CardTitle>
+                 <CardDescription>Arraste para reordenar a prioridade dos status.</CardDescription>
             </CardHeader>
             <CardContent>
                 <form onSubmit={handleAddStatus} className="flex items-end gap-2 mb-4">
                     <div className="grid gap-1.5 flex-grow">
                         <Label htmlFor="new-status-name">Nome do Status</Label>
-                        <Input id="new-status-name" value={newStatusName} onChange={e => setNewStatusName(e.target.value)} placeholder="Ex: Orçamento Aprovado" />
+                        <Input id="new-status-name" value={newStatusName} onChange={e => setNewStatusName(e.target.value)} placeholder="Ex: Aguardando Peça" />
                     </div>
+                     <div className="grid gap-1.5">
+                        <Label>Cor</Label>
+                        <Select value={newStatusColor} onValueChange={setNewStatusColor}>
+                            <SelectTrigger className="w-[60px]">
+                                <SelectValue>
+                                  <div className="w-4 h-4 rounded-full" style={{backgroundColor: `hsl(${newStatusColor})`}}></div>
+                                </SelectValue>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {statusColors.map(color => (
+                                    <SelectItem key={color.value} value={color.value}>
+                                        <div className='flex items-center gap-2'>
+                                            <div className="w-4 h-4 rounded-full" style={{backgroundColor: `hsl(${color.value})`}}></div>
+                                            {color.name}
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                     </div>
                     <Button type="submit" size="icon" variant="outline"><PlusCircle className="h-4 w-4" /></Button>
                 </form>
                 <div className="space-y-2">
                     {settings.serviceStatuses?.length > 0 ? (
                         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                            <SortableContext items={settings.serviceStatuses.map(s => s)} strategy={verticalListSortingStrategy}>
+                            <SortableContext items={settings.serviceStatuses.map(s => s.id)} strategy={verticalListSortingStrategy}>
                                 {settings.serviceStatuses.map(status => (
-                                    <SortableItem key={status} id={status}>
+                                    <SortableItem key={status.id} id={status.id}>
                                         <div className="flex items-center justify-between w-full">
-                                            <p className="font-medium">{status}</p>
-                                            {!coreStatuses.includes(status) && (
-                                                <Button size="icon" variant="ghost" onClick={() => handleRemoveStatus(status)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-4 h-4 rounded-full" style={{ backgroundColor: `hsl(${status.color})` }}></div>
+                                                <p className="font-medium">{status.name}</p>
+                                            </div>
+                                            {!coreStatusIds.includes(status.id) && (
+                                                <Button size="icon" variant="ghost" onClick={() => handleRemoveStatus(status.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                             )}
                                         </div>
                                     </SortableItem>
@@ -334,6 +369,7 @@ const CustomStatusManager = () => {
         </Card>
     );
 };
+
 
 const brandColors = [
     { name: 'Céu', hsl: { h: 204, s: 90, l: 58 }, bg: 'bg-sky-400' },

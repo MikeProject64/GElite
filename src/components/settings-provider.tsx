@@ -5,7 +5,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode, useCa
 import { useAuth } from './auth-provider';
 import { doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Plan } from '@/types';
+import type { Plan, ServiceStatus } from '@/types';
 
 export interface Tag {
   id: string;
@@ -27,7 +27,7 @@ export interface UserSettings {
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
-  serviceStatuses?: string[];
+  serviceStatuses?: ServiceStatus[];
   tags?: Tag[];
   featureFlags?: {
     servicos?: boolean;
@@ -56,6 +56,12 @@ export interface UserSettings {
   smtpPassword?: string;
   emailRecipients?: string[];
   notifyOnNewSubscription?: boolean;
+  stripePublishableKey?: string;
+  stripeSecretKey?: string;
+  whatsAppBusinessAccountId?: string;
+  whatsAppAccessToken?: string;
+  ga4PropertyId?: string;
+  ga4CredentialsJson?: string;
 }
 
 interface SettingsContextType {
@@ -71,7 +77,12 @@ const defaultSettings: UserSettings = {
   customerCustomFields: [],
   serviceOrderCustomFields: [],
   quoteCustomFields: [],
-  serviceStatuses: ['Pendente', 'Em Andamento', 'Concluída', 'Cancelada'],
+  serviceStatuses: [
+    { id: 'pending', name: 'Pendente', color: '48 96% 58%' }, // yellow
+    { id: 'in_progress', name: 'Em Andamento', color: '210 70% 60%' }, // blue
+    { id: 'completed', name: 'Concluída', color: '142 69% 51%' }, // green
+    { id: 'canceled', name: 'Cancelada', color: '0 84% 60%' }, // red
+  ],
   tags: [],
   featureFlags: {
     servicos: true,
@@ -118,6 +129,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
+        // Ensure serviceStatuses is an array of objects
+        if (data.serviceStatuses && Array.isArray(data.serviceStatuses) && typeof data.serviceStatuses[0] === 'string') {
+            data.serviceStatuses = defaultSettings.serviceStatuses;
+        }
+        
         const newGlobalSettings = {
           ...defaultSettings,
           ...data,
