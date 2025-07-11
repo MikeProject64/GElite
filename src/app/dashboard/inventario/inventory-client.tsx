@@ -19,14 +19,16 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2, DollarSign } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2, DollarSign, AlertTriangle } from 'lucide-react';
 import { InventoryItem } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 
 const itemFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
   quantity: z.coerce.number().min(0, { message: 'A quantidade inicial não pode ser negativa.' }),
   cost: z.coerce.number().min(0, { message: 'O custo não pode ser negativo.' }),
+  minStock: z.coerce.number().min(0, { message: 'O estoque mínimo não pode ser negativo.' }).optional(),
 });
 
 type ItemFormValues = z.infer<typeof itemFormSchema>;
@@ -52,7 +54,7 @@ export function InventoryClient() {
 
   const form = useForm<ItemFormValues>({
     resolver: zodResolver(itemFormSchema),
-    defaultValues: { name: '', quantity: 0, cost: 0, },
+    defaultValues: { name: '', quantity: 0, cost: 0, minStock: 0 },
   });
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export function InventoryClient() {
   
   useEffect(() => {
     if (isDialogOpen) {
-      form.reset({ name: '', quantity: 0, cost: 0 });
+      form.reset({ name: '', quantity: 0, cost: 0, minStock: 0 });
     }
   }, [isDialogOpen, form]);
 
@@ -127,15 +129,15 @@ export function InventoryClient() {
       const itemPayload = {
         name: data.name,
         quantity: data.quantity,
-        initialQuantity: data.quantity, // Save the initial quantity for balance calculation
+        initialQuantity: data.quantity,
         cost: data.cost,
+        minStock: data.minStock || 0,
         userId: user.uid,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
       const itemRef = await addDoc(collection(db, 'inventory'), itemPayload);
 
-      // Create the initial stock movement only if there's an initial quantity
       if (data.quantity > 0) {
           await addDoc(collection(db, 'inventoryMovements'), {
               itemId: itemRef.id,
@@ -191,13 +193,22 @@ export function InventoryClient() {
                     <FormMessage />
                   </FormItem>
                 )}/>
-                <FormField control={form.control} name="quantity" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Quantidade Inicial *</FormLabel>
-                    <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
+                <div className="grid grid-cols-2 gap-4">
+                    <FormField control={form.control} name="quantity" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Qtd. Inicial *</FormLabel>
+                        <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}/>
+                    <FormField control={form.control} name="minStock" render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Qtd. Mínima</FormLabel>
+                        <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
+                        <FormMessage />
+                    </FormItem>
+                    )}/>
+                </div>
                 <FormField control={form.control} name="cost" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Custo por Unidade (R$) *</FormLabel>
@@ -261,34 +272,45 @@ export function InventoryClient() {
                     <TableHead>Item</TableHead>
                     <TableHead>Quantidade</TableHead>
                     <TableHead>Custo Unitário</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
                 </TableHeader>
                 <TableBody>
-                {filteredItems.map((item) => (
-                    <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
-                    <TableCell className="font-medium">{item.name}</TableCell>
-                    <TableCell>{item.quantity}</TableCell>
-                    <TableCell>{formatCurrency(item.cost)}</TableCell>
-                    <TableCell>
-                        <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Toggle menu</span>
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
-                               <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir Item
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                        </DropdownMenu>
-                    </TableCell>
-                    </TableRow>
-                ))}
+                {filteredItems.map((item) => {
+                    const isLowStock = item.minStock && item.quantity <= item.minStock;
+                    return (
+                        <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>{item.quantity}</TableCell>
+                        <TableCell>{formatCurrency(item.cost)}</TableCell>
+                        <TableCell>
+                            {isLowStock ? (
+                                <Badge variant="destructive" className="gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>
+                            ) : (
+                                <Badge variant="outline">Normal</Badge>
+                            )}
+                        </TableCell>
+                        <TableCell>
+                            <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button aria-haspopup="true" size="icon" variant="ghost" onClick={(e) => e.stopPropagation()}>
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Toggle menu</span>
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(item.id)}>
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                    Excluir Item
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                            </DropdownMenu>
+                        </TableCell>
+                        </TableRow>
+                    );
+                })}
                 </TableBody>
             </Table>
           </div>

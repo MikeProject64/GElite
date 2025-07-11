@@ -24,7 +24,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check, Filter, CalendarIcon, DollarSign } from 'lucide-react';
+import { Loader2, ArrowLeft, Package, History, ArrowDownCircle, ArrowUpCircle, Upload, Paperclip, Eye, File as FileIcon, ChevronsUpDown, Check, Filter, CalendarIcon, DollarSign, AlertTriangle } from 'lucide-react';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { InventoryItem, InventoryMovement, ServiceOrder } from '@/types';
@@ -250,6 +250,8 @@ export default function InventarioItemDetailPage() {
     }
       
     if (!item) return null;
+    
+    const isLowStock = item.minStock && item.quantity <= item.minStock;
 
     return (
         <div className="flex flex-col gap-6">
@@ -269,6 +271,7 @@ export default function InventarioItemDetailPage() {
                         <CardHeader>
                             <CardTitle>{item.name}</CardTitle>
                             <CardDescription>Custo unitário: {formatCurrency(item.cost)}</CardDescription>
+                            {isLowStock && <Badge variant="destructive" className="gap-1.5 w-fit"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>}
                         </CardHeader>
                         <CardContent>
                             <p className="text-4xl font-bold">{item.quantity}</p>

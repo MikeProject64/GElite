@@ -242,6 +242,7 @@ export interface InventoryItem {
     quantity: number;
     initialQuantity: number;
     cost: number;
+    minStock?: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 }
