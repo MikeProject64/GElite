@@ -277,11 +277,15 @@ export function InventoryClient() {
           ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredItems.map((item) => {
-              const isLowStock = item.minStock && item.quantity <= item.minStock;
+              const isLowStock = item.minStock !== undefined && item.quantity <= item.minStock;
               return (
                 <Card key={item.id} className="flex flex-col cursor-pointer overflow-hidden" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
-                    <div className="relative aspect-video bg-muted">
-                        <Image src={item.photoURL || 'https://placehold.co/600x400.png'} alt={item.name} fill className="object-cover" />
+                    <div className="relative aspect-video bg-muted flex items-center justify-center">
+                        {item.photoURL ? (
+                            <Image src={item.photoURL} alt={item.name} fill className="object-cover" />
+                        ) : (
+                            <Package className="h-12 w-12 text-muted-foreground" />
+                        )}
                         {isLowStock && <Badge variant="destructive" className="absolute top-2 right-2 gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>}
                     </div>
                     <CardHeader>

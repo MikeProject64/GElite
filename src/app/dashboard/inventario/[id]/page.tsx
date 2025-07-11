@@ -185,7 +185,7 @@ export default function InventarioItemDetailPage() {
                     const fileExtension = fileToUpload.name.split('.').pop();
                     const fileName = `${uuidv4()}.${fileExtension}`;
                     const storageRef = ref(storage, `inventoryMovements/${item.id}/${fileName}`);
-                    await uploadBytes(storageRef, fileToUpload, { customMetadata: { userId: user.uid } });
+                    await uploadBytes(storageRef, file, { customMetadata: { userId: user.uid } });
                     const downloadURL = await getDownloadURL(storageRef);
                     attachments.push({ name: fileToUpload.name, url: downloadURL });
                 }
@@ -283,11 +283,15 @@ export default function InventarioItemDetailPage() {
                 <Button size="sm" variant="outline" onClick={() => setIsEditItemDialogOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar Item</Button>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-6">
-                <Card className="md:col-span-1">
+            <div className="grid lg:grid-cols-3 gap-6 items-start">
+                <Card className="lg:col-span-1">
                     <CardContent className="pt-6 flex flex-col items-center text-center">
-                        <div className="relative w-40 h-40 mb-4 bg-muted rounded-lg">
-                           <Image src={item.photoURL || 'https://placehold.co/400x400.png'} alt={item.name} fill className="object-cover rounded-lg" />
+                        <div className="relative w-40 h-40 mb-4 bg-muted rounded-lg flex items-center justify-center">
+                           {item.photoURL ? (
+                             <Image src={item.photoURL} alt={item.name} fill className="object-cover rounded-lg" />
+                           ) : (
+                             <Package className="h-16 w-16 text-muted-foreground" />
+                           )}
                         </div>
                         <Label htmlFor="photo-upload" className="w-full"><Button variant="outline" asChild className="w-full"><span className="flex items-center"><Upload className="mr-2 h-4 w-4" />Trocar Foto</span></Button></Label>
                         <Input id="photo-upload" type="file" className="hidden" onChange={handlePhotoUpload} disabled={isUploading}/>
@@ -295,7 +299,7 @@ export default function InventarioItemDetailPage() {
                         <p className="text-sm text-muted-foreground mt-4">{item.description || 'Sem descrição.'}</p>
                     </CardContent>
                 </Card>
-                <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
                     <Card><CardHeader><CardTitle>{item.quantity}</CardTitle><CardDescription>Unidades em Estoque</CardDescription></CardHeader>
                         <CardContent>{isLowStock && <Badge variant="destructive" className="gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>}</CardContent>
                     </Card>
