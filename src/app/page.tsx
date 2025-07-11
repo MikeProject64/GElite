@@ -16,6 +16,7 @@ import { Comparison } from '@/components/landing/comparison';
 import { FreeTrial } from '@/components/landing/free-trial';
 import { Faq } from '@/components/landing/faq';
 import { FinalCta } from '@/components/landing/final-cta';
+import { AdminPanelButton } from '@/components/admin-panel-button';
 
 // Force dynamic rendering to ensure fresh data on every request.
 export const revalidate = 0;
@@ -62,6 +63,7 @@ export default async function Home() {
         <FinalCta />
       </main>
       <Footer />
+      <AdminPanelButton />
     </div>
   );
 }
