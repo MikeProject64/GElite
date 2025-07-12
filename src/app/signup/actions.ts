@@ -84,7 +84,6 @@ export async function createTrialUser(details: {
   name: string;
   email: string;
   phone: string;
-  companyName: string;
   password: string;
 }) {
     if (!details.email || !details.password || !details.name) {
@@ -105,7 +104,6 @@ export async function createTrialUser(details: {
             name: details.name,
             email: user.email,
             phone: details.phone,
-            companyName: details.companyName,
             createdAt: Timestamp.now(),
             role: 'user',
             subscriptionStatus: 'trialing',
