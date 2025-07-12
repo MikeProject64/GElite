@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, memo } from 'react';
@@ -114,7 +115,7 @@ interface CustomFieldManagerProps {
 
 const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, icon, fields, onUpdateFields }) => {
     const [newFieldName, setNewFieldName] = useState('');
-    const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date'>('text');
+    const [newFieldType, setNewFieldType] = useState<'text' | 'number' | 'date' | 'currency'>('text');
     const [editingFieldId, setEditingFieldId] = useState<string | null>(null);
     const [editingFieldName, setEditingFieldName] = useState('');
 
@@ -190,6 +191,7 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
                                 <SelectItem value="text">Texto</SelectItem>
                                 <SelectItem value="number">Número</SelectItem>
                                 <SelectItem value="date">Data</SelectItem>
+                                <SelectItem value="currency">Moeda (R$)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -212,7 +214,7 @@ const CustomFieldManager: React.FC<CustomFieldManagerProps> = memo(({ title, ico
                                             <>
                                               <div>
                                                   <p className="font-medium">{field.name}</p>
-                                                  <p className="text-xs text-muted-foreground capitalize">{field.type}</p>
+                                                  <p className="text-xs text-muted-foreground capitalize">{field.type === 'currency' ? 'Moeda' : field.type}</p>
                                               </div>
                                               <div className="flex items-center">
                                                 <Button size="icon" variant="ghost" onClick={() => handleStartEditing(field)}><Pencil className="h-4 w-4 text-muted-foreground" /></Button>

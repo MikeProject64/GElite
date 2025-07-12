@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, ChangeEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,8 +10,8 @@ import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { useSettings } from '@/components/settings-provider';
-import { format } from 'date-fns';
+import { useSettings, CustomField } from '@/components/settings-provider';
+import { format, parse, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -27,7 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter } from 'lucide-react';
+import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter, DollarSign } from 'lucide-react';
 import { Customer } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
@@ -66,6 +67,8 @@ export default function BaseDeClientesPage() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
+  
+  const [birthDateString, setBirthDateString] = useState('');
 
   const form = useForm<CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -110,18 +113,21 @@ export default function BaseDeClientesPage() {
   useEffect(() => {
     if (isDialogOpen) {
       if (editingCustomer) {
+        const birthDate = editingCustomer.birthDate ? editingCustomer.birthDate.toDate() : null;
         const defaultValues = {
             ...editingCustomer,
-            birthDate: editingCustomer.birthDate ? editingCustomer.birthDate.toDate() : null,
+            birthDate: birthDate,
             customFields: editingCustomer.customFields || {},
             tagIds: editingCustomer.tagIds || [],
         };
         form.reset(defaultValues);
+        setBirthDateString(birthDate ? format(birthDate, 'dd/MM/yyyy') : '');
       } else {
         form.reset({
           name: '', phone: '', email: '', address: '',
           cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagIds: []
         });
+        setBirthDateString('');
       }
     }
   }, [isDialogOpen, editingCustomer, form]);
@@ -241,6 +247,30 @@ export default function BaseDeClientesPage() {
   
   const getTagById = (id: string) => settings.tags?.find(t => t.id === id);
 
+  const handleBirthDateChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const digitsOnly = value.replace(/\D/g, '');
+    let formatted = digitsOnly;
+    if (digitsOnly.length > 2) {
+      formatted = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
+    }
+    if (digitsOnly.length > 4) {
+      formatted = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
+    }
+    setBirthDateString(formatted);
+
+    if (formatted.length === 10) {
+      const parsedDate = parse(formatted, 'dd/MM/yyyy', new Date());
+      if (isValid(parsedDate)) {
+        form.setValue('birthDate', parsedDate, { shouldValidate: true });
+      } else {
+        form.setValue('birthDate', null);
+      }
+    } else {
+      form.setValue('birthDate', null);
+    }
+  };
+
 
   return (
     <div className="flex flex-col gap-4">
@@ -299,7 +329,7 @@ export default function BaseDeClientesPage() {
                                             variant="outline"
                                             role="combobox"
                                             className={cn(
-                                                "w-full justify-between h-auto",
+                                                "w-full justify-between h-auto min-h-10",
                                                 !field.value?.length && "text-muted-foreground"
                                             )}
                                         >
@@ -317,12 +347,12 @@ export default function BaseDeClientesPage() {
                                         </Button>
                                     </FormControl>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-full p-0">
+                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                                     <Command>
                                         <CommandInput placeholder="Buscar etiquetas..." />
-                                        <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
-                                        <CommandGroup>
-                                            <CommandList>
+                                        <CommandList>
+                                            <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
+                                            <CommandGroup>
                                                 {settings.tags?.map(tag => (
                                                     <CommandItem
                                                         key={tag.id}
@@ -338,8 +368,8 @@ export default function BaseDeClientesPage() {
                                                         <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
                                                     </CommandItem>
                                                 ))}
-                                            </CommandList>
-                                        </CommandGroup>
+                                            </CommandGroup>
+                                        </CommandList>
                                     </Command>
                                 </PopoverContent>
                             </Popover>
@@ -362,25 +392,23 @@ export default function BaseDeClientesPage() {
                     <FormMessage />
                   </FormItem>
                 )}/>
-                <FormField control={form.control} name="birthDate" render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Data de Nascimento</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {field.value ? format(field.value, "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={field.value ?? undefined} onSelect={field.onChange} initialFocus />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
+                <FormField
+                    control={form.control}
+                    name="birthDate"
+                    render={({ field }) => (
+                    <FormItem>
+                        <FormLabel>Data de Nascimento</FormLabel>
+                        <FormControl>
+                        <Input
+                            placeholder="DD/MM/AAAA"
+                            value={birthDateString}
+                            onChange={handleBirthDateChange}
+                        />
+                        </FormControl>
+                        <FormMessage />
                     </FormItem>
-                  )}/>
+                    )}
+                />
                  <FormField control={form.control} name="notes" render={({ field }) => (
                   <FormItem>
                     <FormLabel>Observações</FormLabel>
@@ -393,36 +421,59 @@ export default function BaseDeClientesPage() {
                     <>
                         <Separator className="my-2" />
                         <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
-                        {settings.customerCustomFields.map((customField) => (
-                           <FormField
-                                key={customField.id}
-                                control={form.control}
-                                name={`customFields.${customField.id}`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{customField.name}</FormLabel>
-                                        <FormControl>
-                                            {customField.type === 'date' ? (
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                        <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            ) : (
-                                                <Input type={customField.type} {...field} />
-                                            )}
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
+                        {settings.customerCustomFields.map((customField) => {
+                            if (customField.type === 'currency') {
+                                return (
+                                    <FormField
+                                        key={customField.id}
+                                        control={form.control}
+                                        name={`customFields.${customField.id}`}
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{customField.name}</FormLabel>
+                                                <FormControl>
+                                                    <div className="relative">
+                                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                        <Input type="number" step="0.01" className="pl-8" {...field} onChange={event => field.onChange(+event.target.value)} />
+                                                    </div>
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                );
+                            }
+                            return (
+                               <FormField
+                                    key={customField.id}
+                                    control={form.control}
+                                    name={`customFields.${customField.id}`}
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{customField.name}</FormLabel>
+                                            <FormControl>
+                                                {customField.type === 'date' ? (
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                                <CalendarIcon className="mr-2 h-4 w-4" />
+                                                                {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                ) : (
+                                                    <Input type={customField.type} {...field} />
+                                                )}
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            )
+                        })}
                     </>
                 )}
 
@@ -517,7 +568,7 @@ export default function BaseDeClientesPage() {
                 <Users className="mx-auto h-12 w-12 text-muted-foreground" />
                 <h3 className="mt-4 text-lg font-semibold">Nenhum cliente encontrado.</h3>
                 <p className="text-sm text-muted-foreground">
-                  {searchTerm || tagFilter.length > 0 ? "Tente um filtro ou termo de busca diferente." : "Comece adicionando seu primeiro cliente."}
+                  {searchTerm || tagFilter.length > 0 ? "Tente um termo de busca diferente." : "Comece adicionando seu primeiro cliente."}
                 </p>
             </div>
           ) : (

@@ -10,7 +10,7 @@ export interface Tag {
 export interface CustomField {
   id: string;
   name: string;
-  type: 'text' | 'number' | 'date';
+  type: 'text' | 'number' | 'date' | 'currency';
 }
 
 export interface ServiceStatus {
