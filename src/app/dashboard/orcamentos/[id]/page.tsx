@@ -15,6 +15,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '@/lib/utils';
+import { convertQuoteToServiceOrder } from '../actions';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -157,50 +158,18 @@ export default function OrcamentoDetailPage() {
     setIsRecusarAlertOpen(false);
   }
 
-  const convertToServiceOrder = async () => {
+  const handleConvert = async () => {
     if (!quote || !user) return;
     setIsConverting(true);
-    try {
-        const serviceOrderData = {
-            clientId: quote.clientId,
-            clientName: quote.clientName,
-            problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
-            serviceType: quote.title,
-            status: 'Pendente', // Default status for new OS
-            collaboratorId: '', // Needs to be assigned
-            dueDate: Timestamp.fromDate(new Date()),
-            totalValue: quote.totalValue,
-            attachments: [],
-            userId: user.uid,
-            createdAt: Timestamp.now(),
-            customFields: quote.customFields || {},
-            completedAt: null,
-            isTemplate: false,
-            activityLog: [{
-                timestamp: Timestamp.now(),
-                userEmail: user?.email || 'Sistema',
-                description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0, 6).toUpperCase()}`
-            }],
-        };
-        const docRef = await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
-        
-        const quoteRef = doc(db, 'quotes', quote.id);
-        const logEntry = {
-          timestamp: Timestamp.now(),
-          userEmail: user?.email || 'Sistema',
-          description: `Orçamento convertido para a OS #${docRef.id.substring(0,6).toUpperCase()}`
-        };
-        await updateDoc(quoteRef, { status: 'Convertido', activityLog: arrayUnion(logEntry) });
-
+    const result = await convertQuoteToServiceOrder(quote.id, user.uid);
+    if(result.success && result.serviceOrderId) {
         toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
-        router.push(`/dashboard/servicos/${docRef.id}`);
-    } catch (error) {
-        console.error("Conversion error:", error);
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao converter o orçamento.' });
-    } finally {
-        setIsConverting(false);
-        setIsAlertOpen(false);
+        router.push(`/dashboard/servicos/${result.serviceOrderId}`);
+    } else {
+        toast({ variant: 'destructive', title: 'Erro', description: result.message || 'Falha ao converter o orçamento.' });
     }
+    setIsConverting(false);
+    setIsAlertOpen(false);
   };
 
   const handleSaveAsTemplate = async ({templateName}: TemplateFormValues) => {
@@ -218,6 +187,7 @@ export default function OrcamentoDetailPage() {
         delete (templateData as any).originalQuoteId;
         delete (templateData as any).version;
         delete (templateData as any).activityLog;
+        delete (templateData as any).convertedToServiceOrderId;
         
         await addDoc(collection(db, 'quotes'), templateData);
 
@@ -275,7 +245,15 @@ export default function OrcamentoDetailPage() {
             <FileText className='h-5 w-5' />
             Detalhes do Orçamento (v{quote.version || 1})
         </h1>
-        <Badge variant={getStatusVariant(quote.status)} className="text-base px-3 py-1">{quote.status}</Badge>
+        {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
+            <Button asChild variant="secondary" size="sm">
+                <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>
+                    Ver O.S. Gerada
+                </Link>
+            </Button>
+        ) : (
+            <Badge variant={getStatusVariant(quote.status)} className="text-base px-3 py-1">{quote.status}</Badge>
+        )}
       </div>
       
       <div className="grid lg:grid-cols-3 gap-6">
@@ -437,7 +415,7 @@ export default function OrcamentoDetailPage() {
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                    <AlertDialogAction onClick={convertToServiceOrder}>Sim, converter</AlertDialogAction>
+                    <AlertDialogAction onClick={handleConvert}>Sim, converter</AlertDialogAction>
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>

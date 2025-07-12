@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
@@ -26,6 +26,7 @@ import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { convertQuoteToServiceOrder } from './actions';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -54,6 +55,7 @@ export default function OrcamentosPage() {
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConverting, setIsConverting] = useState<string | null>(null);
   const [filters, setFilters] = useState({ 
     status: '', 
     clientName: '',
@@ -105,6 +107,19 @@ export default function OrcamentosPage() {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
   };
+
+  const handleConvert = async (quote: Quote) => {
+    if (!user) return;
+    setIsConverting(quote.id);
+    const result = await convertQuoteToServiceOrder(quote.id, user.uid);
+    if(result.success && result.serviceOrderId) {
+        toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
+        router.push(`/dashboard/servicos/${result.serviceOrderId}`);
+    } else {
+        toast({ variant: 'destructive', title: 'Erro', description: result.message || 'Falha ao converter o orçamento.' });
+    }
+    setIsConverting(null);
+  }
 
 
   const latestQuotes = useMemo(() => {
@@ -303,7 +318,13 @@ export default function OrcamentosPage() {
                     <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                     <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>
-                        <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
+                        {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
+                            <Button asChild variant="link" className="p-0 h-auto">
+                                <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>Ver O.S.</Link>
+                            </Button>
+                        ) : (
+                            <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
+                        )}
                     </TableCell>
                     <TableCell>
                         <DropdownMenu>
@@ -313,11 +334,16 @@ export default function OrcamentosPage() {
                             <span className="sr-only">Toggle menu</span>
                             </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                        <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel>
                             <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
                                 <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
                             </DropdownMenuItem>
+                            {quote.status === 'Aprovado' && (
+                                <DropdownMenuItem onSelect={() => handleConvert(quote)} disabled={isConverting === quote.id}>
+                                    {isConverting === quote.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
+                                    Converter em OS
+                                </DropdownMenuItem>
+                            )}
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger disabled={quote.status === 'Convertido'}>
                                     <CheckCircle2 className="mr-2 h-4 w-4"/>

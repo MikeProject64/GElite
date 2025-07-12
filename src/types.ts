@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 import type { Stripe } from 'stripe';
 
@@ -234,6 +235,7 @@ export interface Quote {
   originalQuoteId?: string;
   version?: number;
   activityLog?: ActivityLogEntry[];
+  convertedToServiceOrderId?: string;
 }
 
 export interface RecentActivity {
