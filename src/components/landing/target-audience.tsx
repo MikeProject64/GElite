@@ -6,18 +6,18 @@ import { ScrollReveal } from './scroll-reveal';
 const audiences = [
   {
     icon: <User className="w-8 h-8 text-primary" />,
-    title: 'Técnicos Autônomos',
-    description: 'Organize sua agenda, gerencie clientes e emita ordens de serviço de forma profissional, tudo pelo celular ou computador.',
+    title: 'Profissionais Autônomos',
+    description: 'Para o profissional que trabalha sozinho e busca se profissionalizar. Emita ordens de serviço, gerencie sua agenda e apresente orçamentos que impressionam seus clientes.',
   },
   {
     icon: <HardHat className="w-8 h-8 text-primary" />,
-    title: 'Pequenas Empresas de Manutenção',
-    description: 'Coordene sua equipe, controle o inventário de peças e tenha uma visão clara de todos os serviços em andamento.',
+    title: 'Pequenos Negócios',
+    description: 'Coordene sua equipe, controle o fluxo de caixa com relatórios claros e otimize seu estoque. O Gestor Elite ajuda seu pequeno negócio a crescer de forma organizada e eficiente.',
   },
   {
     icon: <Building className="w-8 h-8 text-primary" />,
-    title: 'Lojas de Reparo e Assistências Técnicas',
-    description: 'Gerencie o fluxo de aparelhos, comunique-se com os clientes e controle cada etapa do reparo, do diagnóstico à entrega.',
+    title: 'Empresas Consolidadas',
+    description: 'Obtenha uma visão 360° da sua operação. Monitore KPIs, gerencie contratos de manutenção recorrente e utilize dados para tomar decisões estratégicas que impulsionam o crescimento.',
   },
 ];
 
