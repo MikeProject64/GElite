@@ -245,7 +245,7 @@ function CreateQuoteForm() {
 
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
+    (customer.phone && customer.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (isInitializing) {
@@ -294,8 +294,8 @@ function CreateQuoteForm() {
                         <div className="p-2">
                           <Input
                             placeholder="Buscar cliente..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
+                            value={customerSearchTerm}
+                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
                             autoFocus
                           />
                         </div>
@@ -309,7 +309,7 @@ function CreateQuoteForm() {
                                 onClick={() => {
                                   field.onChange(customer.id);
                                   setIsDropdownOpen(false);
-                                  setSearchTerm('');
+                                  setCustomerSearchTerm('');
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
@@ -472,5 +472,3 @@ export default function CriarOrcamentoPage() {
         </Suspense>
     )
 }
-
-    

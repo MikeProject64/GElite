@@ -347,7 +347,7 @@ export default function OrcamentoDetailPage() {
                 <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
                     <Link href={`/dashboard/orcamentos/criar?versionOf=${quote.id}`}>
                         <Pencil className="mr-2 h-4 w-4" />
-                        Editar / Criar Nova Versão
+                        Editar
                     </Link>
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
@@ -494,5 +494,3 @@ export default function OrcamentoDetailPage() {
     </div>
   );
 }
-
-    

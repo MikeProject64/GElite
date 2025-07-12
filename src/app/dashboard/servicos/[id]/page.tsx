@@ -467,7 +467,7 @@ export default function ServicoDetailPage() {
                     </Button>
                      <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
                         <Link href={`/dashboard/servicos/criar?versionOf=${order.id}`}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar / Criar Nova Versão
+                            <Pencil className="mr-2 h-4 w-4" /> Editar
                         </Link>
                     </Button>
                     <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
