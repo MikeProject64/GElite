@@ -90,7 +90,7 @@ export async function createStripePortalSession(stripeCustomerId: string | undef
 
         const portalSession = await stripe.billingPortal.sessions.create({
             customer: stripeCustomerId,
-            return_url: `${origin}/dashboard/subscription`,
+            return_url: `${origin}/dashboard/plans`,
         });
 
         return { success: true, url: portalSession.url };
@@ -127,8 +127,8 @@ export async function createSubscriptionCheckoutSession(planId: string, interval
             payment_method_types: ['card'],
             mode: 'subscription',
             line_items: [{ price: priceId, quantity: 1 }],
-            success_url: `${origin}/dashboard/subscription?success=true&session_id={CHECKOUT_SESSION_ID}`,
-            cancel_url: `${origin}/dashboard/subscription`,
+            success_url: `${origin}/dashboard/plans?success=true&session_id={CHECKOUT_SESSION_ID}`,
+            cancel_url: `${origin}/dashboard/plans`,
             client_reference_id: uid, // Associate checkout with Firebase UID
             subscription_data: {
                 metadata: { planId: planId, interval: interval, uid: uid }

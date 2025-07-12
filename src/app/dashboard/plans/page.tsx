@@ -30,6 +30,7 @@ const featureMap: Record<string, string> = {
   clientes: 'Base de Clientes (CRM)',
   colaboradores: 'Equipes e Colaboradores',
   inventario: 'Controle de Inventário',
+  contratos: 'Contratos e Recorrência',
 };
 
 function NoPlanView() {
@@ -189,7 +190,7 @@ function SubscriptionPageContent() {
                     });
 
                     // Clear URL params and trigger a re-fetch of subscription data
-                    router.replace('/dashboard/subscription', { scroll: false });
+                    router.replace('/dashboard/plans', { scroll: false });
                 } else {
                     toast({
                         variant: 'destructive',
@@ -402,7 +403,7 @@ function SubscriptionPageContent() {
     );
 }
 
-export default function SubscriptionPage() {
+export default function PlansPage() {
     return (
         <div className="flex flex-col gap-4">
             <h1 className="text-lg font-semibold md:text-2xl">Gerenciamento de Assinatura</h1>

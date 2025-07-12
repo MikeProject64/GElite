@@ -154,7 +154,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-4 text-sm font-medium">
         {mainNavItems.map(({ href, label, icon, flag }) => {
-            const showFeature = flag ? settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false : true;
+            const showFeature = settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false;
             if (!showFeature) return null;
             const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
             return <NavItem key={href} href={href} label={label} icon={icon} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />
@@ -163,7 +163,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         
       <nav className="mt-auto space-y-1 border-t px-2 py-4">
         <NavItem href="/dashboard/configuracoes" label="Configurações" icon={Settings} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/configuracoes')} onClick={onLinkClick}/>
-        <NavItem href="/dashboard/subscription" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/subscription')} onClick={onLinkClick}/>
+        <NavItem href="/dashboard/plans" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/plans')} onClick={onLinkClick}/>
         
         <NavActionButton
           label="Alterar Tema"
