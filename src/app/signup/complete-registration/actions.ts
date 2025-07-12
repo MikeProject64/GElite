@@ -7,6 +7,7 @@ import { createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import type { Plan } from '@/types';
+import * as fbq from '@/lib/meta-pixel-server';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -149,9 +150,17 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
                     plan: planData,
                     subscription: subscription,
                 });
+                // Fire Meta Pixel Purchase event
+                fbq.event('Purchase', {
+                    value: value,
+                    currency: currency,
+                    content_name: planData.name,
+                    content_ids: [planData.id],
+                    content_type: 'product',
+                });
             }
-        } catch (emailError) {
-            console.error("Erro no processo de envio de e-mail de notificação:", emailError);
+        } catch (eventError) {
+            console.error("Erro no processo de envio de eventos ou e-mail:", eventError);
         }
 
         return { 

@@ -7,6 +7,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan, SubscriptionDetails } from '@/types';
 import * as gtag from '@/lib/gtag-server';
+import * as fbq from '@/lib/meta-pixel-server';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -210,6 +211,16 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
                 }]
             }
         });
+        
+        if (planData) {
+            fbq.event('Purchase', {
+                value: value,
+                currency: currency,
+                content_name: planData.name,
+                content_ids: [planData.id],
+                content_type: 'product',
+            });
+        }
         
         return { 
             success: true, 
