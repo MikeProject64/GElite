@@ -7,10 +7,10 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format } from 'date-fns';
+import { format, isBefore, startOfToday, addMonths, addQuarters, addYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -153,6 +153,16 @@ export default function ContratosPage() {
         }
     };
 
+    const calculateNextDueDate = (currentDueDate: Date, frequency: AgreementFormValues['frequency']) => {
+        switch (frequency) {
+            case 'monthly': return addMonths(currentDueDate, 1);
+            case 'quarterly': return addQuarters(currentDueDate, 1);
+            case 'semiannually': return addMonths(currentDueDate, 6);
+            case 'annually': return addYears(currentDueDate, 1);
+            default: throw new Error(`Frequência desconhecida: ${frequency}`);
+        }
+    };
+
     const onSubmit = async (data: AgreementFormValues) => {
         if (!user) return;
         
@@ -166,20 +176,58 @@ export default function ContratosPage() {
                 await updateDoc(agreementRef, { ...data, startDate: Timestamp.fromDate(data.startDate) });
                 toast({ title: 'Sucesso!', description: 'Contrato atualizado.' });
             } else {
-                await addDoc(collection(db, 'serviceAgreements'), {
+                const batch = writeBatch(db);
+                const agreementRef = doc(collection(db, 'serviceAgreements'));
+
+                const shouldCreateInitialOS = isBefore(data.startDate, addDays(new Date(), 1));
+                let nextDueDate = data.startDate;
+
+                // Create initial service order if start date is today or in the past
+                if (shouldCreateInitialOS) {
+                    const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
+                    const newServiceOrder: Omit<ServiceOrder, 'id'> = {
+                        clientId: client.id,
+                        clientName: client.name,
+                        status: 'Pendente',
+                        createdAt: Timestamp.now(),
+                        dueDate: Timestamp.fromDate(data.startDate),
+                        isTemplate: false,
+                        generatedByAgreementId: agreementRef.id,
+                        activityLog: [{
+                            timestamp: Timestamp.now(),
+                            userEmail: 'Sistema',
+                            description: `Ordem de Serviço gerada automaticamente pelo contrato #${agreementRef.id.substring(0, 6).toUpperCase()}.`,
+                        }],
+                        serviceType: template.serviceType,
+                        problemDescription: template.problemDescription,
+                        totalValue: template.totalValue,
+                    };
+                    delete (newServiceOrder as any).templateName;
+                    batch.set(newServiceOrderRef, newServiceOrder);
+                    
+                    // Set next due date to the next period
+                    nextDueDate = calculateNextDueDate(data.startDate, data.frequency);
+                }
+                
+                // Create the agreement document
+                batch.set(agreementRef, {
                     ...data,
                     userId: user.uid,
                     clientName: client.name,
                     serviceOrderTemplateName: template.templateName,
                     startDate: Timestamp.fromDate(data.startDate),
-                    nextDueDate: Timestamp.fromDate(data.startDate),
+                    nextDueDate: Timestamp.fromDate(nextDueDate),
                     status: 'active',
                     createdAt: Timestamp.now(),
                 });
+
+                await batch.commit();
+
                 toast({ title: 'Sucesso!', description: 'Contrato criado.' });
             }
             setIsDialogOpen(false);
         } catch (error) {
+            console.error(error);
             toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao salvar o contrato.' });
         }
     };

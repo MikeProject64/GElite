@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, ChangeEvent } from 'react';
@@ -24,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, MoreHorizontal, ChevronsUpDown } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, MoreHorizontal, ChevronsUpDown, FileSignature } from 'lucide-react';
 import { ServiceOrder, Collaborator, Customer, ServiceOrderPriority } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -382,7 +383,12 @@ export default function ServicoDetailPage() {
         <div className="lg:col-span-2 flex flex-col gap-6">
           <Card>
               <CardHeader>
-                <CardTitle>{order.serviceType}</CardTitle>
+                <div className="flex items-center justify-between">
+                    <CardTitle>{order.serviceType}</CardTitle>
+                    {order.generatedByAgreementId && 
+                        <Badge variant="outline" className="gap-1.5"><FileSignature className="h-3.5 w-3.5" />Gerada por Contrato</Badge>
+                    }
+                </div>
                 <CardDescription>
                   Criada em: {format(order.createdAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                 </CardDescription>
@@ -486,7 +492,7 @@ export default function ServicoDetailPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                              <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/criar?versionOf=${order.id}`)} disabled={!canCreateNewVersion}>
-                                <Pencil className="mr-2 h-4 w-4" /> Editar (Nova Versão)
+                                <Pencil className="mr-2 h-4 w-4" /> Editar
                             </DropdownMenuItem>
                             <DropdownMenuSub>
                                 <DropdownMenuSubTrigger><ChevronsUpDown className="mr-2 h-4 w-4"/>Alterar Prioridade</DropdownMenuSubTrigger>

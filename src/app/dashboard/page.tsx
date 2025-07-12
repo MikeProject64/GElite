@@ -1,9 +1,10 @@
 
+
 'use client';
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2, CheckCircle, Target } from 'lucide-react';
+import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2, CheckCircle, Target, FileSignature } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -268,12 +269,15 @@ export default function DashboardPage() {
 
   }, [allOrders, chartPeriod, loading]);
 
+  const normalizeText = (text: string) => {
+    return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  };
 
   const performSearch = useCallback(async (term: string) => {
     if (!user || term.length < 2) { setSearchResults([]); return; }
     setSearchLoading(true);
     try {
-      const lowerTerm = term.toLowerCase();
+      const lowerTerm = normalizeText(term);
       const customerQuery = query(collection(db, 'customers'), where('userId', '==', user.uid));
       const orderQuery = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
       const quoteQuery = query(collection(db, 'quotes'), where('userId', '==', user.uid));
@@ -283,10 +287,10 @@ export default function DashboardPage() {
         getDocs(customerQuery), getDocs(orderQuery), getDocs(quoteQuery), getDocs(collaboratorQuery)
       ]);
       
-      const customerResults: SearchResult[] = customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)).filter(c => (c.name && c.name.toLowerCase().includes(lowerTerm)) || (c.phone && c.phone.includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Cliente', title: doc.name, description: doc.phone, href: `/dashboard/base-de-clientes/${doc.id}` })).slice(0, 5);
-      const orderResults: SearchResult[] = ordersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ServiceOrder)).filter(o => (o.serviceType && o.serviceType.toLowerCase().includes(lowerTerm)) || (o.clientName && o.clientName.toLowerCase().includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Serviço', title: doc.serviceType, description: `Cliente: ${doc.clientName}`, href: `/dashboard/servicos/${doc.id}` })).slice(0, 5);
-      const quoteResults: SearchResult[] = quotesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)).filter(q => (q.title && q.title.toLowerCase().includes(lowerTerm)) || (q.clientName && q.clientName.toLowerCase().includes(lowerTerm)) || (q.id && q.id.toLowerCase().includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Orçamento', title: `Orçamento para ${doc.clientName}`, description: `ID: ...${doc.id.slice(-4)}`, href: `/dashboard/orcamentos/${doc.id}` })).slice(0, 5);
-      const collaboratorResults: SearchResult[] = collaboratorsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Collaborator)).filter(m => (m.name && m.name.toLowerCase().includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Colaborador', title: doc.name, description: 'Colaborador / Setor', href: `/dashboard/colaboradores/${doc.id}` })).slice(0, 5);
+      const customerResults: SearchResult[] = customersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Customer)).filter(c => (c.name && normalizeText(c.name).includes(lowerTerm)) || (c.phone && c.phone.includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Cliente', title: doc.name, description: doc.phone, href: `/dashboard/base-de-clientes/${doc.id}` })).slice(0, 5);
+      const orderResults: SearchResult[] = ordersSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as ServiceOrder)).filter(o => (o.serviceType && normalizeText(o.serviceType).includes(lowerTerm)) || (o.clientName && normalizeText(o.clientName).includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Serviço', title: doc.serviceType, description: `Cliente: ${doc.clientName}`, href: `/dashboard/servicos/${doc.id}` })).slice(0, 5);
+      const quoteResults: SearchResult[] = quotesSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Quote)).filter(q => (q.title && normalizeText(q.title).includes(lowerTerm)) || (q.clientName && normalizeText(q.clientName).includes(lowerTerm)) || (q.id && q.id.toLowerCase().includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Orçamento', title: `Orçamento para ${doc.clientName}`, description: `ID: ...${doc.id.slice(-4)}`, href: `/dashboard/orcamentos/${doc.id}` })).slice(0, 5);
+      const collaboratorResults: SearchResult[] = collaboratorsSnap.docs.map(doc => ({ ...doc.data(), id: doc.id } as Collaborator)).filter(m => (m.name && normalizeText(m.name).includes(lowerTerm))).map(doc => ({ id: doc.id, type: 'Colaborador', title: doc.name, description: 'Colaborador / Setor', href: `/dashboard/colaboradores/${doc.id}` })).slice(0, 5);
       
       setSearchResults([...customerResults, ...orderResults, ...quoteResults, ...collaboratorResults]);
     } catch (error) { console.error("Error performing global search:", error); } finally { setSearchLoading(false); }
@@ -392,9 +396,9 @@ export default function DashboardPage() {
                             </Link>
                         </Button>
                         <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
-                            <Link href="/dashboard/colaboradores">
+                            <Link href="/dashboard/equipe">
                                 <Briefcase className="h-8 w-8 text-primary" />
-                                <span className="text-sm font-medium">Novo Colaborador</span>
+                                <span className="text-sm font-medium">Nova Equipe</span>
                             </Link>
                         </Button>
                     </div>

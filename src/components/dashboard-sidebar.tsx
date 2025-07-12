@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -135,8 +136,8 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
     { href: '/dashboard/atividades', label: 'Atividades', icon: Bell, flag: 'atividades' },
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
-    { href: '/dashboard/colaboradores', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
-    { href: '/dashboard/inventario', label: 'Inventário', icon: Package, flag: 'inventario' },
+    { href: '/dashboard/equipe', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
+    { href: '/dashboard/estoque', label: 'Estoque', icon: Package, flag: 'inventario' },
   ];
   
   return (

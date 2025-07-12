@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus, FileSignature } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -360,6 +360,7 @@ export default function ServicosPage() {
                            <div className="flex items-center gap-2">
                                 {hasPendencies && (<TooltipProvider><Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger><TooltipContent><p>Pendências: definir prazo e responsável.</p></TooltipContent></Tooltip></TooltipProvider>)}
                                 {order.attachments && order.attachments.length > 0 && (<TooltipProvider><Tooltip><TooltipTrigger><Paperclip className="h-4 w-4 text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Esta OS possui anexos.</p></TooltipContent></Tooltip></TooltipProvider>)}
+                                {order.generatedByAgreementId && (<TooltipProvider><Tooltip><TooltipTrigger><FileSignature className="h-4 w-4 text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Gerada por Contrato</p></TooltipContent></Tooltip></TooltipProvider>)}
                                 <div><Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link><div className="text-sm text-muted-foreground"><Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link></div></div>
                             </div>
                         </TableCell>

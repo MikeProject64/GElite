@@ -9,7 +9,7 @@ import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'fireba
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
-import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO, differenceInCalendarDays } from 'date-fns';
+import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO, differenceInCalendarDays, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { dateFnsLocalizer, Event as BigCalendarEvent } from 'react-big-calendar';
 
@@ -23,8 +23,6 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { useIsMobile } from '@/hooks/use-mobile';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
-import { ChartContainer, ChartTooltipContent } from '@/components/ui/chart';
 import type { ServiceOrder, ServiceOrderPriority } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -57,24 +55,23 @@ const formatCurrency = (value: number) => {
 };
 
 const getDueDateStatus = (dueDate: Date) => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize today to the start of the day
-    
-    if (isPast(dueDate) && !isToday(dueDate)) {
-      return { text: `Vencido há ${differenceInDays(new Date(), dueDate)} dia(s)`, variant: 'destructive' as const, color: 'hsl(var(--destructive))' };
+    const today = startOfDay(new Date());
+    const due = startOfDay(dueDate);
+
+    if (isBefore(due, today)) {
+        const daysAgo = differenceInDays(today, due);
+        return { text: `Vencido há ${daysAgo} dia(s)`, variant: 'destructive' as const, color: 'hsl(var(--destructive))' };
     }
-    if (isToday(dueDate)) {
-      return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600', color: 'hsl(48, 96%, 58%)' };
+    if (isToday(due)) {
+        return { text: 'Vence Hoje', variant: 'secondary' as const, className: 'text-amber-600 border-amber-600', color: 'hsl(48, 96%, 58%)' };
     }
-    const daysUntilDue = differenceInDays(dueDate, new Date());
-    if (daysUntilDue < 0) { // Should be handled by isPast, but as a fallback
-        return { text: `Vencido`, variant: 'destructive' as const, color: 'hsl(var(--destructive))' };
-    }
+    const daysUntilDue = differenceInDays(due, today);
     if (daysUntilDue <= 3) {
-      return { text: `Vence em ${daysUntilDue + 1} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600', color: 'hsl(210, 70%, 60%)' };
+        return { text: `Vence em ${daysUntilDue} dia(s)`, variant: 'outline' as const, className: 'text-blue-600 border-blue-600', color: 'hsl(210, 70%, 60%)' };
     }
-    return { text: `Vence em ${daysUntilDue + 1} dias`, variant: 'outline' as const, color: 'hsl(var(--primary))' };
+    return { text: `Vence em ${daysUntilDue} dias`, variant: 'outline' as const, color: 'hsl(var(--primary))' };
 };
+
 
 const getEventStyle = (event: BigCalendarEvent) => {
     const order = event.resource as ServiceOrder;
@@ -126,7 +123,7 @@ export function DeadlinesClient() {
     
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [viewMode, setViewMode] = useState<'list' | 'calendar' | 'timeline'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
     const [activeFilter, setActiveFilter] = useState<'all' | 'today' | 'thisWeek' | 'overdue'>('all');
     const [sortConfig, setSortConfig] = useState<{ key: keyof ServiceOrder | 'priority', direction: 'ascending' | 'descending' } | null>(null);
 
@@ -191,14 +188,12 @@ export function DeadlinesClient() {
     };
 
     const sortedAndFilteredOrders = useMemo(() => {
-        const now = new Date();
-        now.setHours(0,0,0,0);
-        
         let tempOrders = [...activeOrders];
 
         if (activeFilter === 'today') {
             tempOrders = tempOrders.filter(o => isToday(o.dueDate.toDate()));
         } else if (activeFilter === 'thisWeek') {
+            const now = new Date();
             const start = startOfWeek(now, { locale: ptBR });
             const end = endOfWeek(now, { locale: ptBR });
             tempOrders = tempOrders.filter(o => {
@@ -230,16 +225,6 @@ export function DeadlinesClient() {
         return tempOrders;
     }, [activeOrders, activeFilter, sortConfig]);
 
-    const timelineData = useMemo(() => {
-        return activeOrders
-            .filter(o => o.createdAt)
-            .map(o => ({
-                name: `#${o.id.substring(0, 5)} - ${o.clientName}`,
-                duration: differenceInCalendarDays(o.dueDate.toDate(), o.createdAt.toDate()) + 1,
-            }))
-            .sort((a,b) => a.duration - b.duration) // Sort by duration
-            .slice(-15); // Get top 15 longest
-    }, [activeOrders]);
 
     const calendarEvents = useMemo(() => orders.map(order => ({
         title: `${order.clientName} - ${order.serviceType}`,
@@ -294,14 +279,6 @@ export function DeadlinesClient() {
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent><p>Visualizar em Calendário</p></TooltipContent>
-                        </Tooltip>
-                        <Tooltip>
-                            <TooltipTrigger asChild>
-                                <Button variant={viewMode === 'timeline' ? 'secondary' : 'outline'} size="icon" onClick={() => setViewMode('timeline')}>
-                                    <BarChartHorizontal className="h-4 w-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Visualizar em Cronograma</p></TooltipContent>
                         </Tooltip>
                    </div>
                 </CardHeader>
@@ -407,24 +384,7 @@ export function DeadlinesClient() {
                                     />
                                 </div>
                                 </>
-                            ) : (
-                                <div className='h-[600px] w-full'>
-                                    <p className="text-sm text-muted-foreground mb-4">Exibindo as 15 ordens de serviço ativas com maior duração (da criação ao prazo).</p>
-                                    <ChartContainer config={{ duration: { label: 'Duração (dias)'}}} className="h-full w-full">
-                                        <ResponsiveContainer>
-                                            <BarChart data={timelineData} layout="vertical" margin={{ left: 100 }}>
-                                                <XAxis type="number" />
-                                                <YAxis dataKey="name" type="category" tickLine={false} axisLine={false} width={150} />
-                                                <Tooltip
-                                                    cursor={{ fill: 'hsl(var(--muted))' }}
-                                                    content={<ChartTooltipContent />}
-                                                />
-                                                <Bar dataKey="duration" fill="hsl(var(--primary))" radius={4} />
-                                            </BarChart>
-                                        </ResponsiveContainer>
-                                    </ChartContainer>
-                                </div>
-                            )}
+                            ) : null }
                         </>
                     )}
                 </CardContent>
