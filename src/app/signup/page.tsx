@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ShieldCheck, CheckCircle, CreditCard, Wrench } from 'lucide-react';
+import { Loader2, ShieldCheck, CheckCircle, CreditCard, Wrench, ChevronDown } from 'lucide-react';
 import { createCheckoutSession, checkEmailExists, createTrialUser } from './actions';
 import { doc, getDoc } from 'firebase/firestore';
 import type { Plan, UserSettings } from '@/types';
@@ -24,6 +24,7 @@ import * as gtag from '@/lib/utils';
 import * as fbq from '@/lib/meta-pixel';
 import { availableIcons } from '@/components/icon-map';
 import Image from 'next/image';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -66,24 +67,40 @@ const trialSignupSchema = z.object({
 });
 
 
-const TrialFeatures = () => (
-    <Card className="w-full sticky top-28">
-        <CardHeader>
-            <CardTitle>Acesso Completo</CardTitle>
-            <CardDescription>Durante 7 dias, você terá acesso a todas as funcionalidades premium:</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            <ul className="space-y-2 text-sm text-muted-foreground">
-                {Object.values(featureMap).map((feature) => (
-                    <li key={feature} className="flex items-center gap-2">
-                        <CheckCircle className="h-4 w-4 text-green-500" />
-                        <span>{feature}</span>
-                    </li>
-                ))}
-            </ul>
-        </CardContent>
-    </Card>
-);
+const TrialFeatures = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                         <CardTitle>Acesso Completo</CardTitle>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                                Ver detalhes
+                                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180"/>
+                                <span className="sr-only">Toggle</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
+                   <CardDescription>Durante 7 dias, você terá acesso a todas as funcionalidades premium:</CardDescription>
+                </CardHeader>
+                <CollapsibleContent>
+                    <CardContent className="space-y-4">
+                        <ul className="space-y-2 text-sm text-muted-foreground">
+                            {Object.values(featureMap).map((feature) => (
+                                <li key={feature} className="flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span>{feature}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    </CardContent>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
+    )
+};
 
 // Trial Signup Form Component
 function TrialSignupForm() {
@@ -127,6 +144,9 @@ function TrialSignupForm() {
 
     return (
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
+            <div className="md:hidden mb-6">
+               <TrialFeatures />
+            </div>
             <Card className="w-full">
                 <CardHeader className='text-center'>
                     <CardTitle className='font-headline text-3xl'>Inicie seu Teste Gratuito</CardTitle>
@@ -169,10 +189,7 @@ function TrialSignupForm() {
                     </Form>
                 </CardContent>
             </Card>
-            <div className="hidden md:block">
-               <TrialFeatures />
-            </div>
-            <div className="md:hidden mt-8">
+            <div className="hidden md:block sticky top-28 h-fit">
                <TrialFeatures />
             </div>
         </div>
@@ -252,88 +269,104 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
     );
   }
   
-  const OrderSummary = ({ isMobile = false } : { isMobile?: boolean }) => (
-    <Card className={`w-full ${isMobile ? 'mt-8' : 'sticky top-28'}`}>
-        <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                <div>
-                    <p className="font-semibold">{selectedPlan.name}</p>
-                    <p className="text-sm text-muted-foreground">Plano ({interval === 'month' ? 'Mensal' : 'Anual'})</p>
-                </div>
-                <p className="font-bold text-lg">{formatCurrency(interval === 'month' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)}</p>
-            </div>
-            <div>
-                <h4 className="text-sm font-semibold mb-2">Recursos inclusos:</h4>
-                <ul className="space-y-2 text-sm text-muted-foreground">
-                    {Object.entries(selectedPlan.features).map(([key, value]) => value && (
-                        <li key={key} className="flex items-center gap-2">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span>{featureMap[key as keyof typeof featureMap] || key}</span>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-            <div className="space-y-2 border-t pt-4">
-                <div className="flex items-center text-sm text-muted-foreground gap-2">
-                    <ShieldCheck className="h-5 w-5 text-green-500"/>
-                    <span>Pagamento seguro via <span className='font-bold'>Stripe</span>.</span>
-                </div>
-                <div className="flex items-center text-sm text-muted-foreground gap-2">
-                    <CreditCard className="h-5 w-5"/>
-                    <span>Aceitamos os principais cartões de crédito.</span>
-                </div>
-            </div>
-        </CardContent>
-    </Card>
-  );
+  const OrderSummary = () => {
+    const [isOpen, setIsOpen] = useState(false);
+    return (
+        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
+            <Card>
+                <CardHeader>
+                    <div className="flex items-center justify-between">
+                         <CardTitle>Resumo do Pedido</CardTitle>
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm">
+                                Ver detalhes
+                                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180"/>
+                                <span className="sr-only">Toggle</span>
+                            </Button>
+                        </CollapsibleTrigger>
+                    </div>
+                </CardHeader>
+                <CollapsibleContent>
+                    <CardContent className="space-y-4">
+                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                            <div>
+                                <p className="font-semibold">{selectedPlan.name}</p>
+                                <p className="text-sm text-muted-foreground">Plano ({interval === 'month' ? 'Mensal' : 'Anual'})</p>
+                            </div>
+                            <p className="font-bold text-lg">{formatCurrency(interval === 'month' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)}</p>
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-semibold mb-2">Recursos inclusos:</h4>
+                            <ul className="space-y-2 text-sm text-muted-foreground">
+                                {Object.entries(selectedPlan.features).map(([key, value]) => value && (
+                                    <li key={key} className="flex items-center gap-2">
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                        <span>{featureMap[key as keyof typeof featureMap] || key}</span>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                        <div className="space-y-2 border-t pt-4">
+                            <div className="flex items-center text-sm text-muted-foreground gap-2">
+                                <ShieldCheck className="h-5 w-5 text-green-500"/>
+                                <span>Pagamento seguro via <span className='font-bold'>Stripe</span>.</span>
+                            </div>
+                             <div className="flex items-center text-sm text-muted-foreground gap-2">
+                               <CreditCard className="h-5 w-5" />
+                               <span>Aceitamos os principais cartões de crédito.</span>
+                            </div>
+                        </div>
+                    </CardContent>
+                </CollapsibleContent>
+            </Card>
+        </Collapsible>
+    )
+  }
 
   return (
-    <div className="grid md:grid-cols-5 gap-8 max-w-5xl w-full">
-        <div className="md:col-span-3">
-            <Card className="w-full">
-                <CardHeader><CardTitle>Finalize seu Cadastro</CardTitle><CardDescription>Crie sua conta e prossiga para o pagamento seguro.</CardDescription></CardHeader>
-                <CardContent>
-                    <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input placeholder="Seu nome completo" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                        <FormField control={form.control} name="email" render={({ field }) => (
-                            <FormItem><FormLabel>E-mail</FormLabel><FormControl>
-                                <div className="relative">
-                                    <Input placeholder="seu@email.com" {...field} onBlur={() => handleEmailBlur(field.value)} />
-                                    {isVerifyingEmail && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
-                                </div>
-                            </FormControl><FormMessage /></FormItem>)}/>
-                        <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                        <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                        
-                        <FormField control={form.control} name="terms" render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
-                            <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                            <div className="space-y-1 leading-none">
-                                <FormLabel className="font-normal text-muted-foreground">
-                                Eu li e aceito os{' '}
-                                <Link href="/termos-de-servico" target="_blank" className="underline hover:text-primary">Termos de Serviço</Link>{' '}
-                                e a{' '}<Link href="/politica-de-privacidade" target="_blank" className="underline hover:text-primary">Política de Privacidade</Link>.
-                                </FormLabel>
-                                <FormMessage />
-                            </div>
-                            </FormItem>
-                        )}/>
-
-                        <Button type="submit" className="w-full !mt-6" disabled={isLoading || isVerifyingEmail}>
-                            {isLoading ? <Loader2 className="animate-spin" /> : 'Ir para o Pagamento'}
-                        </Button>
-                    </form>
-                    </Form>
-                </CardContent>
-            </Card>
-        </div>
-        <div className="hidden md:block md:col-span-2">
+    <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
+         <div className="md:hidden mb-6">
             <OrderSummary />
         </div>
-         <div className="md:hidden">
-            <OrderSummary isMobile />
+        <Card className="w-full">
+            <CardHeader><CardTitle>Finalize seu Cadastro</CardTitle><CardDescription>Crie sua conta e prossiga para o pagamento seguro.</CardDescription></CardHeader>
+            <CardContent>
+                <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input placeholder="Seu nome completo" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                    <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem><FormLabel>E-mail</FormLabel><FormControl>
+                            <div className="relative">
+                                <Input placeholder="seu@email.com" {...field} onBlur={() => handleEmailBlur(field.value)} />
+                                {isVerifyingEmail && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
+                            </div>
+                        </FormControl><FormMessage /></FormItem>)}/>
+                    <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                    <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                    
+                    <FormField control={form.control} name="terms" render={({ field }) => (
+                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
+                        <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                        <div className="space-y-1 leading-none">
+                            <FormLabel className="font-normal text-muted-foreground">
+                            Eu li e aceito os{' '}
+                            <Link href="/termos-de-servico" target="_blank" className="underline hover:text-primary">Termos de Serviço</Link>{' '}
+                            e a{' '}<Link href="/politica-de-privacidade" target="_blank" className="underline hover:text-primary">Política de Privacidade</Link>.
+                            </FormLabel>
+                            <FormMessage />
+                        </div>
+                        </FormItem>
+                    )}/>
+
+                    <Button type="submit" className="w-full !mt-6" disabled={isLoading || isVerifyingEmail}>
+                        {isLoading ? <Loader2 className="animate-spin" /> : 'Ir para o Pagamento'}
+                    </Button>
+                </form>
+                </Form>
+            </CardContent>
+        </Card>
+        <div className="hidden md:block sticky top-28 h-fit">
+            <OrderSummary />
         </div>
     </div>
   );
