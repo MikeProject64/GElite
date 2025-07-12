@@ -4,7 +4,7 @@
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Wrench, Users, Loader2, History, FileText, Search, Briefcase, Activity, PlusCircle, FilePlus, UserPlus, Hourglass, AlertTriangle, CalendarClock, Layout, StickyNote, Trash2, CheckCircle, Target } from 'lucide-react';
-import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit } from 'firebase/firestore';
+import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
@@ -317,14 +317,20 @@ export default function DashboardPage() {
             content: data.content,
             createdAt: Timestamp.now(),
         });
-        noteForm.reset();
     } catch (error) {
         console.error("Error adding quick note:", error);
+    } finally {
+        noteForm.reset();
     }
   };
 
   const handleDeleteNote = async (noteId: string) => {
-    await deleteDoc(doc(db, 'quickNotes', noteId));
+    if(!user) return;
+    try {
+        await deleteDoc(doc(db, 'quickNotes', noteId));
+    } catch (error) {
+        console.error("Error deleting quick note:", error);
+    }
   };
 
 
@@ -446,14 +452,14 @@ export default function DashboardPage() {
                     <CardTitle className="flex items-center gap-2"><StickyNote /> Notas Rápidas</CardTitle>
                     <CardDescription>Anote lembretes importantes do dia a dia.</CardDescription>
                 </CardHeader>
-                <CardContent className="flex-grow flex flex-col gap-4">
+                <CardContent className="flex-grow flex flex-col gap-4 min-h-0">
                     <form onSubmit={noteForm.handleSubmit(handleAddNote)} className="flex gap-2">
                         <Textarea {...noteForm.register('content')} placeholder="Ligar para o cliente X..." className="h-10 resize-none"/>
                         <Button type="submit" disabled={noteForm.formState.isSubmitting}>
                             {noteForm.formState.isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : 'Add'}
                         </Button>
                     </form>
-                    <ScrollArea className="flex-grow">
+                    <ScrollArea className="flex-grow h-48">
                         <div className="space-y-2 pr-4">
                             {quickNotes.map(note => (
                                 <div key={note.id} className="text-sm p-2 bg-muted/50 rounded-md flex justify-between items-start gap-2">
