@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, Suspense, useEffect, useCallback, useRef } from 'react';
@@ -24,7 +25,8 @@ import * as gtag from '@/lib/utils';
 import * as fbq from '@/lib/meta-pixel';
 import { availableIcons } from '@/components/icon-map';
 import Image from 'next/image';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+
 
 const formatCurrency = (value: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
@@ -66,41 +68,76 @@ const trialSignupSchema = z.object({
   path: ["confirmPassword"],
 });
 
-
-const TrialFeatures = () => {
-    const [isOpen, setIsOpen] = useState(false);
+const PartiallyRevealedCard = ({ title, description, children }: { title: string, description: string, children: React.ReactNode }) => {
+    const [isExpanded, setIsExpanded] = useState(false);
     return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                         <CardTitle>Acesso Completo</CardTitle>
-                        <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                                Ver detalhes
-                                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180"/>
-                                <span className="sr-only">Toggle</span>
-                            </Button>
-                        </CollapsibleTrigger>
+        <Card className="md:hidden mb-6">
+            <CardHeader>
+                <CardTitle>{title}</CardTitle>
+                <CardDescription>{description}</CardDescription>
+            </CardHeader>
+            <CardContent
+                className={cn(
+                    "relative overflow-hidden transition-[max-height] duration-500 ease-in-out",
+                    isExpanded ? "max-h-[1000px]" : "max-h-[150px]"
+                )}
+            >
+                {children}
+                {!isExpanded && (
+                    <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-card to-transparent flex items-end justify-center pt-12">
+                         <Button
+                            variant="link"
+                            onClick={() => setIsExpanded(true)}
+                            className="text-muted-foreground"
+                        >
+                            Exibir mais
+                        </Button>
                     </div>
-                   <CardDescription>Durante 7 dias, você terá acesso a todas as funcionalidades premium:</CardDescription>
-                </CardHeader>
-                <CollapsibleContent>
-                    <CardContent className="space-y-4">
-                        <ul className="space-y-2 text-sm text-muted-foreground">
-                            {Object.values(featureMap).map((feature) => (
-                                <li key={feature} className="flex items-center gap-2">
-                                    <CheckCircle className="h-4 w-4 text-green-500" />
-                                    <span>{feature}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </CardContent>
-                </CollapsibleContent>
-            </Card>
-        </Collapsible>
-    )
+                )}
+            </CardContent>
+        </Card>
+    );
 };
+
+
+const TrialFeatures = ({ isMobile = false }: { isMobile?: boolean }) => {
+    if (isMobile) {
+        return (
+            <PartiallyRevealedCard
+                title="Acesso Completo"
+                description="Durante 7 dias, você terá acesso a todas as funcionalidades premium:"
+            >
+                <ul className="space-y-2 text-sm text-muted-foreground pt-4">
+                    {Object.values(featureMap).map((feature) => (
+                        <li key={feature} className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <span>{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+            </PartiallyRevealedCard>
+        );
+    }
+    return (
+        <Card className="sticky top-28 h-fit">
+            <CardHeader>
+                <CardTitle>Acesso Completo</CardTitle>
+                <CardDescription>Durante 7 dias, você terá acesso a todas as funcionalidades premium:</CardDescription>
+            </CardHeader>
+            <CardContent>
+                 <ul className="space-y-2 text-sm text-muted-foreground">
+                    {Object.values(featureMap).map((feature) => (
+                        <li key={feature} className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <span>{feature}</span>
+                        </li>
+                    ))}
+                </ul>
+            </CardContent>
+        </Card>
+    );
+};
+
 
 // Trial Signup Form Component
 function TrialSignupForm() {
@@ -144,8 +181,8 @@ function TrialSignupForm() {
 
     return (
         <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
-            <div className="md:hidden mb-6">
-               <TrialFeatures />
+            <div className="md:hidden">
+               <TrialFeatures isMobile />
             </div>
             <Card className="w-full">
                 <CardHeader className='text-center'>
@@ -189,7 +226,7 @@ function TrialSignupForm() {
                     </Form>
                 </CardContent>
             </Card>
-            <div className="hidden md:block sticky top-28 h-fit">
+            <div className="hidden md:block">
                <TrialFeatures />
             </div>
         </div>
@@ -269,64 +306,63 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
     );
   }
   
-  const OrderSummary = () => {
-    const [isOpen, setIsOpen] = useState(false);
+  const OrderSummary = ({ isMobile = false }: { isMobile?: boolean }) => {
+    const content = (
+        <>
+            <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
+                <div>
+                    <p className="font-semibold">{selectedPlan.name}</p>
+                    <p className="text-sm text-muted-foreground">Plano ({interval === 'month' ? 'Mensal' : 'Anual'})</p>
+                </div>
+                <p className="font-bold text-lg">{formatCurrency(interval === 'month' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)}</p>
+            </div>
+            <div>
+                <h4 className="text-sm font-semibold mb-2">Recursos inclusos:</h4>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                    {Object.entries(selectedPlan.features).map(([key, value]) => value && (
+                        <li key={key} className="flex items-center gap-2">
+                            <CheckCircle className="h-4 w-4 text-green-500" />
+                            <span>{featureMap[key as keyof typeof featureMap] || key}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+            <div className="space-y-2 border-t pt-4">
+                <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <ShieldCheck className="h-5 w-5 text-green-500"/>
+                    <span>Pagamento seguro via <span className='font-bold'>Stripe</span>.</span>
+                </div>
+                    <div className="flex items-center text-sm text-muted-foreground gap-2">
+                    <CreditCard className="h-5 w-5" />
+                    <span>Aceitamos os principais cartões de crédito.</span>
+                </div>
+            </div>
+        </>
+    );
+
+    if (isMobile) {
+        return (
+            <PartiallyRevealedCard
+                title="Resumo do Pedido"
+                description="Confira os detalhes do plano selecionado."
+            >
+                <div className="space-y-4 pt-4">{content}</div>
+            </PartiallyRevealedCard>
+        );
+    }
+
     return (
-        <Collapsible open={isOpen} onOpenChange={setIsOpen} className="w-full">
-            <Card>
-                <CardHeader>
-                    <div className="flex items-center justify-between">
-                         <CardTitle>Resumo do Pedido</CardTitle>
-                        <CollapsibleTrigger asChild>
-                            <Button variant="ghost" size="sm">
-                                Ver detalhes
-                                <ChevronDown className="h-4 w-4 transition-transform data-[state=open]:rotate-180"/>
-                                <span className="sr-only">Toggle</span>
-                            </Button>
-                        </CollapsibleTrigger>
-                    </div>
-                </CardHeader>
-                <CollapsibleContent>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between items-center p-3 bg-muted/50 rounded-lg">
-                            <div>
-                                <p className="font-semibold">{selectedPlan.name}</p>
-                                <p className="text-sm text-muted-foreground">Plano ({interval === 'month' ? 'Mensal' : 'Anual'})</p>
-                            </div>
-                            <p className="font-bold text-lg">{formatCurrency(interval === 'month' ? selectedPlan.monthlyPrice : selectedPlan.yearlyPrice)}</p>
-                        </div>
-                        <div>
-                            <h4 className="text-sm font-semibold mb-2">Recursos inclusos:</h4>
-                            <ul className="space-y-2 text-sm text-muted-foreground">
-                                {Object.entries(selectedPlan.features).map(([key, value]) => value && (
-                                    <li key={key} className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        <span>{featureMap[key as keyof typeof featureMap] || key}</span>
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                        <div className="space-y-2 border-t pt-4">
-                            <div className="flex items-center text-sm text-muted-foreground gap-2">
-                                <ShieldCheck className="h-5 w-5 text-green-500"/>
-                                <span>Pagamento seguro via <span className='font-bold'>Stripe</span>.</span>
-                            </div>
-                             <div className="flex items-center text-sm text-muted-foreground gap-2">
-                               <CreditCard className="h-5 w-5" />
-                               <span>Aceitamos os principais cartões de crédito.</span>
-                            </div>
-                        </div>
-                    </CardContent>
-                </CollapsibleContent>
-            </Card>
-        </Collapsible>
-    )
+        <Card className="sticky top-28 h-fit">
+            <CardHeader><CardTitle>Resumo do Pedido</CardTitle></CardHeader>
+            <CardContent className="space-y-4">{content}</CardContent>
+        </Card>
+    );
   }
 
   return (
     <div className="grid md:grid-cols-2 gap-8 max-w-4xl w-full">
-         <div className="md:hidden mb-6">
-            <OrderSummary />
+         <div className="md:hidden">
+            <OrderSummary isMobile />
         </div>
         <Card className="w-full">
             <CardHeader><CardTitle>Finalize seu Cadastro</CardTitle><CardDescription>Crie sua conta e prossiga para o pagamento seguro.</CardDescription></CardHeader>
@@ -365,7 +401,7 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
                 </Form>
             </CardContent>
         </Card>
-        <div className="hidden md:block sticky top-28 h-fit">
+        <div className="hidden md:block">
             <OrderSummary />
         </div>
     </div>
