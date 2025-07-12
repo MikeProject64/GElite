@@ -3,7 +3,7 @@
 
 import { useState, useEffect, ChangeEvent } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, updateDoc, getDocs, getDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import { db, storage } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -76,7 +76,11 @@ export default function ColaboradorDetailPage() {
     }));
 
     // Promise to wait for both initial fetches
-    Promise.all([getDocs(ordersQuery), getDocs(collaboratorRef as any)]).finally(() => setIsLoading(false));
+    Promise.all([
+      getDocs(ordersQuery),
+      getDoc(collaboratorRef)
+    ]).finally(() => setIsLoading(false));
+
 
     return () => unsubscribes.forEach(unsub => unsub());
   }, [user, collaboratorId, router, toast]);

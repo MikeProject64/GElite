@@ -277,7 +277,7 @@ function CreateServiceOrderForm() {
             {
                 timestamp: Timestamp.now(),
                 userEmail: user?.email || 'Sistema',
-                description: `Nova versão (v${payload.version}) criada a partir da v${baseOrder.version}.`
+                description: `Nova versão (v${payload.version}) criada a partir da v${baseOrder.version || 1}.`
             }
         ]
       } else {
@@ -304,7 +304,7 @@ function CreateServiceOrderForm() {
 
   const filteredCustomers = customers.filter(customer => 
     customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-    customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase())
+    (customer.phone && customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase()))
   );
   
   if (isInitializing) {
