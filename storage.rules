@@ -1,18 +1,31 @@
 rules_version = '2';
 
+// Regras para o Firebase Storage
 service firebase.storage {
   match /b/{bucket}/o {
-    // Permite a escrita (upload, update, delete) em qualquer caminho
-    // para qualquer usuário autenticado, desde que a requisição inclua
-    // o UID do usuário nos metadados do arquivo.
-    // Isso garante que apenas o próprio usuário possa enviar arquivos em seu nome.
-    match /{allPaths=**} {
-      allow write: if request.auth != null && request.resource.metadata.userId == request.auth.uid;
+    // Permite que qualquer usuário autenticado leia e escreva em seus próprios arquivos.
+    // Os arquivos devem ser armazenados em um caminho que inclua o UID do usuário.
+    // Ex: /users/{userId}/<caminho_para_o_arquivo>
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
 
-      // Permite a leitura de todos os arquivos por qualquer pessoa.
-      // Ideal para imagens e anexos que precisam ser exibidos publicamente.
-      // Pode ser restringido se necessário no futuro.
+    // Permite que usuários autenticados gravem em pastas de configuração
+    // como 'serviceOrders', 'inventoryItems', 'collaborators', etc.,
+    // e que o dono do arquivo possa ler ou apagar o mesmo.
+    // Isso é verificado através dos metadados personalizados.
+    match /{folder}/{itemId}/{fileName} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow delete: if request.auth != null && resource.metadata.userId == request.auth.uid;
+    }
+    
+    // Regra específica para o diretório siteConfig
+    match /siteConfig/{allPaths=**} {
+      // Permite leitura pública para imagens de configuração (ex: logo na landing page)
       allow read;
+      // Permite escrita apenas para usuários autenticados (geralmente admins através do app)
+      allow write: if request.auth != null;
     }
   }
 }
