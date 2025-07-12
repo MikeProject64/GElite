@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -198,7 +199,7 @@ export async function verifySubscriptionAndUpgradeUser(sessionId: string, uid: s
         const currency = price.currency.toUpperCase();
         
         gtag.event({
-            name: 'plano_contratado',
+            name: 'purchase',
             params: {
                 currency: currency,
                 value: value,
