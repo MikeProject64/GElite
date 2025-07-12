@@ -10,7 +10,7 @@ import * as z from 'zod';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { format, isBefore, startOfToday, addMonths, addQuarters, addYears } from 'date-fns';
+import { format, isBefore, startOfToday, addDays, addMonths, addQuarters, addYears } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 import { Button } from '@/components/ui/button';
@@ -244,7 +244,12 @@ export default function ContratosPage() {
 
             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <DialogContent className="sm:max-w-lg">
-                    <DialogHeader><DialogTitle>{editingAgreement ? 'Editar Contrato' : 'Novo Contrato'}</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editingAgreement ? 'Editar Contrato' : 'Novo Contrato'}</DialogTitle>
+                        <DialogDescription>
+                            Configure um contrato para gerar Ordens de Serviço automaticamente na frequência desejada.
+                        </DialogDescription>
+                    </DialogHeader>
                     <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
                         <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título do Contrato *</FormLabel><FormControl><Input placeholder="Ex: Manutenção Mensal de TI" {...field} /></FormControl><FormMessage /></FormItem>)} />
                         

@@ -321,10 +321,9 @@ export default function DashboardPage() {
             content: data.content,
             createdAt: Timestamp.now(),
         });
+        noteForm.reset();
     } catch (error) {
         console.error("Error adding quick note:", error);
-    } finally {
-        noteForm.reset();
     }
   };
 
