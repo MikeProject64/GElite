@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import Link from 'next/link';
@@ -27,7 +26,7 @@ import {
   ChevronsLeft,
   ClipboardList,
   Menu,
-  FileSignature, // Novo ícone
+  FileSignature,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -136,8 +135,8 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
     { href: '/dashboard/atividades', label: 'Atividades', icon: Bell, flag: 'atividades' },
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
-    { href: '/dashboard/equipe', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
-    { href: '/dashboard/estoque', label: 'Estoque', icon: Package, flag: 'inventario' },
+    { href: '/dashboard/colaboradores', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
+    { href: '/dashboard/inventario', label: 'Estoque', icon: Package, flag: 'inventario' },
   ];
   
   return (
