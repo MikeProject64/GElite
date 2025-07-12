@@ -42,15 +42,15 @@ export default function DashboardLayout({
       }
       
       if (!systemUser.planId) {
-        if (pathname !== '/dashboard/subscription') {
-          router.push('/dashboard/subscription');
+        if (pathname !== '/dashboard/plans') {
+          router.push('/dashboard/plans');
         }
         return;
       }
 
       if (systemUser.subscriptionStatus !== 'active') {
-        if (pathname !== '/dashboard/subscription') {
-          router.push('/dashboard/subscription');
+        if (pathname !== '/dashboard/plans') {
+          router.push('/dashboard/plans');
         }
       }
     }
@@ -67,7 +67,7 @@ export default function DashboardLayout({
   if (!isAdmin && systemUser) {
     const isOnTrial = systemUser.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
     const hasActivePlan = systemUser.planId && systemUser.subscriptionStatus === 'active';
-    const isSubscriptionPage = pathname === '/dashboard/subscription';
+    const isSubscriptionPage = pathname === '/dashboard/plans';
 
     if (!isOnTrial && !hasActivePlan && !isSubscriptionPage) {
        return (
