@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -50,7 +51,7 @@ export function TrialBanner() {
                         <p className="text-sm font-medium">{getMessage()}</p>
                     </div>
                     <Button asChild size="sm" variant="secondary" className="shrink-0">
-                        <Link href="/dashboard/subscription">
+                        <Link href="/dashboard/plans">
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             Assinar um Plano
                         </Link>

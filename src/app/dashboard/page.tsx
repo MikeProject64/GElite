@@ -396,7 +396,7 @@ export default function DashboardPage() {
                             </Link>
                         </Button>
                         <Button asChild variant="outline" className="h-24 flex-col gap-2 p-4 text-center">
-                            <Link href="/dashboard/equipe">
+                            <Link href="/dashboard/colaboradores">
                                 <Briefcase className="h-8 w-8 text-primary" />
                                 <span className="text-sm font-medium">Nova Equipe</span>
                             </Link>

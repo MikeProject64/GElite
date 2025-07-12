@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -9,7 +10,7 @@ import { collection, query, where, onSnapshot, Timestamp, orderBy } from 'fireba
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
-import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO, differenceInCalendarDays, startOfDay, endOfDay } from 'date-fns';
+import { format, isPast, isToday, differenceInDays, startOfWeek, endOfWeek, parseISO, differenceInCalendarDays, startOfDay, endOfDay, isBefore } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { dateFnsLocalizer, Event as BigCalendarEvent } from 'react-big-calendar';
 
