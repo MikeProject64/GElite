@@ -24,14 +24,15 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2 } from 'lucide-react';
-import { ServiceOrder, Collaborator, Customer } from '@/types';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, MoreHorizontal, ChevronsUpDown } from 'lucide-react';
+import { ServiceOrder, Collaborator, Customer, ServiceOrderPriority } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
 
 const templateFormSchema = z.object({
@@ -173,6 +174,17 @@ export default function ServicoDetailPage() {
     }
   };
 
+  const handlePriorityChange = async (newPriority: ServiceOrderPriority) => {
+    if (!order) return;
+    try {
+        const orderRef = doc(db, 'serviceOrders', order.id);
+        await updateDoc(orderRef, { priority: newPriority });
+        toast({ title: "Sucesso!", description: "Prioridade da O.S. atualizada." });
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar a prioridade." });
+    }
+  };
+
   const handleCancelOrder = async () => {
     const canceledStatus = settings.serviceStatuses?.find(s => s.id === 'canceled')?.name || 'Cancelada';
     await handleStatusChange(canceledStatus);
@@ -282,6 +294,8 @@ export default function ServicoDetailPage() {
         delete (templateData as any).clientId;
         delete (templateData as any).clientName;
         delete (templateData as any).activityLog;
+        delete (templateData as any).originalServiceOrderId;
+        delete (templateData as any).version;
 
         await addDoc(collection(db, 'serviceOrders'), templateData);
 
@@ -303,7 +317,7 @@ export default function ServicoDetailPage() {
     const videoExtensions = ['mp4', 'webm', 'ogg', 'mov'];
 
     if (fileExtension === 'pdf') {
-      return <iframe src={file.url} className="w-full h-full border-0" title={file.name} />;
+      return <iframe src={file.url} className="w-full h-full border-0" title={file.name} allow="fullscreen" />;
     }
 
     if (imageExtensions.includes(fileExtension || '')) {
@@ -456,23 +470,9 @@ export default function ServicoDetailPage() {
                 </div>
               </CardContent>
                <CardFooter className="justify-end gap-2 flex-wrap">
-                    {canManage && (
-                        <Button variant="destructive" size="sm" onClick={() => setIsCancelAlertOpen(true)}>
-                          <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
-                        </Button>
-                    )}
                     <Button variant="outline" size="sm" onClick={handleSendWhatsApp} disabled={!customerPhone}>
                         <WhatsAppIcon />
                         Enviar por WhatsApp
-                    </Button>
-                     <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
-                        <Link href={`/dashboard/servicos/criar?versionOf=${order.id}`}>
-                            <Pencil className="mr-2 h-4 w-4" /> Editar
-                        </Link>
-                    </Button>
-                    <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
-                      <Save className="mr-2 h-4 w-4" />
-                      Salvar como Modelo
                     </Button>
                     <Button variant="secondary" size="sm" asChild>
                         <Link href={`/print/servico/${order.id}`} target="_blank">
@@ -480,6 +480,32 @@ export default function ServicoDetailPage() {
                             Imprimir / PDF
                         </Link>
                     </Button>
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                             <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/criar?versionOf=${order.id}`)} disabled={!canCreateNewVersion}>
+                                <Pencil className="mr-2 h-4 w-4" /> Editar (Nova Versão)
+                            </DropdownMenuItem>
+                            <DropdownMenuSub>
+                                <DropdownMenuSubTrigger><ChevronsUpDown className="mr-2 h-4 w-4"/>Alterar Prioridade</DropdownMenuSubTrigger>
+                                <DropdownMenuPortal>
+                                    <DropdownMenuSubContent>
+                                        <DropdownMenuItem onClick={() => handlePriorityChange('baixa')}>Baixa</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handlePriorityChange('media')}>Média</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => handlePriorityChange('alta')}>Alta</DropdownMenuItem>
+                                    </DropdownMenuSubContent>
+                                </DropdownMenuPortal>
+                            </DropdownMenuSub>
+                            <DropdownMenuItem onSelect={() => setIsTemplateModalOpen(true)}>
+                                <Save className="mr-2 h-4 w-4" /> Salvar como Modelo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setIsCancelAlertOpen(true)} disabled={!canManage} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </CardFooter>
             </Card>
 

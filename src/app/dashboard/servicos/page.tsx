@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -130,6 +131,16 @@ export default function ServicosPage() {
         setSelectedRows({});
     } catch (error) {
         toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar as prioridades." });
+    }
+  };
+
+  const handlePriorityChange = async (orderId: string, newPriority: ServiceOrderPriority) => {
+    try {
+        const orderRef = doc(db, 'serviceOrders', orderId);
+        await updateDoc(orderRef, { priority: newPriority });
+        toast({ title: "Sucesso!", description: "Prioridade da O.S. atualizada." });
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar a prioridade." });
     }
   };
 
@@ -370,7 +381,20 @@ export default function ServicosPage() {
                         <TableCell><Badge style={{ backgroundColor: getStatusColor(order.status), color: 'hsl(var(--primary-foreground))' }} className="border-transparent">{order.status}</Badge></TableCell>
                         <TableCell>
                             <DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                            <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel><DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}><Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar</DropdownMenuItem></DropdownMenuContent>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/${order.id}`)}><Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar</DropdownMenuItem>
+                                <DropdownMenuSub>
+                                    <DropdownMenuSubTrigger><ChevronsUpDown className="mr-2 h-4 w-4"/>Alterar Prioridade</DropdownMenuSubTrigger>
+                                    <DropdownMenuPortal>
+                                        <DropdownMenuSubContent>
+                                            <DropdownMenuItem onClick={() => handlePriorityChange(order.id, 'baixa')}>Baixa</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handlePriorityChange(order.id, 'media')}>Média</DropdownMenuItem>
+                                            <DropdownMenuItem onClick={() => handlePriorityChange(order.id, 'alta')}>Alta</DropdownMenuItem>
+                                        </DropdownMenuSubContent>
+                                    </DropdownMenuPortal>
+                                </DropdownMenuSub>
+                            </DropdownMenuContent>
                             </DropdownMenu>
                         </TableCell>
                         </TableRow>
