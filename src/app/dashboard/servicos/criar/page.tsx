@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -73,11 +72,9 @@ function CreateServiceOrderForm() {
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
-  const customerDropdownRef = useRef<HTMLDivElement>(null);
   
   const [isCollaboratorDropdownOpen, setIsCollaboratorDropdownOpen] = useState(false);
   const [collaboratorSearchTerm, setCollaboratorSearchTerm] = useState('');
-  const collaboratorDropdownRef = useRef<HTMLDivElement>(null);
 
   const form = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
@@ -213,21 +210,6 @@ function CreateServiceOrderForm() {
       newCustomerForm.reset();
     }
   }, [isNewClientDialogOpen, newCustomerForm]);
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
-        setIsCustomerDropdownOpen(false);
-      }
-      if (collaboratorDropdownRef.current && !collaboratorDropdownRef.current.contains(event.target as Node)) {
-        setIsCollaboratorDropdownOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const onNewClientSubmit = async (data: NewCustomerValues) => {
     if (!user) return;
