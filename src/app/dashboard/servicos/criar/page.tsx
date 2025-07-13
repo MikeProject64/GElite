@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -348,8 +349,8 @@ function CreateServiceOrderForm() {
                            <CommandGroup>
                              <ScrollArea className="h-48">
                                 {filteredCustomers.map((customer) => (
-                                <CommandItem key={customer.id} value={`${customer.name} ${customer.phone}`} onSelect={() => {
-                                  field.onChange(customer.id);
+                                <CommandItem key={customer.id} value={customer.id} onSelect={(currentValue) => {
+                                  field.onChange(currentValue);
                                   setIsCustomerDropdownOpen(false);
                                 }}>
                                   <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
@@ -394,9 +395,9 @@ function CreateServiceOrderForm() {
                            <CommandGroup>
                              <ScrollArea className="h-48">
                                 {filteredCollaborators.map((c) => (
-                                <CommandItem key={c.id} value={c.name} onSelect={() => {
-                                  field.onChange(c.id);
-                                  setIsCollaboratorDropdownOpen(false);
+                                <CommandItem key={c.id} value={c.id} onSelect={(currentValue) => {
+                                    field.onChange(currentValue);
+                                    setIsCollaboratorDropdownOpen(false);
                                 }}>
                                   <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
                                   <div className="flex justify-between w-full">
