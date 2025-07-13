@@ -320,8 +320,10 @@ export default function OrcamentosPage() {
                     <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>
                     <TableCell>
                         {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
-                            <Button asChild variant="link" className="p-0 h-auto">
-                                <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>Ver O.S.</Link>
+                            <Button asChild variant="link" className="p-0 h-auto font-medium">
+                                <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>
+                                    Ver O.S. Gerada
+                                </Link>
                             </Button>
                         ) : (
                             <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>

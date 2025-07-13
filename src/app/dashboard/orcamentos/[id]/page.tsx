@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -246,7 +247,7 @@ export default function OrcamentoDetailPage() {
             Detalhes do Orçamento (v{quote.version || 1})
         </h1>
         {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
-            <Button asChild variant="secondary" size="sm">
+            <Button asChild variant="secondary" size="sm" className="font-medium">
                 <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>
                     Ver O.S. Gerada
                 </Link>
