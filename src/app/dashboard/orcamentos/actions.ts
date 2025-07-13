@@ -5,7 +5,7 @@ import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, arrayUnion } fro
 import { db } from '@/lib/firebase';
 import type { Quote, ServiceOrder } from '@/types';
 
-export async function convertQuoteToServiceOrder(quoteId: string, userId: string) {
+export async function convertQuoteToServiceOrder(quoteId: string, userId: string, userEmail: string) {
     if (!quoteId || !userId) {
         return { success: false, message: 'ID do orçamento ou do usuário ausente.' };
     }
@@ -41,8 +41,8 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
             isTemplate: false,
             activityLog: [{
                 timestamp: Timestamp.now(),
-                userEmail: '', // This should be populated by the calling context
-                description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0, 6).toUpperCase()}`
+                userEmail: userEmail,
+                description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
             }],
         };
 
@@ -50,7 +50,7 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
         
         const logEntry = {
           timestamp: Timestamp.now(),
-          userEmail: '',
+          userEmail: userEmail,
           description: `Orçamento convertido para a OS #${docRef.id.substring(0,6).toUpperCase()}`
         };
 

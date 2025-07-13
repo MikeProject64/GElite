@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -109,9 +110,9 @@ export default function OrcamentosPage() {
   };
 
   const handleConvert = async (quote: Quote) => {
-    if (!user) return;
+    if (!user || !user.email) return;
     setIsConverting(quote.id);
-    const result = await convertQuoteToServiceOrder(quote.id, user.uid);
+    const result = await convertQuoteToServiceOrder(quote.id, user.uid, user.email);
     if(result.success && result.serviceOrderId) {
         toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
         router.push(`/dashboard/servicos/${result.serviceOrderId}`);
