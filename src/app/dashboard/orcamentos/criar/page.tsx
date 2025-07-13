@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, Suspense } from 'react';
@@ -116,20 +117,22 @@ function CreateQuoteForm() {
         if (quoteSnap.exists()) {
             const data = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
             setBaseQuote(data);
+             const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
+              const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+              if (fieldType === 'date' && value && value.toDate) {
+                (acc as any)[key] = value.toDate();
+              } else if (value) {
+                (acc as any)[key] = value;
+              }
+              return acc;
+            }, {});
+
             form.reset({
                 ...data,
                 validUntil: addDays(new Date(), 7),
-                customFields: Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
-                    const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
-                    if (fieldType === 'date' && value && value.toDate) {
-                        (acc as any)[key] = value.toDate();
-                    } else {
-                        (acc as any)[key] = value;
-                    }
-                    return acc;
-                }, {}),
+                customFields: customFieldsWithDate,
             });
-            toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version} do orçamento.` });
+            toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version || 1} do orçamento.` });
         } else {
             toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento base para nova versão não encontrado.' });
         }
@@ -450,6 +453,7 @@ function CreateQuoteForm() {
   );
 }
 
+
 export default function CriarOrcamentoPage() {
     return (
         <Suspense fallback={
@@ -464,11 +468,17 @@ export default function CriarOrcamentoPage() {
                     </Button>
                     <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
                         <FileText className='h-5 w-5' />
-                        Criar Novo Orçamento
+                        <CreateQuoteTitle />
                     </h1>
                 </div>
                 <CreateQuoteForm />
             </div>
         </Suspense>
     )
+}
+
+function CreateQuoteTitle() {
+    const searchParams = useSearchParams();
+    const isVersioning = !!searchParams.get('versionOf');
+    return <>{isVersioning ? 'Criar Nova Versão do Orçamento' : 'Criar Novo Orçamento'}</>;
 }
