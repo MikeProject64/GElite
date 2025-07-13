@@ -65,7 +65,6 @@ function CreateServiceOrderForm() {
   
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
-  const [activeOrders, setActiveOrders] = useState<ServiceOrder[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isVersioning, setIsVersioning] = useState(false);
@@ -74,9 +73,6 @@ function CreateServiceOrderForm() {
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   
-  const [isCollaboratorDropdownOpen, setIsCollaboratorDropdownOpen] = useState(false);
-  const [collaboratorSearchTerm, setCollaboratorSearchTerm] = useState('');
-
   const form = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: {
@@ -97,21 +93,6 @@ function CreateServiceOrderForm() {
     defaultValues: { name: '', phone: '' },
   });
   
-  const collaboratorsWithTaskCount = useMemo(() => {
-    const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
-    
-    return collaborators.map(c => {
-        const count = activeOrders.filter(o => o.collaboratorId === c.id && activeStatuses.includes(o.status)).length;
-        return { ...c, activeTaskCount: count };
-    });
-  }, [collaborators, activeOrders, settings.serviceStatuses]);
-  
-  const filteredCollaborators = useMemo(() => 
-    collaboratorsWithTaskCount.filter(c => 
-      c.name.toLowerCase().includes(collaboratorSearchTerm.toLowerCase())
-    ), [collaboratorsWithTaskCount, collaboratorSearchTerm]);
-
-
   useEffect(() => {
     if (!user) return;
     
@@ -187,7 +168,7 @@ function CreateServiceOrderForm() {
     return () => unsubscribe();
   }, [user]);
 
-  // Fetch Collaborators and Active Orders
+  // Fetch Collaborators
   useEffect(() => {
     if (!user) return;
     const qCollab = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
@@ -195,14 +176,8 @@ function CreateServiceOrderForm() {
       setCollaborators(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
 
-    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
-    const unsubOrders = onSnapshot(qOrders, (snapshot) => {
-      setActiveOrders(snapshot.docs.map(doc => doc.data() as ServiceOrder));
-    });
-
     return () => {
       unsubCollab();
-      unsubOrders();
     };
   }, [user]);
   
@@ -376,45 +351,23 @@ function CreateServiceOrderForm() {
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
                <FormField control={form.control} name="collaboratorId" render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Colaborador / Setor *</FormLabel>
-                   <Popover open={isCollaboratorDropdownOpen} onOpenChange={setIsCollaboratorDropdownOpen}>
-                    <PopoverTrigger asChild>
-                      <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
-                        <span className='truncate'>
-                          {field.value ? collaborators.find(c => c.id === field.value)?.name : "Selecione um responsável"}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Buscar..." onValueChange={setCollaboratorSearchTerm} />
-                        <CommandList>
-                           <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
-                           <CommandGroup>
-                             <ScrollArea className="h-48">
-                                {filteredCollaborators.map((c) => (
-                                <CommandItem key={c.id} value={c.id} onSelect={(currentValue) => {
-                                    field.onChange(currentValue);
-                                    setIsCollaboratorDropdownOpen(false);
-                                }}>
-                                  <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
-                                  <div className="flex justify-between w-full">
-                                    <span>{c.name}</span>
-                                    <span className="text-muted-foreground text-xs">({c.activeTaskCount} {c.activeTaskCount === 1 ? 'ativa' : 'ativas'})</span>
-                                  </div>
-                                </CommandItem>
-                                ))}
-                              </ScrollArea>
-                           </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-                  <FormMessage />
-                </FormItem>
-              )}/>
+                  <FormItem>
+                    <FormLabel>Colaborador / Setor *</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um responsável" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {collaborators.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}/>
                <FormField control={form.control} name="totalValue" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Valor Total *</FormLabel>
