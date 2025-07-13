@@ -1,16 +1,29 @@
 
+
 'use server';
 
 import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Quote, ServiceOrder } from '@/types';
+import type { Quote, ServiceOrder, SystemUser } from '@/types';
 
-export async function convertQuoteToServiceOrder(quoteId: string, userId: string, userEmail: string) {
+export async function convertQuoteToServiceOrder(quoteId: string, userId: string, userEmail?: string) {
     if (!quoteId || !userId) {
         return { success: false, message: 'ID do orçamento ou do usuário ausente.' };
     }
     
     try {
+        let finalUserEmail = userEmail;
+        // If email isn't passed, fetch it as a fallback to ensure permission
+        if (!finalUserEmail) {
+            const userRef = doc(db, 'users', userId);
+            const userSnap = await getDoc(userRef);
+            if(userSnap.exists()){
+                finalUserEmail = (userSnap.data() as SystemUser).email;
+            } else {
+                throw new Error('Usuário não encontrado para registrar a ação.');
+            }
+        }
+        
         const quoteRef = doc(db, 'quotes', quoteId);
         const quoteSnap = await getDoc(quoteRef);
 
@@ -41,7 +54,7 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
             isTemplate: false,
             activityLog: [{
                 timestamp: Timestamp.now(),
-                userEmail: userEmail,
+                userEmail: finalUserEmail,
                 description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
             }],
         };
@@ -50,7 +63,7 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
         
         const logEntry = {
           timestamp: Timestamp.now(),
-          userEmail: userEmail,
+          userEmail: finalUserEmail,
           description: `Orçamento convertido para a OS #${docRef.id.substring(0,6).toUpperCase()}`
         };
 

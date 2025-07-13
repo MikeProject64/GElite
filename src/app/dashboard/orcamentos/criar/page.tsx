@@ -41,10 +41,7 @@ const quoteSchema = z.object({
 
 const newCustomerSchema = z.object({
   name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  phone: z.string().refine(val => {
-    const digits = val.replace(/\D/g, '');
-    return digits.length >= 10 && digits.length <= 11;
-  }, {
+  phone: z.string().refine(val => val.replace(/\D/g, '').length >= 10, {
     message: "O telefone deve conter entre 10 e 11 dígitos numéricos."
   }),
 });
@@ -117,14 +114,16 @@ function CreateQuoteForm() {
         if (quoteSnap.exists()) {
             const data = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
             setBaseQuote(data);
-             const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
-              const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
-              if (fieldType === 'date' && value && value.toDate) {
-                (acc as any)[key] = value.toDate();
-              } else if (value) {
-                (acc as any)[key] = value;
-              }
-              return acc;
+            const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
+                if (value) { // Ensure value is not null or undefined
+                    const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+                    if (fieldType === 'date' && value.toDate) {
+                        (acc as any)[key] = value.toDate();
+                    } else {
+                        (acc as any)[key] = value;
+                    }
+                }
+                return acc;
             }, {});
 
             form.reset({
