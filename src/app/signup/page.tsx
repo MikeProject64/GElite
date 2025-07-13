@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, Suspense, useEffect, useCallback, useRef } from 'react';
@@ -42,16 +41,10 @@ const featureMap: Record<string, string> = {
 };
 
 const paidSignupSchema = z.object({
-  name: z.string().min(3, { message: 'O nome completo é obrigatório.' }),
   email: z.string().email({ message: 'Por favor, insira um e-mail válido.' }),
-  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
-  confirmPassword: z.string(),
   terms: z.literal(true, {
     errorMap: () => ({ message: "Você deve aceitar os Termos e a Política de Privacidade." }),
   }),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "As senhas não coincidem.",
-  path: ["confirmPassword"],
 });
 
 const trialSignupSchema = z.object({
@@ -257,7 +250,7 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
 
   const form = useForm<z.infer<typeof paidSignupSchema>>({
     resolver: zodResolver(paidSignupSchema),
-    defaultValues: { name: '', email: '', password: '', confirmPassword: '', terms: false },
+    defaultValues: { email: '', terms: false },
   });
 
   const handleEmailBlur = useCallback(async (email: string) => {
@@ -283,10 +276,6 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
     }
 
     try {
-      localStorage.setItem('signup_name', values.name);
-      localStorage.setItem('signup_email', values.email);
-      localStorage.setItem('signup_password', values.password);
-
       const checkoutResult = await createCheckoutSession(planId, interval, values.email);
       if (!checkoutResult.success || !checkoutResult.url) {
         throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
@@ -365,11 +354,10 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
             <OrderSummary isMobile />
         </div>
         <Card className="w-full">
-            <CardHeader><CardTitle>Finalize seu Cadastro</CardTitle><CardDescription>Crie sua conta e prossiga para o pagamento seguro.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Finalize seu Cadastro</CardTitle><CardDescription>Insira seu e-mail para prosseguir com o pagamento seguro.</CardDescription></CardHeader>
             <CardContent>
                 <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                    <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nome Completo</FormLabel><FormControl><Input placeholder="Seu nome completo" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                     <FormField control={form.control} name="email" render={({ field }) => (
                         <FormItem><FormLabel>E-mail</FormLabel><FormControl>
                             <div className="relative">
@@ -377,8 +365,6 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
                                 {isVerifyingEmail && <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin" />}
                             </div>
                         </FormControl><FormMessage /></FormItem>)}/>
-                    <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                    <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                     
                     <FormField control={form.control} name="terms" render={({ field }) => (
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">

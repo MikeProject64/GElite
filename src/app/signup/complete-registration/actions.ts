@@ -1,10 +1,9 @@
 
-
 'use server';
 
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import Stripe from 'stripe';
 import nodemailer from 'nodemailer';
 import type { Plan } from '@/types';
@@ -22,7 +21,7 @@ async function getStripeInstance(): Promise<Stripe> {
 
 // Function to send notification email. Placed here to be self-contained.
 async function sendNewSubscriptionNotification(details: {
-    newUser: { name: string; email: string },
+    newUser: { email: string },
     plan: Plan,
     subscription: Stripe.Subscription
 }) {
@@ -48,13 +47,12 @@ async function sendNewSubscriptionNotification(details: {
             auth: { user: settings.smtpUser, pass: settings.smtpPassword },
         });
 
-        const subject = `🎉 Novo Assinante: ${details.newUser.name}`;
+        const subject = `🎉 Novo Assinante: ${details.newUser.email}`;
         const html = `
             <div style="font-family: sans-serif; line-height: 1.6;">
                 <h2>Nova Assinatura no ${settings.siteName || 'Gestor Elite'}!</h2>
                 <p>Um novo usuário acaba de se inscrever:</p>
                 <ul>
-                    <li><strong>Nome:</strong> ${details.newUser.name}</li>
                     <li><strong>E-mail:</strong> ${details.newUser.email}</li>
                 </ul>
                 <h3>Detalhes do Plano Assinado:</h3>
@@ -78,14 +76,13 @@ async function sendNewSubscriptionNotification(details: {
 
     } catch (error) {
         console.error("Falha ao enviar e-mail de notificação de nova assinatura:", error);
-        // Do not throw error here, as it's not critical for the user signup flow.
     }
 }
 
 
-export async function verifyCheckoutAndCreateUser(sessionId: string, name: string, password: string) {
-    if (!sessionId || !password || !name) {
-        return { success: false, message: 'Dados da sessão, nome ou senha ausentes.' };
+export async function verifyCheckoutAndCreateUser(sessionId: string) {
+    if (!sessionId) {
+        return { success: false, message: 'ID da sessão ausente.' };
     }
 
     try {
@@ -102,6 +99,14 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
         const email = session.customer_email || (session.customer as Stripe.Customer)?.email;
         if (!email) {
             throw new Error('E-mail do cliente não encontrado na sessão do Stripe.');
+        }
+        
+        // Check if user already exists
+        const usersRef = collection(db, 'users');
+        const q = query(usersRef, where("email", "==", email), limit(1));
+        const existingUserSnap = await getDocs(q);
+        if (!existingUserSnap.empty) {
+            throw new Error('Este e-mail já está cadastrado. Faça login para gerenciar sua assinatura.');
         }
 
         const subscription = session.subscription as Stripe.Subscription;
@@ -122,16 +127,14 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
         const price = subscription.items.data[0].price;
         const value = price.unit_amount ? price.unit_amount / 100 : 0;
         const currency = price.currency.toUpperCase();
-
-        // 1. Create Firebase Auth user
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
-
-        // 2. Create user document in Firestore
-        await setDoc(doc(db, "users", user.uid), {
-            uid: user.uid,
-            name: name,
-            email: user.email,
+        
+        // Placeholder UID - we can't create the user here without a password.
+        const uid = `stripe_${customer.id}`;
+        
+        await setDoc(doc(db, "users", uid), {
+            uid: uid,
+            name: customer.name || email.split('@')[0], // Use name from Stripe or derive from email
+            email: email,
             createdAt: Timestamp.now(),
             role: 'user',
             planId: planId,
@@ -140,6 +143,9 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             subscriptionId: subscription.id,
         });
         
+        // Send password reset email to allow the user to set their password
+        await sendPasswordResetEmail(auth, email);
+
         let planData: Plan | null = null;
         try {
             const planRef = doc(db, 'plans', planId);
@@ -147,11 +153,10 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
             if(planSnap.exists()){
                 planData = { id: planSnap.id, ...planSnap.data() } as Plan;
                 await sendNewSubscriptionNotification({
-                    newUser: { name, email },
+                    newUser: { email },
                     plan: planData,
                     subscription: subscription,
                 });
-                // Fire Meta Pixel Purchase event
                 fbq.event('Purchase', {
                     value: value,
                     currency: currency,
@@ -166,7 +171,7 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
 
         return { 
             success: true, 
-            email: user.email, 
+            email: email, 
             value, 
             currency, 
             transaction_id: subscription.id,
@@ -176,9 +181,6 @@ export async function verifyCheckoutAndCreateUser(sessionId: string, name: strin
 
     } catch (error: any) {
         let errorMessage = error.message || 'Ocorreu um erro desconhecido.';
-        if(error.code === 'auth/email-already-in-use') {
-            errorMessage = 'Este e-mail já foi utilizado para criar uma conta. Faça login para acessar seu painel.';
-        }
         console.error("Error creating user after payment:", error);
         return { success: false, message: errorMessage };
     }
