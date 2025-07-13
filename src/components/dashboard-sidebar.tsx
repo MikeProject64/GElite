@@ -119,8 +119,10 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   const { settings } = useSettings();
 
   const handleLogout = async () => {
-    await signOut(auth);
+    // Navigate away first to trigger component unmounts and listener cleanup
     router.push('/login');
+    // Then sign out
+    await signOut(auth);
   };
 
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
