@@ -160,9 +160,9 @@ export default function OrcamentoDetailPage() {
   }
 
   const handleConvert = async () => {
-    if (!quote || !user) return;
+    if (!quote || !user || !user.email) return;
     setIsConverting(true);
-    const result = await convertQuoteToServiceOrder(quote.id, user.uid);
+    const result = await convertQuoteToServiceOrder(quote.id, user.uid, user.email);
     if(result.success && result.serviceOrderId) {
         toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
         router.push(`/dashboard/servicos/${result.serviceOrderId}`);

@@ -193,6 +193,7 @@ export default function ContratosPage() {
                         dueDate: Timestamp.fromDate(data.startDate),
                         isTemplate: false,
                         generatedByAgreementId: agreementRef.id,
+                        userId: user.uid, // Add userId here
                         activityLog: [{
                             timestamp: Timestamp.now(),
                             userEmail: 'Sistema',

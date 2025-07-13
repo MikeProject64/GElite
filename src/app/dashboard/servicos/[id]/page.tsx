@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, MoreHorizontal, ChevronsUpDown, FileSignature } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, ChevronsUpDown, FileSignature } from 'lucide-react';
 import { ServiceOrder, Collaborator, Customer, ServiceOrderPriority } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -33,7 +33,6 @@ import { Calendar } from '@/components/ui/calendar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 
 
 const templateFormSchema = z.object({
@@ -486,32 +485,17 @@ export default function ServicoDetailPage() {
                             Imprimir / PDF
                         </Link>
                     </Button>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm"><MoreHorizontal className="h-4 w-4" /></Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                             <DropdownMenuItem onSelect={() => router.push(`/dashboard/servicos/criar?versionOf=${order.id}`)} disabled={!canCreateNewVersion}>
-                                <Pencil className="mr-2 h-4 w-4" /> Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuSub>
-                                <DropdownMenuSubTrigger><ChevronsUpDown className="mr-2 h-4 w-4"/>Alterar Prioridade</DropdownMenuSubTrigger>
-                                <DropdownMenuPortal>
-                                    <DropdownMenuSubContent>
-                                        <DropdownMenuItem onClick={() => handlePriorityChange('baixa')}>Baixa</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handlePriorityChange('media')}>Média</DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => handlePriorityChange('alta')}>Alta</DropdownMenuItem>
-                                    </DropdownMenuSubContent>
-                                </DropdownMenuPortal>
-                            </DropdownMenuSub>
-                            <DropdownMenuItem onSelect={() => setIsTemplateModalOpen(true)}>
-                                <Save className="mr-2 h-4 w-4" /> Salvar como Modelo
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onSelect={() => setIsCancelAlertOpen(true)} disabled={!canManage} className="text-destructive focus:text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
-                            </DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
+                      <Link href={`/dashboard/servicos/criar?versionOf=${order.id}`}>
+                        <Pencil className="mr-2 h-4 w-4" /> Editar
+                      </Link>
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
+                      <Save className="mr-2 h-4 w-4" /> Salvar como Modelo
+                    </Button>
+                    <Button variant="destructive" size="sm" onClick={() => setIsCancelAlertOpen(true)} disabled={!canManage}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Cancelar OS
+                    </Button>
                 </CardFooter>
             </Card>
 
@@ -698,7 +682,7 @@ export default function ServicoDetailPage() {
                 <AlertDialogHeader>
                     <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                     <AlertDialogDescription>
-                        Esta ação irá alterar o status da ordem de serviço para "{canceledStatus}". Esta ação pode ser revertida manualmente.
+                        Esta ação irá alterar o status da ordem de serviço para "{canceledStatus}". Esta ação pode ser revertida manually.
                     </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
