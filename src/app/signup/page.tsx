@@ -276,6 +276,23 @@ function PaidSignupForm({ planId, interval }: { planId: string; interval: 'month
     }
 
     try {
+        if (selectedPlan) {
+            const price = interval === 'year' ? selectedPlan.yearlyPrice : selectedPlan.monthlyPrice;
+            gtag.event({
+                action: 'begin_checkout',
+                params: {
+                    currency: 'BRL',
+                    value: price,
+                    items: [{
+                        item_id: selectedPlan.id,
+                        item_name: `${selectedPlan.name} - ${interval}`,
+                        price: price,
+                        quantity: 1,
+                    }]
+                }
+            });
+        }
+
       const checkoutResult = await createCheckoutSession(planId, interval, values.email);
       if (!checkoutResult.success || !checkoutResult.url) {
         throw new Error(checkoutResult.message || 'Não foi possível iniciar o pagamento.');
@@ -425,22 +442,19 @@ function SignupPageContent({ siteConfig }: { siteConfig: Partial<UserSettings> }
         return <div className='flex justify-center items-center h-48'><Loader2 className='h-8 w-8 animate-spin' /></div>;
     }
 
-    const SignupForm = isTrial ? TrialSignupForm : (planId ? () => <PaidSignupForm planId={planId} interval={interval} /> : () => <Loader2 className='h-8 w-8 animate-spin' />);
+    // Once auth is resolved and we know there's no user, render the correct form
+    if (isTrial) {
+        return <TrialSignupForm />;
+    }
 
-    return (
-        <div className="flex flex-col items-center justify-center p-4 w-full">
-            <div className="flex items-center gap-3 mb-8">
-                {siteConfig.logoURL ? (
-                    <Image src={siteConfig.logoURL} alt="Logo" width={32} height={32} className="h-8 w-8 object-contain" />
-                ) : (
-                    <Icon className="h-8 w-8 text-primary" />
-                )}
-                <h1 className="text-3xl font-bold font-headline">{siteConfig.siteName}</h1>
-            </div>
-            <SignupForm />
-        </div>
-    );
+    if (planId) {
+        return <PaidSignupForm planId={planId} interval={interval} />;
+    }
+    
+    // Fallback loader while redirecting to pricing page if needed
+    return <div className='flex justify-center items-center h-48'><Loader2 className='h-8 w-8 animate-spin' /></div>;
 }
+
 
 // Server Component to fetch global settings
 export default function SignupPage() {
