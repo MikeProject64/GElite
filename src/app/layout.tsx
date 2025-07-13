@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils';
 import { GA_TRACKING_ID } from '@/lib/utils';
 import MetaPixel from '@/components/meta-pixel';
 import { Suspense } from 'react';
+import { CookieBanner } from '@/components/cookie-banner';
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -70,6 +71,7 @@ export default function RootLayout({
         {/* End Google Tag Manager (noscript) */}
         <Providers>
           {children}
+          <CookieBanner />
         </Providers>
       </body>
     </html>
