@@ -1,7 +1,7 @@
 
 'use server';
 
-import { collection, query, where, getDocs, writeBatch, Timestamp } from 'firebase/firestore';
+import { collection, query, where, getDocs, writeBatch, Timestamp, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { ServiceAgreement, ServiceOrder } from '@/types';
 import { addMonths, addQuarters, addYears } from 'date-fns';
@@ -55,7 +55,7 @@ export async function processServiceAgreements(): Promise<{ success: boolean; ge
         createdAt: Timestamp.now(),
         dueDate: agreement.nextDueDate,
         isTemplate: false,
-        generatedByAgreementId: agreement.id,
+        source: { type: 'agreement', id: agreement.id },
         activityLog: [{
           timestamp: Timestamp.now(),
           userEmail: 'Sistema',

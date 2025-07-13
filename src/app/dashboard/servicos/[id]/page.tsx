@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, ChangeEvent } from 'react';
@@ -25,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useSettings } from '@/components/settings-provider';
-import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, ChevronsUpDown, FileSignature } from 'lucide-react';
+import { ArrowLeft, User, Wrench, Thermometer, Briefcase, Paperclip, Upload, File as FileIcon, Loader2, Info, Printer, DollarSign, CalendarIcon, Eye, History, Save, Pencil, Trash2, ChevronsUpDown, FileSignature, FileText } from 'lucide-react';
 import { ServiceOrder, Collaborator, Customer, ServiceOrderPriority } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -281,7 +280,7 @@ export default function ServicoDetailPage() {
     const encodedMessage = encodeURIComponent(message);
     const whatsappUrl = `https://wa.me/${sanitizedPhone}?text=${encodedMessage}`;
     
-    window.open(whatsappUrl, '_blank');
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
     toast({ title: "Redirecionando", description: "Abrindo o WhatsApp em uma nova aba." });
   };
   
@@ -364,6 +363,42 @@ export default function ServicoDetailPage() {
   
   const canManage = order.status !== canceledStatus;
   const canCreateNewVersion = order.status !== completedStatus && order.status !== canceledStatus;
+  
+  const getSourceBadge = () => {
+    if (!order.source) {
+      // Backward compatibility for orders created with the old field
+      if (order.generatedByAgreementId) {
+        return (
+          <Link href={`/dashboard/orcamentos/${order.generatedByAgreementId}`}>
+            <Badge variant="outline" className="gap-1.5 cursor-pointer hover:bg-muted">
+              <FileText className="h-3.5 w-3.5" />Gerada por Orçamento
+            </Badge>
+          </Link>
+        );
+      }
+      return null;
+    }
+    if (order.source.type === 'quote') {
+      return (
+        <Link href={`/dashboard/orcamentos/${order.source.id}`}>
+          <Badge variant="outline" className="gap-1.5 cursor-pointer hover:bg-muted">
+            <FileText className="h-3.5 w-3.5" />Gerada por Orçamento
+          </Badge>
+        </Link>
+      );
+    }
+    if (order.source.type === 'agreement') {
+      return (
+         <Link href={`/dashboard/contratos`}>
+            <Badge variant="outline" className="gap-1.5 cursor-pointer hover:bg-muted">
+                <FileSignature className="h-3.5 w-3.5" />Gerada por Contrato
+            </Badge>
+        </Link>
+      );
+    }
+    return null;
+  };
+
 
   return (
     <div className="flex flex-col gap-6">
@@ -384,9 +419,7 @@ export default function ServicoDetailPage() {
               <CardHeader>
                 <div className="flex items-center justify-between">
                     <CardTitle>{order.serviceType}</CardTitle>
-                    {order.generatedByAgreementId && 
-                        <Badge variant="outline" className="gap-1.5"><FileSignature className="h-3.5 w-3.5" />Gerada por Contrato</Badge>
-                    }
+                    {getSourceBadge()}
                 </div>
                 <CardDescription>
                   Criada em: {format(order.createdAt.toDate(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}

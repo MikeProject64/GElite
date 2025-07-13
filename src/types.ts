@@ -198,7 +198,11 @@ export interface ServiceOrder {
     templateName?: string;
     originalServiceOrderId?: string;
     version?: number;
-    generatedByAgreementId?: string;
+    source?: {
+      type: 'quote' | 'agreement';
+      id: string;
+    };
+    generatedByAgreementId?: string; // Deprecated but kept for backward compatibility
 }
 
 export interface ServiceAgreement {
