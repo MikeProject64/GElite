@@ -316,8 +316,8 @@ function CreateQuoteForm() {
                         <div className="p-2">
                           <Input
                             placeholder="Buscar cliente..."
-                            value={customerSearchTerm}
-                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
                             autoFocus
                           />
                         </div>
@@ -331,7 +331,7 @@ function CreateQuoteForm() {
                                 onClick={() => {
                                   field.onChange(customer.id);
                                   setIsDropdownOpen(false);
-                                  setCustomerSearchTerm('');
+                                  setSearchTerm('');
                                 }}
                               >
                                 <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
