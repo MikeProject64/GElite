@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -162,7 +163,9 @@ function CreateQuoteForm() {
         setIsInitializing(false);
     };
     
-    fetchBaseQuote();
+    if (versionOfId) {
+        fetchBaseQuote();
+    }
   }, [versionOfId, user, settings.quoteCustomFields, form, toast, router]);
 
 
@@ -225,7 +228,10 @@ function CreateQuoteForm() {
       const customFieldsData = { ...data.customFields };
       settings.quoteCustomFields?.forEach(field => {
             if (field.type === 'date' && customFieldsData[field.id]) {
-                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+                const dateValue = customFieldsData[field.id];
+                if (dateValue && !(dateValue instanceof Timestamp)) {
+                   customFieldsData[field.id] = Timestamp.fromDate(new Date(dateValue));
+                }
             }
        });
 
@@ -253,7 +259,7 @@ function CreateQuoteForm() {
       }
 
       toast({ title: "Sucesso!", description: isVersioning ? "Nova versão do orçamento criada." : "Orçamento criado." });
-      router.push('/dashboard/orcamentos');
+      router.push(`/dashboard/orcamentos/${docRef.id}`);
     } catch (error: any) {
       toast({ variant: "destructive", title: "Erro", description: `Falha ao criar o orçamento: ${error.message}` });
     }
