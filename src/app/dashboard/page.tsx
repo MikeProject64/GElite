@@ -156,7 +156,7 @@ export default function DashboardPage() {
         const allCustomers = customersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Customer).filter(c => c.createdAt && typeof c.createdAt.toDate === 'function');
         const allQuotes = quotesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Quote).filter(q => q.createdAt && typeof q.createdAt.toDate === 'function');
 
-        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
+        const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
         const now = new Date(); now.setHours(0, 0, 0, 0);
 
         const activeCount = fetchedOrders.filter(o => activeStatuses.includes(o.status)).length;

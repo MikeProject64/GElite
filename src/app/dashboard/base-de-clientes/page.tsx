@@ -662,5 +662,3 @@ export default function BaseDeClientesPage() {
     </div>
   );
 }
-
-    
