@@ -23,7 +23,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus, FileSignature } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, Wrench, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus, FileSignature, FileText } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -352,20 +352,24 @@ export default function ServicosPage() {
                 {paginatedOrders.map((order) => {
                     const hasPendencies = !order.collaboratorId && order.status === 'Pendente';
                     const priorityInfo = order.priority ? priorityMap[order.priority] : null;
+                    const getSourceIcon = () => {
+                        if (order.source?.type === 'quote') return { icon: FileText, tooltip: 'Gerada por Orçamento' };
+                        if (order.source?.type === 'agreement' || order.generatedByAgreementId) return { icon: FileSignature, tooltip: 'Gerada por Contrato' };
+                        return null;
+                    };
+                    const sourceIcon = getSourceIcon();
                     return (
                         <TableRow key={order.id} data-state={selectedRows[order.id] && "selected"}>
                          <TableCell><Checkbox checked={!!selectedRows[order.id]} onCheckedChange={checked => setSelectedRows(prev => ({...prev, [order.id]: !!checked}))} /></TableCell>
                          <TableCell>
                             <div className="flex items-center gap-1">
-                                {order.generatedByAgreementId && (
+                                {sourceIcon && (
                                     <TooltipProvider>
                                         <Tooltip>
                                             <TooltipTrigger>
-                                                <FileSignature className="h-3.5 w-3.5 text-muted-foreground" />
+                                                <sourceIcon.icon className="h-3.5 w-3.5 text-muted-foreground" />
                                             </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Gerada por Contrato</p>
-                                            </TooltipContent>
+                                            <TooltipContent><p>{sourceIcon.tooltip}</p></TooltipContent>
                                         </Tooltip>
                                     </TooltipProvider>
                                 )}
