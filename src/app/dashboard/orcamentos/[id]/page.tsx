@@ -314,7 +314,7 @@ export default function OrcamentoDetailPage() {
         {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
             <Button asChild variant="secondary" size="sm" className="font-medium">
                 <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>
-                    Ver O.S. Gerada
+                    Convertido para OS #{quote.convertedToServiceOrderId.substring(0,6).toUpperCase()}
                 </Link>
             </Button>
         ) : (

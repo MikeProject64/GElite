@@ -4,7 +4,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -27,7 +27,6 @@ import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
-import { convertQuoteToServiceOrder } from './actions';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -112,14 +111,8 @@ export default function OrcamentosPage() {
   const handleConvert = async (quote: Quote) => {
     if (!user || !user.email) return;
     setIsConverting(quote.id);
-    const result = await convertQuoteToServiceOrder(quote.id, user.uid, user.email);
-    if(result.success && result.serviceOrderId) {
-        toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
-        router.push(`/dashboard/servicos/${result.serviceOrderId}`);
-    } else {
-        toast({ variant: 'destructive', title: 'Erro', description: result.message || 'Falha ao converter o orçamento.' });
-    }
-    setIsConverting(null);
+    // Logic moved to client-side in [id]/page.tsx
+    router.push(`/dashboard/orcamentos/${quote.id}?action=convert`);
   }
 
 
@@ -322,7 +315,7 @@ export default function OrcamentosPage() {
                         {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
                             <Button asChild variant="link" className="p-0 h-auto font-medium">
                                 <Link href={`/dashboard/servicos/${quote.convertedToServiceOrderId}`}>
-                                    Ver O.S. Gerada
+                                    OS #{quote.convertedToServiceOrderId.substring(0,6).toUpperCase()}
                                 </Link>
                             </Button>
                         ) : (
