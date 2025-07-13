@@ -36,17 +36,23 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
         if (quote.status !== 'Aprovado') {
             throw new Error('Apenas orçamentos aprovados podem ser convertidos.');
         }
+        
+        if (quote.convertedToServiceOrderId) {
+            throw new Error('Este orçamento já foi convertido em uma Ordem de Serviço.');
+        }
 
         const serviceOrderData: Omit<ServiceOrder, 'id'> = {
             clientId: quote.clientId,
             clientName: quote.clientName,
             problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
             serviceType: quote.title,
-            status: 'Pendente',
-            collaboratorId: '',
-            dueDate: Timestamp.fromDate(new Date()),
+            status: 'Pendente', // Default status for new OS
+            priority: 'media', // Default priority
+            collaboratorId: '', // To be assigned later
+            collaboratorName: '', // To be assigned later
+            dueDate: Timestamp.fromDate(new Date()), // Default to today, user should update
             totalValue: quote.totalValue,
-            attachments: [],
+            attachments: [], // Start with empty attachments
             userId: userId,
             createdAt: Timestamp.now(),
             customFields: quote.customFields || {},
