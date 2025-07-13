@@ -11,35 +11,40 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
         return { success: false, message: 'ID do orçamento ou do usuário ausente.' };
     }
     
+    const quoteRef = doc(db, 'quotes', quoteId);
+    const serviceOrderCollectionRef = collection(db, 'serviceOrders');
+
     try {
-        const quoteRef = doc(db, 'quotes', quoteId);
+        // First, fetch the quote outside the transaction to perform checks.
+        const quoteSnap = await getDoc(quoteRef);
+
+        if (!quoteSnap.exists()) {
+            throw new Error('Orçamento não encontrado.');
+        }
+
+        const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+
+        // Perform security check: ensure the user owns the quote.
+        if (quote.userId !== userId) {
+            throw new Error('Você não tem permissão para converter este orçamento.');
+        }
+        
+        if (quote.status !== 'Aprovado') {
+            throw new Error('Apenas orçamentos aprovados podem ser convertidos.');
+        }
+        
+        if (quote.convertedToServiceOrderId) {
+            throw new Error('Este orçamento já foi convertido em uma Ordem de Serviço.');
+        }
+
         let serviceOrderId = '';
 
         await runTransaction(db, async (transaction) => {
-            const quoteSnap = await transaction.get(quoteRef);
-            if (!quoteSnap.exists() || quoteSnap.data().userId !== userId) {
-                // This is the critical security check.
-                // It ensures the user calling the action owns the quote.
-                throw new Error('Orçamento não encontrado ou você não tem permissão para convertê-lo.');
-            }
-
-            const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
-
-            if (quote.status !== 'Aprovado') {
-                throw new Error('Apenas orçamentos aprovados podem ser convertidos.');
-            }
-            
-            if (quote.convertedToServiceOrderId) {
-                throw new Error('Este orçamento já foi convertido em uma Ordem de Serviço.');
-            }
-
-            const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
+            const newServiceOrderRef = doc(serviceOrderCollectionRef);
             serviceOrderId = newServiceOrderRef.id;
 
-            // This is the corrected and complete object for the new ServiceOrder.
-            // It now includes all necessary fields with default values.
             const serviceOrderData: Omit<ServiceOrder, 'id'> = {
-                userId: userId, // CRITICAL: Ensure userId is set correctly for Firestore rules
+                userId: userId, // Critical: Set userId for security rules
                 clientId: quote.clientId,
                 clientName: quote.clientName,
                 serviceType: quote.title,
@@ -47,9 +52,9 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
                 collaboratorId: '', 
                 collaboratorName: '',
                 totalValue: quote.totalValue,
-                status: 'Pendente',
+                status: 'Pendente', // Always starts as pending
                 priority: 'media',
-                dueDate: Timestamp.fromDate(new Date()),
+                dueDate: Timestamp.fromDate(new Date()), // Defaults to today, can be changed later
                 attachments: [],
                 createdAt: Timestamp.now(),
                 completedAt: null,
@@ -63,9 +68,11 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
                 originalServiceOrderId: newServiceOrderRef.id,
                 version: 1,
             };
-
+            
+            // Set the new Service Order
             transaction.set(newServiceOrderRef, serviceOrderData);
 
+            // Update the original Quote
             const logEntry = {
               timestamp: Timestamp.now(),
               userEmail: userEmail || 'Sistema',
