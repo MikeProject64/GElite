@@ -12,24 +12,15 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
     }
     
     try {
-        let finalUserEmail = userEmail;
-        if (!finalUserEmail) {
-            const userRef = doc(db, 'users', userId);
-            const userSnap = await getDoc(userRef);
-            if(userSnap.exists()){
-                finalUserEmail = (userSnap.data() as SystemUser).email;
-            } else {
-                throw new Error('Usuário não encontrado para registrar a ação.');
-            }
-        }
-        
         const quoteRef = doc(db, 'quotes', quoteId);
         let serviceOrderId = '';
 
         await runTransaction(db, async (transaction) => {
             const quoteSnap = await transaction.get(quoteRef);
             if (!quoteSnap.exists() || quoteSnap.data().userId !== userId) {
-                throw new Error('Orçamento não encontrado ou pertence a outro usuário.');
+                // This is the critical security check.
+                // It ensures the user calling the action owns the quote.
+                throw new Error('Orçamento não encontrado ou você não tem permissão para convertê-lo.');
             }
 
             const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
@@ -53,23 +44,23 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
                 clientName: quote.clientName,
                 serviceType: quote.title,
                 problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
-                collaboratorId: '', // Default value
-                collaboratorName: '', // Default value
+                collaboratorId: '', 
+                collaboratorName: '',
                 totalValue: quote.totalValue,
-                status: 'Pendente', // Default status
-                priority: 'media', // Default priority
-                dueDate: Timestamp.fromDate(new Date()), // Default due date
-                attachments: [], // Default empty array
+                status: 'Pendente',
+                priority: 'media',
+                dueDate: Timestamp.fromDate(new Date()),
+                attachments: [],
                 createdAt: Timestamp.now(),
-                completedAt: null, // Default null value
+                completedAt: null,
                 customFields: quote.customFields || {},
                 activityLog: [{
                     timestamp: Timestamp.now(),
-                    userEmail: finalUserEmail,
+                    userEmail: userEmail || 'Sistema',
                     description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
                 }],
                 isTemplate: false,
-                originalServiceOrderId: newServiceOrderRef.id, // Set self as original
+                originalServiceOrderId: newServiceOrderRef.id,
                 version: 1,
             };
 
@@ -77,7 +68,7 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
 
             const logEntry = {
               timestamp: Timestamp.now(),
-              userEmail: finalUserEmail,
+              userEmail: userEmail || 'Sistema',
               description: `Orçamento convertido para a OS #${serviceOrderId.substring(0,6).toUpperCase()}`
             };
 
