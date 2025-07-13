@@ -373,7 +373,7 @@ export default function ServicoDetailPage() {
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
             <Wrench className='h-5 w-5' />
-            Detalhes da OS (v{order.version || 1})
+            Detalhes da OS #{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})
         </h1>
         <StatusBadge status={order.status} />
       </div>

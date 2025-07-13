@@ -355,12 +355,29 @@ export default function ServicosPage() {
                     return (
                         <TableRow key={order.id} data-state={selectedRows[order.id] && "selected"}>
                          <TableCell><Checkbox checked={!!selectedRows[order.id]} onCheckedChange={checked => setSelectedRows(prev => ({...prev, [order.id]: !!checked}))} /></TableCell>
-                         <TableCell><Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">#{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})</Link></TableCell>
+                         <TableCell>
+                            <div className="flex items-center gap-1">
+                                {order.generatedByAgreementId && (
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <FileSignature className="h-3.5 w-3.5 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Gerada por Contrato</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                )}
+                                <Link href={`/dashboard/servicos/${order.id}`} className="font-mono text-sm font-medium hover:underline">
+                                    #{order.id.substring(0, 6).toUpperCase()} (v{order.version || 1})
+                                </Link>
+                            </div>
+                         </TableCell>
                         <TableCell>
                            <div className="flex items-center gap-2">
                                 {hasPendencies && (<TooltipProvider><Tooltip><TooltipTrigger><AlertTriangle className="h-4 w-4 text-amber-500" /></TooltipTrigger><TooltipContent><p>Pendências: definir prazo e responsável.</p></TooltipContent></Tooltip></TooltipProvider>)}
                                 {order.attachments && order.attachments.length > 0 && (<TooltipProvider><Tooltip><TooltipTrigger><Paperclip className="h-4 w-4 text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Esta OS possui anexos.</p></TooltipContent></Tooltip></TooltipProvider>)}
-                                {order.generatedByAgreementId && (<TooltipProvider><Tooltip><TooltipTrigger><FileSignature className="h-4 w-4 text-muted-foreground" /></TooltipTrigger><TooltipContent><p>Gerada por Contrato</p></TooltipContent></Tooltip></TooltipProvider>)}
                                 <div><Link href={`/dashboard/servicos/${order.id}`} className="font-medium hover:underline">{order.serviceType}</Link><div className="text-sm text-muted-foreground"><Link href={`/dashboard/base-de-clientes/${order.clientId}`} className="hover:underline">{order.clientName}</Link></div></div>
                             </div>
                         </TableCell>

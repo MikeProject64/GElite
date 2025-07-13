@@ -55,7 +55,11 @@ const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
-const getDueDateStatus = (dueDate: Date) => {
+const getDueDateStatus = (dueDate: Date, status: string) => {
+    if (status === 'Concluída' || status === 'Cancelada') {
+      return { text: status, variant: 'outline' as const, color: 'hsl(var(--muted-foreground))' };
+    }
+
     const today = startOfDay(new Date());
     const due = startOfDay(dueDate);
 
@@ -76,10 +80,7 @@ const getDueDateStatus = (dueDate: Date) => {
 
 const getEventStyle = (event: BigCalendarEvent) => {
     const order = event.resource as ServiceOrder;
-    if (order.status === 'Concluída' || order.status === 'Cancelada') {
-        return { style: { backgroundColor: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))' } };
-    }
-    const { color } = getDueDateStatus(order.dueDate.toDate());
+    const { color } = getDueDateStatus(order.dueDate.toDate(), order.status);
     return { style: { backgroundColor: color, color: 'white', border: 'none', borderRadius: '4px' } };
 };
 
@@ -170,15 +171,11 @@ export function DeadlinesClient() {
         return () => unsubscribe();
     }, [user, toast]);
 
-    const activeOrders = useMemo(() => {
-        const activeStatuses = settings.serviceStatuses?.filter(s => s !== 'Concluída' && s !== 'Cancelada') || ['Pendente', 'Em Andamento'];
-        return orders.filter(order => activeStatuses.includes(order.status));
-    }, [orders, settings.serviceStatuses]);
-
     const overdueCount = useMemo(() => {
         if (isLoading) return 0;
-        return activeOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
-    }, [activeOrders, isLoading]);
+        const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
+        return orders.filter(o => activeStatuses.includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate())).length;
+    }, [orders, isLoading, settings.serviceStatuses]);
 
     const requestSort = (key: keyof ServiceOrder | 'priority') => {
         let direction: 'ascending' | 'descending' = 'ascending';
@@ -189,7 +186,7 @@ export function DeadlinesClient() {
     };
 
     const sortedAndFilteredOrders = useMemo(() => {
-        let tempOrders = [...activeOrders];
+        let tempOrders = [...orders];
 
         if (activeFilter === 'today') {
             tempOrders = tempOrders.filter(o => isToday(o.dueDate.toDate()));
@@ -202,7 +199,8 @@ export function DeadlinesClient() {
                 return dueDate >= start && dueDate <= end;
             });
         } else if (activeFilter === 'overdue') {
-            tempOrders = tempOrders.filter(o => isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
+            const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
+            tempOrders = tempOrders.filter(o => activeStatuses.includes(o.status) && isPast(o.dueDate.toDate()) && !isToday(o.dueDate.toDate()));
         }
 
         if (sortConfig !== null) {
@@ -224,7 +222,7 @@ export function DeadlinesClient() {
         }
         
         return tempOrders;
-    }, [activeOrders, activeFilter, sortConfig]);
+    }, [orders, activeFilter, sortConfig, settings.serviceStatuses]);
 
 
     const calendarEvents = useMemo(() => orders.map(order => ({
@@ -333,7 +331,7 @@ export function DeadlinesClient() {
                                             <TableBody>
                                                 {sortedAndFilteredOrders.map((order) => {
                                                     const dueDate = order.dueDate.toDate();
-                                                    const statusInfo = getDueDateStatus(dueDate);
+                                                    const statusInfo = getDueDateStatus(dueDate, order.status);
                                                     return (
                                                         <TableRow key={order.id} className="cursor-pointer" onClick={() => handleRowClick(order.id)}>
                                                             <TableCell className="font-medium">
@@ -391,7 +389,7 @@ export function DeadlinesClient() {
                 </CardContent>
                 <CardFooter>
                     <div className="text-xs text-muted-foreground">
-                        Mostrando <strong>{sortedAndFilteredOrders.length}</strong> de <strong>{activeOrders.length}</strong> ordens de serviço ativas.
+                        Mostrando <strong>{sortedAndFilteredOrders.length}</strong> de <strong>{orders.length}</strong> ordens de serviço.
                     </div>
                 </CardFooter>
             </Card>
