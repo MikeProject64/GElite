@@ -45,30 +45,32 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
             const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
             serviceOrderId = newServiceOrderRef.id;
 
-            const serviceOrderData: Omit<ServiceOrder, 'id'> & { generatedFromQuoteId?: string } = {
-                userId: userId, // Ensure userId is present from the start
+            // This is the corrected and complete object for the new ServiceOrder.
+            // It now includes all necessary fields with default values.
+            const serviceOrderData: Omit<ServiceOrder, 'id'> = {
+                userId: userId, // CRITICAL: Ensure userId is set correctly for Firestore rules
                 clientId: quote.clientId,
                 clientName: quote.clientName,
-                problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
                 serviceType: quote.title,
-                status: 'Pendente',
-                priority: 'media',
-                collaboratorId: '',
-                collaboratorName: '',
-                dueDate: Timestamp.fromDate(new Date()),
+                problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
+                collaboratorId: '', // Default value
+                collaboratorName: '', // Default value
                 totalValue: quote.totalValue,
-                attachments: [],
+                status: 'Pendente', // Default status
+                priority: 'media', // Default priority
+                dueDate: Timestamp.fromDate(new Date()), // Default due date
+                attachments: [], // Default empty array
                 createdAt: Timestamp.now(),
+                completedAt: null, // Default null value
                 customFields: quote.customFields || {},
-                completedAt: null,
-                isTemplate: false,
                 activityLog: [{
                     timestamp: Timestamp.now(),
                     userEmail: finalUserEmail,
                     description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
                 }],
-                // Temporary field for security rule validation
-                generatedFromQuoteId: quote.id,
+                isTemplate: false,
+                originalServiceOrderId: newServiceOrderRef.id, // Set self as original
+                version: 1,
             };
 
             transaction.set(newServiceOrderRef, serviceOrderData);
@@ -84,9 +86,6 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
                 convertedToServiceOrderId: serviceOrderId,
                 activityLog: arrayUnion(logEntry) 
             });
-            
-             // After setting, immediately update to remove the temporary field
-            transaction.update(newServiceOrderRef, { generatedFromQuoteId: null });
         });
 
         return { success: true, serviceOrderId };
