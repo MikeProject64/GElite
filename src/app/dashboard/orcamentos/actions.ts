@@ -2,7 +2,7 @@
 
 'use server';
 
-import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, arrayUnion } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, addDoc, collection, Timestamp, arrayUnion, writeBatch, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type { Quote, ServiceOrder, SystemUser } from '@/types';
 
@@ -13,7 +13,6 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
     
     try {
         let finalUserEmail = userEmail;
-        // If email isn't passed, fetch it as a fallback to ensure permission
         if (!finalUserEmail) {
             const userRef = doc(db, 'users', userId);
             const userSnap = await getDoc(userRef);
@@ -25,61 +24,72 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
         }
         
         const quoteRef = doc(db, 'quotes', quoteId);
-        const quoteSnap = await getDoc(quoteRef);
+        let serviceOrderId = '';
 
-        if (!quoteSnap.exists() || quoteSnap.data().userId !== userId) {
-            throw new Error('Orçamento não encontrado ou pertence a outro usuário.');
-        }
+        await runTransaction(db, async (transaction) => {
+            const quoteSnap = await transaction.get(quoteRef);
+            if (!quoteSnap.exists() || quoteSnap.data().userId !== userId) {
+                throw new Error('Orçamento não encontrado ou pertence a outro usuário.');
+            }
 
-        const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+            const quote = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
 
-        if (quote.status !== 'Aprovado') {
-            throw new Error('Apenas orçamentos aprovados podem ser convertidos.');
-        }
-        
-        if (quote.convertedToServiceOrderId) {
-            throw new Error('Este orçamento já foi convertido em uma Ordem de Serviço.');
-        }
+            if (quote.status !== 'Aprovado') {
+                throw new Error('Apenas orçamentos aprovados podem ser convertidos.');
+            }
+            
+            if (quote.convertedToServiceOrderId) {
+                throw new Error('Este orçamento já foi convertido em uma Ordem de Serviço.');
+            }
 
-        const serviceOrderData: Omit<ServiceOrder, 'id'> = {
-            clientId: quote.clientId,
-            clientName: quote.clientName,
-            problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
-            serviceType: quote.title,
-            status: 'Pendente', // Default status for new OS
-            priority: 'media', // Default priority
-            collaboratorId: '', // To be assigned later
-            collaboratorName: '', // To be assigned later
-            dueDate: Timestamp.fromDate(new Date()), // Default to today, user should update
-            totalValue: quote.totalValue,
-            attachments: [], // Start with empty attachments
-            userId: userId,
-            createdAt: Timestamp.now(),
-            customFields: quote.customFields || {},
-            completedAt: null,
-            isTemplate: false,
-            activityLog: [{
-                timestamp: Timestamp.now(),
-                userEmail: finalUserEmail,
-                description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
-            }],
-        };
+            const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
+            serviceOrderId = newServiceOrderRef.id;
 
-        const docRef = await addDoc(collection(db, 'serviceOrders'), serviceOrderData);
-        
-        const logEntry = {
-          timestamp: Timestamp.now(),
-          userEmail: finalUserEmail,
-          description: `Orçamento convertido para a OS #${docRef.id.substring(0,6).toUpperCase()}`
-        };
+            const serviceOrderData: Omit<ServiceOrder, 'id'> & { generatedFromQuoteId?: string } = {
+                clientId: quote.clientId,
+                clientName: quote.clientName,
+                problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
+                serviceType: quote.title,
+                status: 'Pendente',
+                priority: 'media',
+                collaboratorId: '',
+                collaboratorName: '',
+                dueDate: Timestamp.fromDate(new Date()),
+                totalValue: quote.totalValue,
+                attachments: [],
+                userId: userId,
+                createdAt: Timestamp.now(),
+                customFields: quote.customFields || {},
+                completedAt: null,
+                isTemplate: false,
+                activityLog: [{
+                    timestamp: Timestamp.now(),
+                    userEmail: finalUserEmail,
+                    description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
+                }],
+                // Temporary field for security rule validation
+                generatedFromQuoteId: quote.id,
+            };
 
-        await updateDoc(quoteRef, { 
-            status: 'Convertido',
-            convertedToServiceOrderId: docRef.id, 
-            activityLog: arrayUnion(logEntry) 
+            transaction.set(newServiceOrderRef, serviceOrderData);
+
+            const logEntry = {
+              timestamp: Timestamp.now(),
+              userEmail: finalUserEmail,
+              description: `Orçamento convertido para a OS #${serviceOrderId.substring(0,6).toUpperCase()}`
+            };
+
+            transaction.update(quoteRef, { 
+                status: 'Convertido',
+                convertedToServiceOrderId: serviceOrderId,
+                activityLog: arrayUnion(logEntry) 
+            });
+            
+             // After setting, immediately update to remove the temporary field
+            transaction.update(newServiceOrderRef, { generatedFromQuoteId: null });
         });
 
-        return { success: true, serviceOrderId: docRef.id };
+        return { success: true, serviceOrderId };
 
     } catch (error) {
         console.error("Conversion error:", error);
