@@ -1,8 +1,7 @@
 
-
 'use client';
 
-import { useState, useEffect, useRef, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -29,6 +28,9 @@ import { Loader2, ArrowLeft, CalendarIcon, ChevronsUpDown, Check, FileText, User
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { Customer, Quote } from '@/types';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Badge } from '@/components/ui/badge';
+
 
 const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
@@ -63,8 +65,10 @@ function CreateQuoteForm() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const [isVersioning, setIsVersioning] = useState(false);
   const [baseQuote, setBaseQuote] = useState<Quote | null>(null);
+
+  const versionOfId = useMemo(() => searchParams.get('versionOf'), [searchParams]);
+  const isVersioning = !!versionOfId;
 
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteSchema),
@@ -83,13 +87,15 @@ function CreateQuoteForm() {
     defaultValues: { name: '', phone: '' },
   });
 
-  useEffect(() => {
+   useEffect(() => {
+    if (!user) return;
+    setIsInitializing(true);
+
     const templateId = searchParams.get('templateId');
-    const versionOfId = searchParams.get('versionOf');
     const clientIdParam = searchParams.get('clientId');
 
-    const fetchTemplate = async (templateId: string) => {
-        const templateRef = doc(db, 'quotes', templateId);
+    const fetchTemplate = async (id: string) => {
+        const templateRef = doc(db, 'quotes', id);
         const templateSnap = await getDoc(templateRef);
         if(templateSnap.exists()) {
             const templateData = templateSnap.data() as Quote;
@@ -107,49 +113,57 @@ function CreateQuoteForm() {
         }
     }
 
-    const fetchBaseQuote = async (versionOfId: string) => {
-        setIsVersioning(true);
+    // Initialize form based on URL params
+    if (templateId) {
+        fetchTemplate(templateId).finally(() => setIsInitializing(false));
+    } else if (clientIdParam) {
+        form.setValue('clientId', clientIdParam, { shouldValidate: true });
+        setIsInitializing(false);
+    } else if (!versionOfId) {
+        setIsInitializing(false);
+    }
+    
+  }, [searchParams, user, form, toast]);
+
+  // Effect specifically for handling versioning, depends on versionOfId
+  useEffect(() => {
+    const fetchBaseQuote = async () => {
+        if (!user || !versionOfId) {
+            setIsInitializing(false);
+            return;
+        }
+
         const quoteRef = doc(db, 'quotes', versionOfId);
         const quoteSnap = await getDoc(quoteRef);
+
         if (quoteSnap.exists()) {
             const data = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
             setBaseQuote(data);
+            
             const customFieldsWithDate = Object.entries(data.customFields || {}).reduce((acc, [key, value]) => {
-                if (value) { // Ensure value is not null or undefined
-                    const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
-                    if (fieldType === 'date' && value.toDate) {
-                        (acc as any)[key] = value.toDate();
-                    } else {
-                        (acc as any)[key] = value;
-                    }
+                const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+                if (value && fieldType === 'date' && value.toDate) {
+                    (acc as any)[key] = value.toDate();
+                } else {
+                    (acc as any)[key] = value;
                 }
                 return acc;
             }, {});
 
             form.reset({
                 ...data,
-                validUntil: addDays(new Date(), 7),
+                validUntil: addDays(new Date(), 7), // Always set new validity
                 customFields: customFieldsWithDate,
             });
-            toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version || 1} do orçamento.` });
         } else {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento base para nova versão não encontrado.' });
+            toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento base não encontrado.' });
+            router.push('/dashboard/orcamentos');
         }
-    }
-
-    if (user) {
-        if (versionOfId) {
-            fetchBaseQuote().finally(() => setIsInitializing(false));
-        } else if (templateId) {
-            fetchTemplate(templateId).finally(() => setIsInitializing(false));
-        } else if (clientIdParam) {
-            form.setValue('clientId', clientIdParam, { shouldValidate: true });
-            setIsInitializing(false);
-        } else {
-            setIsInitializing(false);
-        }
-    }
-  }, [searchParams, user, form, toast, settings.quoteCustomFields]);
+        setIsInitializing(false);
+    };
+    
+    fetchBaseQuote();
+  }, [versionOfId, user, settings.quoteCustomFields, form, toast, router]);
 
 
   useEffect(() => {
