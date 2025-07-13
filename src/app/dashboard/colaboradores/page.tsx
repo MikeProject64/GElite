@@ -277,7 +277,7 @@ export default function ColaboradoresPage() {
                     <CardHeader className="flex flex-row items-start justify-between gap-4">
                     <Link href={`/dashboard/colaboradores/${c.id}`} className='flex items-start gap-4 flex-1 overflow-hidden'>
                         <Avatar className="h-12 w-12 border shrink-0">
-                            <AvatarImage src={c.photoURL} alt={c.name} />
+                            <AvatarImage src={c.photoURL} alt={c.name} className="object-cover" />
                             <AvatarFallback>
                             {c.type === 'collaborator' ? <User className="h-6 w-6"/> : <Building2 className="h-6 w-6"/>}
                             </AvatarFallback>

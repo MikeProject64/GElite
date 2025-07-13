@@ -541,19 +541,19 @@ export default function BaseDeClientesPage() {
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
-                            </CommandList>
-                            <CommandSeparator />
-                            <CommandGroup>
-                                <CommandItem onSelect={() => router.push('/dashboard/configuracoes')} className="cursor-pointer">
-                                    <TagIcon className="mr-2 h-4 w-4" />
-                                    <span>Gerenciar Etiquetas</span>
-                                </CommandItem>
-                                {tagFilter.length > 0 && (
-                                    <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center cursor-pointer">
-                                        Limpar filtros
+                                <CommandSeparator />
+                                <CommandGroup>
+                                    <CommandItem onSelect={() => router.push('/dashboard/configuracoes')} className="cursor-pointer">
+                                        <TagIcon className="mr-2 h-4 w-4" />
+                                        <span>Gerenciar Etiquetas</span>
                                     </CommandItem>
-                                )}
-                            </CommandGroup>
+                                    {tagFilter.length > 0 && (
+                                        <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center cursor-pointer">
+                                            Limpar filtros
+                                        </CommandItem>
+                                    )}
+                                </CommandGroup>
+                            </CommandList>
                         </Command>
                     </PopoverContent>
                 </Popover>
