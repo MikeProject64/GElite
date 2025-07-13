@@ -4,19 +4,18 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy, getDoc, arrayUnion } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy, getDoc, arrayUnion, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Quote, Customer } from '@/types';
+import { Quote, Customer, ServiceOrder } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { cn } from '@/lib/utils';
-import { convertQuoteToServiceOrder } from '../actions';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -160,17 +159,83 @@ export default function OrcamentoDetailPage() {
   }
 
   const handleConvert = async () => {
-    if (!quote || !user || !user.email) return;
-    setIsConverting(true);
-    const result = await convertQuoteToServiceOrder(quote.id, user.uid, user.email);
-    if(result.success && result.serviceOrderId) {
-        toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
-        router.push(`/dashboard/servicos/${result.serviceOrderId}`);
-    } else {
-        toast({ variant: 'destructive', title: 'Erro', description: result.message || 'Falha ao converter o orçamento.' });
+    if (!quote || !user) {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Dados do orçamento ou usuário ausentes.' });
+      return;
     }
-    setIsConverting(false);
-    setIsAlertOpen(false);
+
+    if (quote.status !== 'Aprovado') {
+      toast({ variant: 'destructive', title: 'Ação Inválida', description: 'Apenas orçamentos aprovados podem ser convertidos.' });
+      return;
+    }
+
+    setIsConverting(true);
+
+    try {
+      const serviceOrderId = await runTransaction(db, async (transaction) => {
+        const freshQuoteRef = doc(db, 'quotes', quote.id);
+        const freshQuoteSnap = await transaction.get(freshQuoteRef);
+        if (!freshQuoteSnap.exists()) {
+          throw new Error("Orçamento não encontrado.");
+        }
+        const freshQuote = freshQuoteSnap.data() as Quote;
+        if (freshQuote.convertedToServiceOrderId) {
+          throw new Error("Este orçamento já foi convertido.");
+        }
+
+        const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
+        const serviceOrderData: Omit<ServiceOrder, 'id'> = {
+          userId: user.uid,
+          clientId: quote.clientId,
+          clientName: quote.clientName,
+          serviceType: quote.title,
+          problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
+          collaboratorId: '', 
+          collaboratorName: '',
+          totalValue: quote.totalValue,
+          status: 'Pendente',
+          priority: 'media',
+          dueDate: Timestamp.fromDate(new Date()),
+          attachments: [],
+          createdAt: Timestamp.now(),
+          completedAt: null,
+          customFields: quote.customFields || {},
+          activityLog: [{
+            timestamp: Timestamp.now(),
+            userEmail: user.email || 'Sistema',
+            description: `Ordem de Serviço criada a partir do orçamento #${quote.id.substring(0,6).toUpperCase()}`
+          }],
+          isTemplate: false,
+          originalServiceOrderId: newServiceOrderRef.id,
+          version: 1,
+          generatedByAgreementId: quote.id,
+        };
+        transaction.set(newServiceOrderRef, serviceOrderData);
+
+        const logEntry = {
+          timestamp: Timestamp.now(),
+          userEmail: user.email || 'Sistema',
+          description: `Orçamento convertido para a OS #${newServiceOrderRef.id.substring(0,6).toUpperCase()}`
+        };
+        transaction.update(freshQuoteRef, {
+          status: 'Convertido',
+          convertedToServiceOrderId: newServiceOrderRef.id,
+          activityLog: arrayUnion(logEntry)
+        });
+
+        return newServiceOrderRef.id;
+      });
+
+      toast({ title: 'Sucesso!', description: 'Orçamento convertido em Ordem de Serviço.' });
+      router.push(`/dashboard/servicos/${serviceOrderId}`);
+
+    } catch (error: any) {
+      console.error("[CONVERT_QUOTE] CATCH BLOCK: An error occurred during conversion.", error);
+      toast({ variant: 'destructive', title: 'Erro ao Converter', description: error.message || 'Falha ao converter o orçamento.' });
+    } finally {
+      setIsConverting(false);
+      setIsAlertOpen(false);
+    }
   };
 
   const handleSaveAsTemplate = async ({templateName}: TemplateFormValues) => {
