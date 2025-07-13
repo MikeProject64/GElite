@@ -25,12 +25,13 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Command, CommandEmpty, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from '@/types';
+
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -71,7 +72,7 @@ function CreateServiceOrderForm() {
   const [baseOrder, setBaseOrder] = useState<ServiceOrder | null>(null);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
-  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [searchTerm, setSearchTerm] = useState('');
   const customerDropdownRef = useRef<HTMLDivElement>(null);
   
   const [isCollaboratorDropdownOpen, setIsCollaboratorDropdownOpen] = useState(false);
@@ -316,8 +317,8 @@ function CreateServiceOrderForm() {
   };
 
   const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-    (customer.phone && customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (customer.phone && customer.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   );
   
   if (isInitializing) {
@@ -359,7 +360,7 @@ function CreateServiceOrderForm() {
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Buscar cliente..." onValueChange={setCustomerSearchTerm} />
+                        <CommandInput placeholder="Buscar cliente..." onValueChange={setSearchTerm} />
                         <CommandList>
                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                            <CommandGroup>
