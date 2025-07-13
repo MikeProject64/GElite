@@ -33,6 +33,7 @@ import { Customer } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const customerFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
@@ -48,7 +49,7 @@ const customerFormSchema = z.object({
   birthDate: z.date().optional().nullable(),
   notes: z.string().optional(),
   customFields: z.record(z.any()).optional(),
-  tagIds: z.array(z.string()).optional(),
+  tagIds: z.string().optional(), // Changed to single string
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -81,7 +82,7 @@ export default function BaseDeClientesPage() {
       birthDate: null,
       notes: '',
       customFields: {},
-      tagIds: [],
+      tagIds: '', // Changed to empty string
     },
   });
 
@@ -118,14 +119,14 @@ export default function BaseDeClientesPage() {
             ...editingCustomer,
             birthDate: birthDate,
             customFields: editingCustomer.customFields || {},
-            tagIds: editingCustomer.tagIds || [],
+            tagIds: Array.isArray(editingCustomer.tagIds) ? editingCustomer.tagIds[0] : editingCustomer.tagIds, // Handle old array and new string
         };
-        form.reset(defaultValues);
+        form.reset(defaultValues as any); // Cast to any to handle type mismatch temporarily
         setBirthDateString(birthDate ? format(birthDate, 'dd/MM/yyyy') : '');
       } else {
         form.reset({
           name: '', phone: '', email: '', address: '',
-          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagIds: []
+          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagIds: ''
         });
         setBirthDateString('');
       }
@@ -142,7 +143,7 @@ export default function BaseDeClientesPage() {
         );
 
         const tagsMatch = tagFilter.length === 0 || 
-            tagFilter.every(tagId => customer.tagIds?.includes(tagId));
+            tagFilter.every(tagId => Array.isArray(customer.tagIds) ? customer.tagIds.includes(tagId) : customer.tagIds === tagId);
         
         return searchMatch && tagsMatch;
     });
@@ -196,6 +197,7 @@ export default function BaseDeClientesPage() {
 
       const payload = {
           ...data,
+          tagIds: data.tagIds ? [data.tagIds] : [], // Save as an array for consistency
           birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
           customFields: customFieldsData,
       };
@@ -320,63 +322,30 @@ export default function BaseDeClientesPage() {
                     control={form.control}
                     name="tagIds"
                     render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Etiquetas</FormLabel>
-                            <Popover>
-                                <PopoverTrigger asChild>
-                                    <FormControl>
-                                        <Button
-                                            variant="outline"
-                                            role="combobox"
-                                            className={cn(
-                                                "w-full justify-between h-auto min-h-10",
-                                                !field.value?.length && "text-muted-foreground"
-                                            )}
-                                        >
-                                            <div className="flex gap-1 flex-wrap">
-                                                {field.value?.length > 0 ? (
-                                                    field.value.map(tagId => {
-                                                        const tag = getTagById(tagId);
-                                                        return tag ? <Badge key={tag.id} variant="outline" className={cn('font-normal', tag.color)}>{tag.name}</Badge> : null;
-                                                    })
-                                                ) : (
-                                                    "Selecione etiquetas"
-                                                )}
-                                            </div>
-                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                        </Button>
-                                    </FormControl>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                    <Command>
-                                        <CommandInput placeholder="Buscar etiquetas..." />
-                                        <CommandList>
-                                            <CommandEmpty>Nenhuma etiqueta encontrada.</CommandEmpty>
-                                            <CommandGroup>
-                                                {settings.tags?.map(tag => (
-                                                    <CommandItem
-                                                        key={tag.id}
-                                                        onSelect={() => {
-                                                            const currentTagIds = field.value || [];
-                                                            const newTagIds = currentTagIds.includes(tag.id)
-                                                                ? currentTagIds.filter(id => id !== tag.id)
-                                                                : [...currentTagIds, tag.id];
-                                                            field.onChange(newTagIds);
-                                                        }}
-                                                    >
-                                                        <Check className={cn("mr-2 h-4 w-4", field.value?.includes(tag.id) ? "opacity-100" : "opacity-0")} />
-                                                        <Badge variant="outline" className={cn('mr-2', tag.color)}>{tag.name}</Badge>
-                                                    </CommandItem>
-                                                ))}
-                                            </CommandGroup>
-                                        </CommandList>
-                                    </Command>
-                                </PopoverContent>
-                            </Popover>
-                             <FormMessage />
-                        </FormItem>
+                      <FormItem>
+                        <FormLabel>Etiqueta</FormLabel>
+                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione uma etiqueta" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                             <SelectItem value="">Nenhuma</SelectItem>
+                             {settings.tags?.map(tag => (
+                                <SelectItem key={tag.id} value={tag.id}>
+                                  <div className="flex items-center gap-2">
+                                    <div className={cn("w-3 h-3 rounded-full border", tag.color)}></div>
+                                    {tag.name}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
                     )}
-                 />
+                  />
 
                 <FormField control={form.control} name="address" render={({ field }) => (
                   <FormItem>
@@ -592,7 +561,7 @@ export default function BaseDeClientesPage() {
                     </TableCell>
                     <TableCell>
                         <div className="flex flex-wrap gap-1">
-                            {customer.tagIds?.map(tagId => {
+                            {Array.isArray(customer.tagIds) && customer.tagIds.map(tagId => {
                                 const tag = getTagById(tagId);
                                 return tag ? <Badge key={tag.id} variant="outline" className={cn(tag.color)}>{tag.name}</Badge> : null;
                             })}

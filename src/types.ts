@@ -147,6 +147,7 @@ export interface Collaborator {
   type: 'collaborator' | 'sector';
   description?: string;
   photoURL?: string;
+  activeTaskCount?: number;
 }
 
 export interface Customer {

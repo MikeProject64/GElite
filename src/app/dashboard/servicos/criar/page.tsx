@@ -74,6 +74,10 @@ function CreateServiceOrderForm() {
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const customerDropdownRef = useRef<HTMLDivElement>(null);
   
+  const [isCollaboratorDropdownOpen, setIsCollaboratorDropdownOpen] = useState(false);
+  const [collaboratorSearchTerm, setCollaboratorSearchTerm] = useState('');
+  const collaboratorDropdownRef = useRef<HTMLDivElement>(null);
+
   const form = useForm<ServiceOrderValues>({
     resolver: zodResolver(serviceOrderSchema),
     defaultValues: {
@@ -102,6 +106,12 @@ function CreateServiceOrderForm() {
         return { ...c, activeTaskCount: count };
     });
   }, [collaborators, activeOrders, settings.serviceStatuses]);
+  
+  const filteredCollaborators = useMemo(() => 
+    collaboratorsWithTaskCount.filter(c => 
+      c.name.toLowerCase().includes(collaboratorSearchTerm.toLowerCase())
+    ), [collaboratorsWithTaskCount, collaboratorSearchTerm]);
+
 
   useEffect(() => {
     if (!user) return;
@@ -208,12 +218,15 @@ function CreateServiceOrderForm() {
       if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
         setIsCustomerDropdownOpen(false);
       }
+      if (collaboratorDropdownRef.current && !collaboratorDropdownRef.current.contains(event.target as Node)) {
+        setIsCollaboratorDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [customerDropdownRef]);
+  }, []);
 
   const onNewClientSubmit = async (data: NewCustomerValues) => {
     if (!user) return;
@@ -335,50 +348,40 @@ function CreateServiceOrderForm() {
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
-                  <div className="relative" ref={customerDropdownRef}>
-                    <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsCustomerDropdownOpen(prev => !prev)} disabled={isVersioning || !!clientIdFromUrl}>
-                      <span className='truncate'>
-                        {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
-                      </span>
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                    {isCustomerDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
-                        <div className="p-2">
-                          <Input
-                            placeholder="Buscar cliente..."
-                            value={customerSearchTerm}
-                            onChange={(e) => setCustomerSearchTerm(e.target.value)}
-                            autoFocus
-                          />
-                        </div>
-                        <ScrollArea className="h-48">
-                          {filteredCustomers.length > 0 ? (
-                            filteredCustomers.map((customer) => (
-                              <button
-                                type="button"
-                                key={customer.id}
-                                className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
-                                onClick={() => {
+                  <Popover open={isCustomerDropdownOpen} onOpenChange={setIsCustomerDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={isVersioning || !!clientIdFromUrl}>
+                        <span className='truncate'>
+                          {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar cliente..." onValueChange={setCustomerSearchTerm} />
+                        <CommandList>
+                           <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                           <CommandGroup>
+                             <ScrollArea className="h-48">
+                                {filteredCustomers.map((customer) => (
+                                <CommandItem key={customer.id} value={`${customer.name} ${customer.phone}`} onSelect={() => {
                                   field.onChange(customer.id);
                                   setIsCustomerDropdownOpen(false);
-                                  setCustomerSearchTerm('');
-                                }}
-                              >
-                                <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
-                                <div>
-                                  <p>{customer.name}</p>
-                                  <p className="text-xs text-muted-foreground">{customer.phone}</p>
-                                </div>
-                              </button>
-                            ))
-                          ) : (
-                            <p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-                          )}
-                        </ScrollArea>
-                      </div>
-                    )}
-                  </div>
+                                }}>
+                                  <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
+                                  <div>
+                                    <p>{customer.name}</p>
+                                    <p className="text-xs text-muted-foreground">{customer.phone}</p>
+                                  </div>
+                                </CommandItem>
+                                ))}
+                              </ScrollArea>
+                           </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}/>
@@ -389,23 +392,42 @@ function CreateServiceOrderForm() {
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
                <FormField control={form.control} name="collaboratorId" render={({ field }) => (
-                <FormItem>
+                <FormItem className="flex flex-col">
                   <FormLabel>Colaborador / Setor *</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Selecione um colaborador" /></SelectTrigger></FormControl>
-                    <SelectContent>
-                      {collaboratorsWithTaskCount.map(collaborator => (
-                        <SelectItem key={collaborator.id} value={collaborator.id}>
-                          <div className="flex justify-between w-full">
-                            <span>{collaborator.name}</span>
-                            <span className="text-muted-foreground text-xs">
-                              ({collaborator.activeTaskCount} {collaborator.activeTaskCount === 1 ? 'ativa' : 'ativas'})
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                   <Popover open={isCollaboratorDropdownOpen} onOpenChange={setIsCollaboratorDropdownOpen}>
+                    <PopoverTrigger asChild>
+                      <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")}>
+                        <span className='truncate'>
+                          {field.value ? collaborators.find(c => c.id === field.value)?.name : "Selecione um responsável"}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Buscar..." onValueChange={setCollaboratorSearchTerm} />
+                        <CommandList>
+                           <CommandEmpty>Nenhum item encontrado.</CommandEmpty>
+                           <CommandGroup>
+                             <ScrollArea className="h-48">
+                                {filteredCollaborators.map((c) => (
+                                <CommandItem key={c.id} value={c.name} onSelect={() => {
+                                  field.onChange(c.id);
+                                  setIsCollaboratorDropdownOpen(false);
+                                }}>
+                                  <Check className={cn("mr-2 h-4 w-4", field.value === c.id ? "opacity-100" : "opacity-0")} />
+                                  <div className="flex justify-between w-full">
+                                    <span>{c.name}</span>
+                                    <span className="text-muted-foreground text-xs">({c.activeTaskCount} {c.activeTaskCount === 1 ? 'ativa' : 'ativas'})</span>
+                                  </div>
+                                </CommandItem>
+                                ))}
+                              </ScrollArea>
+                           </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                   <FormMessage />
                 </FormItem>
               )}/>
