@@ -46,6 +46,7 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
             serviceOrderId = newServiceOrderRef.id;
 
             const serviceOrderData: Omit<ServiceOrder, 'id'> & { generatedFromQuoteId?: string } = {
+                userId: userId, // Ensure userId is present from the start
                 clientId: quote.clientId,
                 clientName: quote.clientName,
                 problemDescription: `${quote.description}\n\n---\nServiço baseado no orçamento #${quote.id.substring(0, 6).toUpperCase()} (v${quote.version || 1})`,
@@ -57,7 +58,6 @@ export async function convertQuoteToServiceOrder(quoteId: string, userId: string
                 dueDate: Timestamp.fromDate(new Date()),
                 totalValue: quote.totalValue,
                 attachments: [],
-                userId: userId,
                 createdAt: Timestamp.now(),
                 customFields: quote.customFields || {},
                 completedAt: null,

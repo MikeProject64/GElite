@@ -1,3 +1,4 @@
+
 rules_version = '2';
 
 service cloud.firestore {
@@ -46,11 +47,10 @@ service cloud.firestore {
       allow list: if isAuthenticated();
     }
     match /serviceOrders/{docId} {
-      // Allow creation if the user is the owner, OR if it's generated from a quote they own.
-      allow create: if isOwner(request.resource.data.userId) || (
-          request.resource.data.generatedFromQuoteId != null &&
-          get(/databases/$(database)/documents/quotes/$(request.resource.data.generatedFromQuoteId)).data.userId == request.auth.uid
-      );
+      // CORRECTED RULE: Allow creation if user is owner OR if it's generated from a quote they own.
+      allow create: if isOwner(request.resource.data.userId) ||
+                    (request.resource.data.generatedFromQuoteId != null &&
+                     get(/databases/$(database)/documents/quotes/$(request.resource.data.generatedFromQuoteId)).data.userId == request.auth.uid);
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow list: if isAuthenticated();
     }
