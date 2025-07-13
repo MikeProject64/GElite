@@ -72,7 +72,7 @@ function CreateServiceOrderForm() {
   const [baseOrder, setBaseOrder] = useState<ServiceOrder | null>(null);
 
   const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const customerDropdownRef = useRef<HTMLDivElement>(null);
   
   const [isCollaboratorDropdownOpen, setIsCollaboratorDropdownOpen] = useState(false);
@@ -317,8 +317,8 @@ function CreateServiceOrderForm() {
   };
 
   const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (customer.phone && customer.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+    customer.name.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    (customer.phone && customer.phone.toLowerCase().includes(customerSearchTerm.toLowerCase()))
   );
   
   if (isInitializing) {
@@ -360,7 +360,7 @@ function CreateServiceOrderForm() {
                     </PopoverTrigger>
                     <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
                       <Command>
-                        <CommandInput placeholder="Buscar cliente..." onValueChange={setSearchTerm} />
+                        <CommandInput placeholder="Buscar cliente..." onValueChange={setCustomerSearchTerm} />
                         <CommandList>
                            <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
                            <CommandGroup>

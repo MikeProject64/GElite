@@ -49,7 +49,7 @@ const customerFormSchema = z.object({
   birthDate: z.date().optional().nullable(),
   notes: z.string().optional(),
   customFields: z.record(z.any()).optional(),
-  tagIds: z.string().optional(), // Changed to single string
+  tagId: z.string().optional(),
 });
 
 type CustomerFormValues = z.infer<typeof customerFormSchema>;
@@ -82,7 +82,7 @@ export default function BaseDeClientesPage() {
       birthDate: null,
       notes: '',
       customFields: {},
-      tagIds: '', // Changed to empty string
+      tagId: '',
     },
   });
 
@@ -119,14 +119,14 @@ export default function BaseDeClientesPage() {
             ...editingCustomer,
             birthDate: birthDate,
             customFields: editingCustomer.customFields || {},
-            tagIds: Array.isArray(editingCustomer.tagIds) ? editingCustomer.tagIds[0] : editingCustomer.tagIds, // Handle old array and new string
+            tagId: Array.isArray(editingCustomer.tagIds) ? editingCustomer.tagIds[0] : '', // Handle old array and new string
         };
-        form.reset(defaultValues as any); // Cast to any to handle type mismatch temporarily
+        form.reset(defaultValues as any);
         setBirthDateString(birthDate ? format(birthDate, 'dd/MM/yyyy') : '');
       } else {
         form.reset({
           name: '', phone: '', email: '', address: '',
-          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagIds: ''
+          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagId: ''
         });
         setBirthDateString('');
       }
@@ -143,7 +143,7 @@ export default function BaseDeClientesPage() {
         );
 
         const tagsMatch = tagFilter.length === 0 || 
-            tagFilter.every(tagId => Array.isArray(customer.tagIds) ? customer.tagIds.includes(tagId) : customer.tagIds === tagId);
+            tagFilter.every(tagId => Array.isArray(customer.tagIds) && customer.tagIds.includes(tagId));
         
         return searchMatch && tagsMatch;
     });
@@ -197,10 +197,11 @@ export default function BaseDeClientesPage() {
 
       const payload = {
           ...data,
-          tagIds: data.tagIds ? [data.tagIds] : [], // Save as an array for consistency
+          tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [], // Save as an array for consistency
           birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
           customFields: customFieldsData,
       };
+      delete (payload as any).tagId;
 
       if (editingCustomer) {
         const customerRef = doc(db, 'customers', editingCustomer.id);
@@ -320,7 +321,7 @@ export default function BaseDeClientesPage() {
                 
                  <FormField
                     control={form.control}
-                    name="tagIds"
+                    name="tagId"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Etiqueta</FormLabel>
@@ -331,7 +332,7 @@ export default function BaseDeClientesPage() {
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                             <SelectItem value="">Nenhuma</SelectItem>
+                             <SelectItem value="none">Nenhuma</SelectItem>
                              {settings.tags?.map(tag => (
                                 <SelectItem key={tag.id} value={tag.id}>
                                   <div className="flex items-center gap-2">
@@ -631,3 +632,4 @@ export default function BaseDeClientesPage() {
     </div>
   );
 }
+
