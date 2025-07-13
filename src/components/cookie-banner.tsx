@@ -43,8 +43,8 @@ export function CookieBanner() {
         isVisible ? 'translate-y-0' : 'translate-y-full'
       )}
     >
-      <div className="container mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
-        <p className="text-sm text-muted-foreground text-center sm:text-left">
+      <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-4">
+        <p className="text-sm text-muted-foreground text-center">
           Utilizamos cookies para lhe proporcionar a melhor experiência no nosso site.
         </p>
         <Button onClick={handleAccept} size="sm" className='shrink-0'>
