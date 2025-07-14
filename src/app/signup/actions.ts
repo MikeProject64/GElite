@@ -133,7 +133,7 @@ function generateTemporaryPassword(length = 16) {
     return password;
 }
 
-export async function createQuickTrialUser(email: string) {
+export async function createAndLoginQuickTrialUser(email: string) {
     if (!email) {
         return { success: false, message: 'E-mail é obrigatório.' };
     }
@@ -161,7 +161,8 @@ export async function createQuickTrialUser(email: string) {
         
         await sendPasswordResetEmail(auth, email);
 
-        return { success: true };
+        return { success: true, email, tempPass };
+
     } catch (error: any) {
         let errorMessage = error.message || 'Ocorreu um erro desconhecido.';
         if (error.code === 'auth/email-already-in-use') {
