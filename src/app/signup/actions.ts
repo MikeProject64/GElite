@@ -1,13 +1,14 @@
 
 'use server';
 
-import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan } from '@/types';
 import { addDays } from 'date-fns';
+import nodemailer from 'nodemailer';
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -123,7 +124,7 @@ export async function createTrialUser(details: {
     }
 }
 
-function generateTemporaryPassword(length = 12) {
+function generateTemporaryPassword(length = 16) {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
     let password = "";
     for (let i = 0, n = charset.length; i < length; ++i) {
@@ -143,15 +144,13 @@ export async function createQuickTrialUser(email: string) {
             throw new Error('Este e-mail já está em uso. Por favor, faça login.');
         }
 
-        // Create user with a temporary, secure password. This password will be immediately invalidated
-        // by the password reset flow, so it's just a placeholder.
-        const tempPass = generateTemporaryPassword(16);
+        const tempPass = generateTemporaryPassword();
         const userCredential = await createUserWithEmailAndPassword(auth, email, tempPass);
         const user = userCredential.user;
 
         await setDoc(doc(db, "users", user.uid), {
             uid: user.uid,
-            name: email.split('@')[0], // Use part of email as placeholder name
+            name: email.split('@')[0], 
             email: user.email,
             createdAt: Timestamp.now(),
             role: 'user',
@@ -160,8 +159,6 @@ export async function createQuickTrialUser(email: string) {
             trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
         });
         
-        // Send a password reset email immediately. This is the secure way for the user
-        // to set their own password without one being sent over email.
         await sendPasswordResetEmail(auth, email);
 
         return { success: true };

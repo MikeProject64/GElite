@@ -187,7 +187,7 @@ function TrialSignupForm() {
             </div>
             <Card className="w-full">
                 <CardHeader className='text-center'>
-                    <CardTitle className='font-headline text-3xl'>Inicie seu Teste Gratuito</CardTitle>
+                    <CardTitle className='font-headline text-3xl'>Complete seu Cadastro</CardTitle>
                     <CardDescription>Acesso completo por 7 dias. Sem cartão de crédito.</CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -204,7 +204,7 @@ function TrialSignupForm() {
                                     </FormControl>
                                 <FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="phone" render={({ field }) => (<FormItem><FormLabel>Telefone</FormLabel><FormControl><Input placeholder="(XX) XXXXX-XXXX" {...field} /></FormControl><FormMessage /></FormItem>)}/>
-                            <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
+                            <FormField control={form.control} name="password" render={({ field }) => (<FormItem><FormLabel>Crie uma Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="confirmPassword" render={({ field }) => (<FormItem><FormLabel>Confirmar Senha</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>)}/>
                             <FormField control={form.control} name="terms" render={({ field }) => (
                                 <FormItem className="flex flex-row items-start space-x-3 space-y-0 pt-2">
