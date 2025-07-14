@@ -135,6 +135,7 @@ const TrialFeatures = ({ isMobile = false }: { isMobile?: boolean }) => {
 // Trial Signup Form Component
 function TrialSignupForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { toast } = useToast();
     const [isLoading, setIsLoading] = useState(false);
     const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
@@ -143,6 +144,13 @@ function TrialSignupForm() {
         resolver: zodResolver(trialSignupSchema),
         defaultValues: { name: '', email: '', phone: '', password: '', confirmPassword: '', terms: false },
     });
+
+    useEffect(() => {
+        const emailFromParams = searchParams.get('email');
+        if (emailFromParams) {
+            form.setValue('email', emailFromParams);
+        }
+    }, [searchParams, form]);
 
     const handleEmailBlur = useCallback(async (email: string) => {
         if (!email || !form.formState.dirtyFields.email) return;
