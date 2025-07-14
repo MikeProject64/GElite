@@ -3,7 +3,7 @@
 
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan } from '@/types';
@@ -119,6 +119,58 @@ export async function createTrialUser(details: {
             errorMessage = 'Este e-mail já foi utilizado para criar uma conta. Faça login para acessar seu painel.';
         }
         console.error("Error creating trial user:", error);
+        return { success: false, message: errorMessage };
+    }
+}
+
+function generateTemporaryPassword(length = 12) {
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+~`|}{[]:;?><,./-=";
+    let password = "";
+    for (let i = 0, n = charset.length; i < length; ++i) {
+        password += charset.charAt(Math.floor(Math.random() * n));
+    }
+    return password;
+}
+
+export async function createQuickTrialUser(email: string) {
+    if (!email) {
+        return { success: false, message: 'E-mail é obrigatório.' };
+    }
+
+    try {
+        const emailCheck = await checkEmailExists(email);
+        if (emailCheck.exists) {
+            throw new Error('Este e-mail já está em uso. Por favor, faça login.');
+        }
+
+        // Create user with a temporary, secure password. This password will be immediately invalidated
+        // by the password reset flow, so it's just a placeholder.
+        const tempPass = generateTemporaryPassword(16);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, tempPass);
+        const user = userCredential.user;
+
+        await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            name: email.split('@')[0], // Use part of email as placeholder name
+            email: user.email,
+            createdAt: Timestamp.now(),
+            role: 'user',
+            subscriptionStatus: 'trialing',
+            trialStartedAt: Timestamp.now(),
+            trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
+        });
+        
+        // Send a password reset email immediately. This is the secure way for the user
+        // to set their own password without one being sent over email.
+        await sendPasswordResetEmail(auth, email);
+
+        return { success: true };
+    } catch (error: any) {
+        let errorMessage = error.message || 'Ocorreu um erro desconhecido.';
+        if (error.code === 'auth/email-already-in-use') {
+            errorMessage = 'Este e-mail já foi utilizado. Por favor, faça login.';
+        }
+        console.error("Error creating quick trial user:", error);
         return { success: false, message: errorMessage };
     }
 }
