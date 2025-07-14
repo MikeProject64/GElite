@@ -22,7 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -37,6 +37,7 @@ import type { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from 
 const serviceOrderSchema = z.object({
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   serviceType: z.string().min(1, "O serviço é obrigatório."),
+  serviceCategory: z.string().optional(), // Novo campo
   problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
   collaboratorId: z.string({ required_error: "Por favor, selecione um colaborador." }).min(1, "Por favor, selecione um colaborador."),
   totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
@@ -44,6 +45,7 @@ const serviceOrderSchema = z.object({
   priority: z.enum(['baixa', 'media', 'alta']).default('media'),
   dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
   customFields: z.record(z.any()).optional(),
+  warrantyDays: z.coerce.number().int().min(1, 'Mínimo 1 dia').optional(),
 });
 
 const newCustomerSchema = z.object({
@@ -85,6 +87,7 @@ function CreateServiceOrderForm() {
       priority: 'media',
       dueDate: new Date(),
       customFields: {},
+      warrantyDays: undefined,
     },
   });
 
@@ -122,6 +125,7 @@ function CreateServiceOrderForm() {
                     ...data,
                     dueDate: data.dueDate.toDate(),
                     customFields: customFieldsWithDate,
+                    warrantyDays: data.warrantyEndDate ? (data.warrantyEndDate.toDate().getTime() - data.dueDate.toDate().getTime()) / (1000 * 60 * 60 * 24) : undefined,
                 });
                 toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version || 1} da OS.` });
             } else {
@@ -143,6 +147,7 @@ function CreateServiceOrderForm() {
                     priority: templateData.priority || 'media',
                     dueDate: templateData.dueDate.toDate(),
                     customFields: templateData.customFields || {},
+                    warrantyDays: templateData.warrantyEndDate ? (templateData.warrantyEndDate.toDate().getTime() - templateData.dueDate.toDate().getTime()) / (1000 * 60 * 60 * 24) : undefined,
                 });
                 toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido.`});
             } else {
@@ -226,6 +231,10 @@ function CreateServiceOrderForm() {
             }
        });
        
+       const warrantyEndDate = data.warrantyDays && data.status === 'Concluída'
+  ? Timestamp.fromDate(new Date(Date.now() + data.warrantyDays * 24 * 60 * 60 * 1000))
+  : undefined;
+       
        const payload: Omit<ServiceOrder, 'id'> = {
         ...data,
         clientName: selectedCustomer.name,
@@ -239,6 +248,7 @@ function CreateServiceOrderForm() {
         isTemplate: false,
         activityLog: [],
         version: 1,
+        warrantyEndDate,
       };
 
       if (isVersioning && baseOrder) {
@@ -347,6 +357,28 @@ function CreateServiceOrderForm() {
               <FormField control={form.control} name="serviceType" render={({ field }) => (
                 <FormItem><FormLabel>Serviço *</FormLabel><FormControl><Input placeholder="Ex: Manutenção de Ar Condicionado" {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
+              <FormField control={form.control} name="serviceCategory" render={({ field }) => (
+  <FormItem>
+    <FormLabel>Tipo de Serviço</FormLabel>
+    <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+      <FormControl>
+        <SelectTrigger>
+          <SelectValue placeholder="Selecione o tipo (opcional)" />
+        </SelectTrigger>
+      </FormControl>
+      <SelectContent>
+        {settings.serviceTypes && settings.serviceTypes.length > 0 ? (
+          settings.serviceTypes.map((cat: any) => (
+            <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+          ))
+        ) : (
+          <div className="p-2 text-muted-foreground">Nenhum tipo cadastrado</div>
+        )}
+      </SelectContent>
+    </Select>
+    <FormMessage />
+  </FormItem>
+)}/>
               <FormField control={form.control} name="problemDescription" render={({ field }) => (
                 <FormItem><FormLabel>Descrição do Problema *</FormLabel><FormControl><Textarea placeholder="Detalhe o problema relatado pelo cliente..." {...field} /></FormControl><FormMessage /></FormItem>
               )}/>
@@ -401,6 +433,16 @@ function CreateServiceOrderForm() {
                   <FormMessage />
                 </FormItem>
               )}/>
+              <FormField control={form.control} name="warrantyDays" render={({ field }) => (
+  <FormItem>
+    <FormLabel>Prazo de Garantia (dias)</FormLabel>
+    <FormControl>
+      <Input type="number" min={1} placeholder="Ex: 90" {...field} />
+    </FormControl>
+    <FormDescription>Opcional. Informe o número de dias de garantia oferecida para este serviço.</FormDescription>
+    <FormMessage />
+  </FormItem>
+)}/>
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem>

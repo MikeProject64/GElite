@@ -917,7 +917,7 @@ function ContratosPanel({ user }: { user: SystemUser | null }) {
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, systemUser } = useAuth();
   const { settings } = useSettings();
   const [isMounted, setIsMounted] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>({});
@@ -945,12 +945,17 @@ export default function DashboardPage() {
   }
 
   // Filtra funcionalidades liberadas
-  const enabledPanels = FEATURE_PANELS.filter(panel => settings.featureFlags?.[panel.key]);
+  const enabledPanels = FEATURE_PANELS.filter(panel => settings.featureFlags && Object.prototype.hasOwnProperty.call(settings.featureFlags, panel.key) && settings.featureFlags[panel.key as keyof typeof settings.featureFlags]);
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-4">
+        <div>
+          <h1 className="text-lg font-semibold md:text-2xl">Painel de Controle</h1>
+          {systemUser?.name && (
+            <p className="text-muted-foreground text-base mt-1">Bem-vindo(a), <span className="font-semibold text-primary">{systemUser.name.split(' ')[0]}</span>!</p>
+          )}
+        </div>
         <Dialog>
           <DialogTrigger asChild>
             <Button variant="outline" size="sm">
@@ -984,7 +989,7 @@ export default function DashboardPage() {
           const PanelComponent = panelComponents[panel.key];
 
           if (PanelComponent) {
-            return <PanelComponent key={panel.key} user={user} />;
+            return <PanelComponent key={panel.key} user={systemUser} />;
           }
 
           // Renderiza o card genérico para painéis ainda não implementados

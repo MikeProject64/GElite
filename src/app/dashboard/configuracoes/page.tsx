@@ -45,6 +45,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import Link from 'next/link';
 
 
 const iconNames = Object.keys(availableIcons) as (keyof typeof availableIcons)[];
@@ -478,6 +479,157 @@ const iconTranslations: Record<string, string> = {
     Hammer: 'Martelo',
 };
 
+function CustomServiceTypeManager({ serviceTypes, onUpdateServiceTypes }: { serviceTypes: { id: string; name: string }[], onUpdateServiceTypes: (types: { id: string; name: string }[]) => void }) {
+  const [newType, setNewType] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [error, setError] = useState('');
+  const [search, setSearch] = useState('');
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  // Normaliza nome para comparação (trim e lower)
+  const normalize = (name: string) => name.trim().toLowerCase();
+
+  // Ordenar e filtrar
+  const filteredTypes = serviceTypes
+    .filter(t => normalize(t.name).includes(normalize(search)))
+    .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+
+  const handleAddType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    const normalized = normalize(newType);
+    if (!normalized) return;
+    if (serviceTypes.some(t => normalize(t.name) === normalized)) {
+      setError('Já existe um tipo de serviço com esse nome.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await onUpdateServiceTypes([...serviceTypes, { id: uuidv4(), name: newType.trim() }]);
+      setNewType('');
+      toast({ title: 'Tipo adicionado', description: 'Tipo de serviço cadastrado com sucesso.' });
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Não foi possível adicionar o tipo.', variant: 'destructive' });
+    }
+    setLoading(false);
+  };
+
+  const handleRemoveType = async (id: string) => {
+    setError('');
+    setLoading(true);
+    try {
+      await onUpdateServiceTypes(serviceTypes.filter(t => t.id !== id));
+      toast({ title: 'Tipo removido', description: 'Tipo de serviço removido com sucesso.' });
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Não foi possível remover o tipo.', variant: 'destructive' });
+    }
+    setLoading(false);
+  };
+
+  const handleStartEdit = (type: { id: string; name: string }) => {
+    setEditingId(type.id);
+    setEditingName(type.name);
+    setError('');
+  };
+
+  const handleSaveEdit = async () => {
+    setError('');
+    if (!editingId || !editingName.trim()) return;
+    const normalized = normalize(editingName);
+    if (serviceTypes.some(t => t.id !== editingId && normalize(t.name) === normalized)) {
+      setError('Já existe um tipo de serviço com esse nome.');
+      return;
+    }
+    setLoading(true);
+    try {
+      await onUpdateServiceTypes(serviceTypes.map(t => t.id === editingId ? { ...t, name: editingName.trim() } : t));
+      toast({ title: 'Tipo editado', description: 'Tipo de serviço atualizado com sucesso.' });
+      setEditingId(null);
+      setEditingName('');
+    } catch (err) {
+      toast({ title: 'Erro', description: 'Não foi possível editar o tipo.', variant: 'destructive' });
+    }
+    setLoading(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+    setEditingName('');
+    setError('');
+  };
+
+  return (
+    <Card className="mt-4">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg"><Wrench className="h-5 w-5 text-primary" /> Tipos de Serviço</CardTitle>
+        <CardDescription>Adicione, edite ou remova os tipos de serviço disponíveis para uso em ordens de serviço. Evite duplicidade e utilize nomes claros.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleAddType} className="flex gap-2 mb-4" aria-label="Adicionar novo tipo de serviço">
+          <Input
+            placeholder="Ex: Instalação, Manutenção, Limpeza..."
+            value={newType}
+            onChange={e => setNewType(e.target.value)}
+            aria-label="Novo tipo de serviço"
+            autoComplete="off"
+            autoFocus
+            disabled={loading}
+          />
+          <Button type="submit" disabled={!newType.trim() || loading} aria-label="Adicionar tipo de serviço">
+            {loading ? 'Adicionando...' : 'Adicionar'}
+          </Button>
+        </form>
+        <Input
+          placeholder="Buscar tipo de serviço por nome..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="mb-4"
+          aria-label="Buscar tipo de serviço"
+          autoComplete="off"
+          disabled={loading}
+        />
+        {error && <p className="text-destructive text-sm mb-2" role="alert">{error}</p>}
+        {filteredTypes.length > 0 ? (
+          <ul className="space-y-2">
+            {filteredTypes.map((tipo) => (
+              <li key={tipo.id} className="border rounded px-3 py-2 flex items-center gap-2 focus-within:ring-2 focus-within:ring-primary">
+                {editingId === tipo.id ? (
+                  <>
+                    <Input
+                      value={editingName}
+                      onChange={e => setEditingName(e.target.value)}
+                      className="max-w-xs"
+                      aria-label="Editar tipo de serviço"
+                      autoFocus
+                      disabled={loading}
+                    />
+                    <Button size="sm" onClick={handleSaveEdit} disabled={!editingName.trim() || loading} aria-label="Salvar edição">
+                      {loading ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={handleCancelEdit} disabled={loading} aria-label="Cancelar edição">Cancelar</Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1" tabIndex={0} aria-label={`Tipo de serviço: ${tipo.name}`}>{tipo.name}</span>
+                    <Button size="sm" variant="outline" onClick={() => handleStartEdit(tipo)} disabled={loading} aria-label={`Editar tipo ${tipo.name}`}>Editar</Button>
+                    <Button size="sm" variant="destructive" onClick={() => handleRemoveType(tipo.id)} disabled={loading} aria-label={`Remover tipo ${tipo.name}`}>
+                      {loading ? 'Removendo...' : 'Remover'}
+                    </Button>
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-muted-foreground">Nenhum tipo de serviço encontrado.</p>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function ConfiguracoesPage() {
   const { settings, updateSettings, loadingSettings } = useSettings();
@@ -769,6 +921,11 @@ export default function ConfiguracoesPage() {
                                 icon={<FileText className="h-5 w-5 text-primary" />}
                                 fields={settings.quoteCustomFields || []}
                                 onUpdateFields={handleUpdateQuoteFields}
+                            />
+                            {/* Novo card para Tipos de Serviço */}
+                            <CustomServiceTypeManager
+                              serviceTypes={settings.serviceTypes || []}
+                              onUpdateServiceTypes={types => updateSettings({ serviceTypes: types })}
                             />
                             <div className="md:col-span-2 lg:col-span-1">
                                 <CustomStatusManager />

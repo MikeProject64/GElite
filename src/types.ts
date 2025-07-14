@@ -198,12 +198,8 @@ export interface ServiceOrder {
     isTemplate?: boolean;
     templateName?: string;
     originalServiceOrderId?: string;
-    version?: number;
-    source?: {
-      type: 'quote' | 'agreement';
-      id: string;
-    };
-    generatedByAgreementId?: string; // Deprecated but kept for backward compatibility
+    warrantyDays?: number; // Dias de garantia
+    warrantyEndDate?: Timestamp; // Data de término da garantia
 }
 
 export interface ServiceAgreement {

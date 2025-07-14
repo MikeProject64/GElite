@@ -28,6 +28,8 @@ import {
   Menu,
   FileSignature,
   User,
+  LifeBuoy,
+  GraduationCap,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -37,6 +39,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/t
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
+
+// Padronizar tamanho dos ícones e espaçamento para compacto
+const ICON_SIZE = 'h-4 w-4';
 
 const NavItem: React.FC<{
   href: string;
@@ -51,13 +56,13 @@ const NavItem: React.FC<{
       href={href}
       onClick={onClick}
       className={cn(
-        'flex h-10 items-center justify-start gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+        'flex h-10 items-center justify-start gap-2 rounded-lg px-2 py-1 text-muted-foreground transition-all hover:text-primary',
         isCollapsed && 'justify-center',
         isActive && 'bg-muted text-primary'
       )}
     >
-      <Icon className="h-5 w-5 shrink-0" />
-      <span className={cn('truncate', isCollapsed && 'sr-only')}>{label}</span>
+      <Icon className={`${ICON_SIZE} shrink-0`} />
+      <span className={cn('truncate text-sm font-medium', isCollapsed && 'sr-only')}>{label}</span>
     </Link>
   );
 
@@ -83,12 +88,14 @@ const NavActionButton: React.FC<{
     <button
       onClick={onClick}
       className={cn(
-        'flex h-10 w-full items-center justify-start gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+        'flex h-10 w-full items-center gap-2 rounded-lg px-2 py-1 text-muted-foreground transition-all hover:text-primary',
         isCollapsed && 'justify-center'
       )}
     >
-      {React.cloneElement(icon as React.ReactElement, { className: "h-5 w-5 shrink-0"})}
-      <span className={cn('truncate', isCollapsed && 'sr-only')}>{label}</span>
+      <span className="flex items-center gap-2">
+        {React.cloneElement(icon as React.ReactElement, { className: ICON_SIZE + ' shrink-0' })}
+        <span className={cn('truncate text-sm font-medium', isCollapsed && 'sr-only')}>{label}</span>
+      </span>
     </button>
   );
 
@@ -168,28 +175,11 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         <NavItem href="/dashboard/configuracoes" label="Configurações" icon={Settings} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/configuracoes')} onClick={onLinkClick}/>
         <NavItem href="/dashboard/plans" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/plans')} onClick={onLinkClick}/>
         <NavItem href="/dashboard/perfil" label="Meu Perfil" icon={User} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/perfil')} onClick={onLinkClick}/>
+        <NavItem href="/dashboard/tutoriais" label="Tutoriais" icon={GraduationCap} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/tutoriais')} onClick={onLinkClick}/>
         
         <NavActionButton
-          label="Alterar Tema"
-          icon={<Sun />}
-          isCollapsed={isCollapsed}
-        >
-          <DropdownMenuContent side="right" align="start">
-            <DropdownMenuItem onClick={() => setTheme('light')}>Claro</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('dark')}>Escuro</DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setTheme('system')}>Sistema</DropdownMenuItem>
-          </DropdownMenuContent>
-        </NavActionButton>
-
-        <NavActionButton
           label="Sair"
-          icon={
-            <Avatar>
-              <AvatarFallback className="text-xs bg-muted text-muted-foreground">
-                {user?.email?.[0].toUpperCase() ?? 'U'}
-              </AvatarFallback>
-            </Avatar>
-          }
+          icon={<LogOut />}
           isCollapsed={isCollapsed}
           onClick={handleLogout}
         />

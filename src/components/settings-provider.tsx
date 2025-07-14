@@ -30,6 +30,7 @@ export interface UserSettings {
   quoteCustomFields?: CustomField[];
   serviceStatuses?: ServiceStatus[];
   tags?: Tag[];
+  serviceTypes?: { id: string; name: string }[]; // Adicionado para tipos de serviço
   featureFlags?: {
     servicos?: boolean;
     orcamentos?: boolean;
@@ -86,6 +87,7 @@ const defaultSettings: UserSettings = {
     { id: 'canceled', name: 'Cancelada', color: '0 84% 60%' }, // red
   ],
   tags: [],
+  serviceTypes: [], // Adicionado para tipos de serviço
   featureFlags: {
     servicos: true,
     orcamentos: true,

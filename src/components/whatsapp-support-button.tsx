@@ -27,7 +27,10 @@ export function WhatsAppSupportButton() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-50 group">
+        <div className="fixed bottom-6 right-6 z-50 group flex items-center gap-2">
+            <div className="bg-green-500 text-white px-3 py-1 rounded-full shadow text-sm font-semibold mr-2 hidden sm:block animate-fade-in">
+                Suporte
+            </div>
             <Button
                 onClick={handleOpenWhatsApp}
                 className="rounded-full w-16 h-16 bg-green-500 hover:bg-green-600 shadow-lg text-white flex items-center justify-center"

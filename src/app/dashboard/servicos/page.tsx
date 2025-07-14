@@ -14,6 +14,7 @@ import { ServiceOrder, ServiceOrderPriority } from '@/types';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
+import { differenceInDays, isAfter, isBefore, format as formatDate, isValid } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -345,6 +346,7 @@ export default function ServicosPage() {
                         </div>
                     </TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-32">Garantia</TableHead>
                     <TableHead><span className="sr-only">Ações</span></TableHead>
                 </TableRow>
                 </TableHeader>
@@ -401,6 +403,35 @@ export default function ServicosPage() {
                             ) : null}
                         </TableCell>
                         <TableCell><Badge style={{ backgroundColor: getStatusColor(order.status), color: 'hsl(var(--primary-foreground))' }} className="border-transparent">{order.status}</Badge></TableCell>
+                        <TableCell>
+                            {order.warrantyDays && order.warrantyEndDate && isValid(order.warrantyEndDate.toDate()) ? (
+                                (() => {
+                                    const now = new Date();
+                                    const end = order.warrantyEndDate.toDate();
+                                    const dias = differenceInDays(end, now);
+                                    const expirada = isBefore(end, now);
+                                    return (
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span>
+                                                        <Badge variant={expirada ? 'destructive' : 'outline'} className={expirada ? 'line-through' : ''}>
+                                                            {expirada ? 'Expirada' : `${dias} dia(s)`}
+                                                        </Badge>
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    {expirada ? 'Garantia expirada em ' : 'Válida até: '}
+                                                    {formatDate(end, 'dd/MM/yyyy')}
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    );
+                                })()
+                            ) : (
+                                <span className="text-muted-foreground">-</span>
+                            )}
+                        </TableCell>
                         <TableCell>
                             <DropdownMenu><DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
