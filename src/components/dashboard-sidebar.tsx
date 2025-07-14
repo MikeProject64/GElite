@@ -27,6 +27,7 @@ import {
   ClipboardList,
   Menu,
   FileSignature,
+  User,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -166,6 +167,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
       <nav className="mt-auto space-y-1 border-t px-2 py-4">
         <NavItem href="/dashboard/configuracoes" label="Configurações" icon={Settings} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/configuracoes')} onClick={onLinkClick}/>
         <NavItem href="/dashboard/plans" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/plans')} onClick={onLinkClick}/>
+        <NavItem href="/dashboard/perfil" label="Meu Perfil" icon={User} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/perfil')} onClick={onLinkClick}/>
         
         <NavActionButton
           label="Alterar Tema"
