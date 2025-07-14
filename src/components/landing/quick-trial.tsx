@@ -70,15 +70,28 @@ export function QuickTrial() {
   };
 
   return (
-    <section id="quick-trial" className="w-full h-[50vh] bg-primary text-primary-foreground flex items-center justify-center border-b relative bg-[url('data:image/svg+xml,%3csvg%20xmlns=%22http://www.w3.org/2000/svg%22%20viewBox=%220%200%2032%2032%22%20width=%2232%22%20height=%2232%22%20fill=%22none%22%20stroke-width=%222%22%20stroke=%22hsl(var(--primary-foreground)/0.05)%22%3e%3cpath%20d=%22M0%20.5%20L32%20.5%20M.5%200%20L.5%2032%22/%3e%3c/svg%3e')]">
-        <div className="container px-4 md:px-6 lg:px-24 mx-auto">
+    <section id="quick-trial" className="w-full h-[50vh] bg-primary text-primary-foreground flex items-center justify-center border-b relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 bg-primary" />
+        <div className="gradient-bg">
+            <div className="gradients-container">
+                <div className="g1"></div>
+                <div className="g2"></div>
+                <div className="g3"></div>
+                <div className="g4"></div>
+                <div className="g5"></div>
+            </div>
+        </div>
+      </div>
+        <div className="container px-4 md:px-6 lg:px-24 mx-auto relative z-10">
             <ScrollReveal>
             <div className="rounded-lg text-center p-8 md:p-12">
                 <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl font-headline">
-                    Inicie seu Teste Gratuito
+                  Inicie seu Teste Gratuito
                 </h2>
                 <p className="max-w-[600px] mx-auto text-primary-foreground/80 md:text-lg mt-2 font-body">
-                    Coloque seu e-mail e acesse o sistema instantaneamente.
+                  Coloque seu e-mail e acesse o sistema instantaneamente.
                 </p>
                 <div className="w-full max-w-md mx-auto mt-6">
                     <Form {...form}>

@@ -117,3 +117,78 @@
     display: none !important;
   }
 }
+
+@layer base {
+    /* Animated Tech Background */
+    .gradient-bg {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        overflow: hidden;
+        background: transparent;
+    }
+
+    .gradients-container {
+        filter: blur(40px);
+        width: 100%;
+        height: 100%;
+    }
+
+    .g1, .g2, .g3, .g4, .g5 {
+        width: 25vw;
+        height: 25vw;
+        position: absolute;
+        border-radius: 100%;
+    }
+
+    .g1 {
+        background: hsl(var(--primary-h), var(--primary-s), 90%);
+        opacity: 0.15;
+        animation: move1 15s ease-in-out -2.5s infinite alternate;
+    }
+
+    .g2 {
+        background: hsl(var(--primary-h), var(--primary-s), 80%);
+        opacity: 0.2;
+        animation: move2 15s ease-in-out -5s infinite alternate;
+    }
+
+    .g3 {
+        background: hsl(var(--primary-h), calc(var(--primary-s) + 10%), 70%);
+        opacity: 0.1;
+        animation: move3 15s ease-in-out -7.5s infinite alternate;
+    }
+
+    .g4 {
+        background: hsl(var(--primary-h), calc(var(--primary-s) - 10%), 85%);
+        opacity: 0.15;
+        animation: move4 15s ease-in-out -10s infinite alternate;
+    }
+
+    .g5 {
+        background: hsl(var(--primary-h), var(--primary-s), 75%);
+        opacity: 0.1;
+        animation: move5 15s ease-in-out -12.5s infinite alternate;
+    }
+
+    @keyframes move1 {
+        0% { transform: translate(10vw, -10vh); }
+        100% { transform: translate(15vw, 30vh); }
+    }
+    @keyframes move2 {
+        0% { transform: translate(-10vw, 10vh) scale(0.8); }
+        100% { transform: translate(20vw, 40vh) scale(1.2); }
+    }
+    @keyframes move3 {
+        0% { transform: translate(50vw, 50vh); }
+        100% { transform: translate(20vw, 0vh) scale(0.9); }
+    }
+    @keyframes move4 {
+        0% { transform: translate(80vw, 20vh) scale(1.1); }
+        100% { transform: translate(50vw, 60vh) scale(0.7); }
+    }
+    @keyframes move5 {
+        0% { transform: translate(20vw, 80vh); }
+        100% { transform: translate(60vw, 30vh); }
+    }
+}
