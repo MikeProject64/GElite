@@ -17,6 +17,7 @@ import { FreeTrial } from '@/components/landing/free-trial';
 import { Faq } from '@/components/landing/faq';
 import { FinalCta } from '@/components/landing/final-cta';
 import { AdminPanelButton } from '@/components/admin-panel-button';
+import { ScrollDownArrow } from '@/components/landing/scroll-down-arrow';
 
 // Force dynamic rendering to ensure fresh data on every request.
 export const revalidate = 0;
@@ -48,7 +49,10 @@ export default async function Home() {
     <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
       <Header siteName={siteName} iconName={iconName} />
       <main className="flex-grow">
-        <Hero landingPageImages={landingPageImages} />
+        <div className="relative">
+          <Hero landingPageImages={landingPageImages} />
+          <ScrollDownArrow targetId="key-features" />
+        </div>
         <KeyFeatures />
         <TargetAudience />
         <Features landingPageImages={landingPageImages} />

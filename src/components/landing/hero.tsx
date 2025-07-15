@@ -34,16 +34,18 @@ export function Hero({ landingPageImages }: HeroProps) {
             <QuickTrialForm />
           </ScrollReveal>
           <ScrollReveal delay={200} className="flex flex-col justify-center items-center lg:col-span-3">
-            <Image
-              src={heroImage}
-              alt="Ilustração de pessoas analisando gráficos"
-              width={1200}
-              height={900}
-              className="mx-auto aspect-[16/9] overflow-hidden rounded-xl object-cover shadow-2xl"
-              data-ai-hint="data analytics"
-              priority
-              sizes="(max-width: 1024px) 100vw, 60vw"
-            />
+            <div className="mx-auto aspect-[16/9] w-full overflow-hidden rounded-xl">
+              <Image
+                src={heroImage}
+                alt="Ilustração de pessoas analisando gráficos"
+                width={1200}
+                height={675}
+                className="w-full h-full object-cover shadow-2xl"
+                data-ai-hint="data analytics"
+                priority
+                sizes="(max-width: 1024px) 100vw, 60vw"
+              />
+            </div>
           </ScrollReveal>
         </div>
       </div>
