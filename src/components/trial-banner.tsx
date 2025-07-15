@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -43,14 +42,14 @@ export function TrialBanner() {
     };
 
     return (
-        <div className="fixed top-0 left-0 right-0 z-50 bg-primary/90 backdrop-blur-sm text-primary-foreground shadow-md">
-            <div className="container mx-auto flex h-12 items-center justify-center px-4 md:px-6 lg:px-24">
+        <div className="relative z-40 bg-primary text-primary-foreground shadow-sm">
+            <div className="container mx-auto flex h-10 items-center justify-center px-4 md:px-6 lg:px-24">
                 <div className="flex w-full items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                        <Rocket className="h-5 w-5" />
-                        <p className="text-sm font-medium">{getMessage()}</p>
+                    <div className="flex items-center gap-2">
+                        <Rocket className="h-4 w-4" />
+                        <p className="text-xs sm:text-sm font-medium">{getMessage()}</p>
                     </div>
-                    <Button asChild size="sm" variant="secondary" className="shrink-0">
+                    <Button asChild size="sm" variant="secondary" className="shrink-0 h-7 text-xs">
                         <Link href="/dashboard/plans">
                             <ShieldCheck className="mr-2 h-4 w-4" />
                             Assinar um Plano

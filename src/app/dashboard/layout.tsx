@@ -84,21 +84,22 @@ export default function DashboardLayout({
     }
   }
 
-  const isOnTrial = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
-  const isEmailVerified = user?.emailVerified;
-
   return (
     <>
       <DynamicLayoutEffects />
       <WelcomeModal />
       <NotificationModalProvider />
-      <TrialBanner />
-      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", (isOnTrial || !isEmailVerified) && "pt-12")}>
+      <div className="grid h-screen w-full md:grid-cols-[auto_1fr]">
         <DashboardSidebar />
-        <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
-          <VerificationBanner />
-          {children}
-        </main>
+        <div className="flex flex-col h-screen">
+          <header className="shrink-0">
+            <TrialBanner />
+            <VerificationBanner />
+          </header>
+          <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+            {children}
+          </main>
+        </div>
       </div>
       <WhatsAppSupportButton />
     </>
