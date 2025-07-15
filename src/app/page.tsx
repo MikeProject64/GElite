@@ -49,10 +49,8 @@ export default async function Home() {
     <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
       <Header siteName={siteName} iconName={iconName} />
       <main className="flex-grow">
-        <div className="relative">
-          <Hero landingPageImages={landingPageImages} />
-          <ScrollDownArrow targetId="key-features" />
-        </div>
+        <Hero landingPageImages={landingPageImages} />
+        <ScrollDownArrow targetId="key-features" />
         <KeyFeatures />
         <TargetAudience />
         <Features landingPageImages={landingPageImages} />

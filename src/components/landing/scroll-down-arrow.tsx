@@ -17,16 +17,12 @@ export function ScrollDownArrow({ targetId }: ScrollDownArrowProps) {
   };
 
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20">
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={handleClick}
-        className="animate-bounce rounded-full h-12 w-12 text-primary hover:bg-primary/10"
-        aria-label="Rolar para a próxima seção"
-      >
-        <ChevronDown className="h-8 w-8" />
-      </Button>
+    <div className="flex justify-center -mt-8 relative z-10">
+        <Button variant="outline" onClick={handleClick} className="bg-background hover:bg-muted group">
+            <ChevronDown className="h-4 w-4 mr-2 transition-transform group-hover:translate-y-0.5" />
+            Saiba mais
+            <ChevronDown className="h-4 w-4 ml-2 transition-transform group-hover:translate-y-0.5" />
+        </Button>
     </div>
   );
 }
