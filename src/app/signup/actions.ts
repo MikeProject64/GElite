@@ -1,13 +1,14 @@
-
 'use server';
 
-import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import type { Plan } from '@/types';
 import { addDays } from 'date-fns';
+import { randomBytes } from 'crypto';
+
 
 async function getStripeInstance(): Promise<Stripe> {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -120,5 +121,49 @@ export async function createTrialUser(details: {
         }
         console.error("Error creating trial user:", error);
         return { success: false, message: errorMessage };
+    }
+}
+
+
+export async function createAndLoginQuickTrialUser(email: string) {
+    if (!email) {
+        return { success: false, message: 'E-mail é obrigatório.' };
+    }
+
+    try {
+        const emailCheck = await checkEmailExists(email);
+        if (emailCheck.exists) {
+            return { success: false, message: 'Este e-mail já está em uso. Tente fazer login.' };
+        }
+
+        // Generate a secure temporary password
+        const tempPassword = randomBytes(16).toString('hex');
+        const name = email.split('@')[0];
+
+        const userCredential = await createUserWithEmailAndPassword(auth, email, tempPassword);
+        const user = userCredential.user;
+
+        // Create user document in Firestore
+        await setDoc(doc(db, "users", user.uid), {
+            uid: user.uid,
+            name: name,
+            email: user.email,
+            phone: '', // Phone not collected in this flow
+            createdAt: Timestamp.now(),
+            role: 'user',
+            subscriptionStatus: 'trialing',
+            trialStartedAt: Timestamp.now(),
+            trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
+        });
+
+        // Send password reset email
+        await sendPasswordResetEmail(auth, email);
+
+        // Return the temporary password for client-side login
+        return { success: true, tempPassword };
+
+    } catch (error: any) {
+        console.error("Error in quick trial creation:", error);
+        return { success: false, message: error.message || 'Ocorreu um erro ao criar a conta.' };
     }
 }

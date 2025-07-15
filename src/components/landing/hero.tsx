@@ -1,14 +1,11 @@
 
 'use client';
 
-import { Button } from '@/components/ui/button';
 import Image from 'next/image';
-import Link from 'next/link';
 import type { UserSettings } from '@/types';
 import NetworkAnimation from './network-animation';
 import { ScrollReveal } from './scroll-reveal';
-import * as gtag from '@/lib/utils';
-import { Input } from '@/components/ui/input';
+import { QuickTrialForm } from './quick-trial';
 
 interface HeroProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -16,13 +13,6 @@ interface HeroProps {
 
 export function Hero({ landingPageImages }: HeroProps) {
   const heroImage = landingPageImages?.heroImage || "https://placehold.co/600x550.png";
-
-  const handleCTAClick = (ctaName: string) => {
-    gtag.event({
-      action: 'cta_click',
-      params: { cta_name: ctaName },
-    });
-  };
 
   return (
     <section className="w-full py-20 md:py-24 lg:py-32 relative overflow-hidden">
@@ -41,12 +31,7 @@ export function Hero({ landingPageImages }: HeroProps) {
                 Acesso completo por 7 dias. Sem necessidade de cartão de crédito.
               </p>
             </div>
-            <div className="w-full max-w-md space-y-2">
-                <Input type="email" placeholder="Digite seu e-mail aqui!." className="h-12 text-base" />
-                <Button size="lg" className="w-full text-base">
-                  Fazer cadastro
-                </Button>
-              </div>
+            <QuickTrialForm />
           </ScrollReveal>
           <ScrollReveal delay={200} className="flex flex-col justify-center items-center lg:col-span-3">
             <Image
