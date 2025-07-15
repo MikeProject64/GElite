@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, Suspense, useEffect, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, Wrench } from 'lucide-react';
 import { useSettings } from '@/components/settings-provider';
 import { availableIcons } from '@/components/icon-map';
+import { useAuth } from '@/components/auth-provider';
 
 const loginFormSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um e-mail válido.' }),
@@ -34,7 +35,7 @@ const LOGIN_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_RESET_ATTEMPTS = 3;
 const RESET_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
-export default function LoginPage() {
+function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -50,6 +51,7 @@ export default function LoginPage() {
   const [resetDisabledUntil, setResetDisabledUntil] = useState<number | null>(null);
 
   const { settings } = useSettings();
+  const { user } = useAuth();
   const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
   const siteName = settings.siteName || 'Gestor Elite';
 
@@ -303,5 +305,14 @@ export default function LoginPage() {
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+// Wrapping the client component in Suspense is crucial for useSearchParams.
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }
