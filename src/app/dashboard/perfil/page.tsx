@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useRef } from 'react';
@@ -34,7 +35,6 @@ type PerfilFormValues = z.infer<typeof perfilSchema>;
 export default function PerfilPage() {
   const { user, systemUser, loading } = useAuth();
   const { theme, setTheme } = useTheme();
-  const [sendingVerification, setSendingVerification] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [changingEmail, setChangingEmail] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
@@ -70,20 +70,7 @@ export default function PerfilPage() {
         endereco: '', // systemUser.endereco || ''
       });
     }
-  }, [systemUser]);
-
-  const handleSendVerification = async () => {
-    if (!user) return;
-    setSendingVerification(true);
-    try {
-      await sendEmailVerification(user);
-      toast({ title: 'E-mail enviado', description: 'Verifique sua caixa de entrada para confirmar seu e-mail.' });
-    } catch (err) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível enviar o e-mail de verificação.' });
-    } finally {
-      setSendingVerification(false);
-    }
-  };
+  }, [systemUser, form]);
 
   const handleChangeEmail = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -316,20 +303,10 @@ export default function PerfilPage() {
               </Button>
             </form>
           </Form>
-          {/* Seletor de tema */}
-          {/* Seletor de tema */}
         </div>
         {/* Card Segurança da Conta */}
         <div className="bg-white dark:bg-card rounded-lg shadow p-6 flex flex-col h-full w-full grow">
           <h2 className="text-xl font-semibold mb-4">Segurança da Conta</h2>
-          {!user?.emailVerified && (
-            <div className="bg-yellow-100 text-yellow-800 rounded p-3 flex items-center gap-4 mb-4">
-              <span>Sua conta não está verificada. Confirme seu e-mail para garantir a segurança da sua conta.</span>
-              <Button onClick={handleSendVerification} disabled={sendingVerification} className="btn btn-sm btn-warning">
-                {sendingVerification ? 'Enviando...' : 'Reenviar e-mail de verificação'}
-              </Button>
-            </div>
-          )}
           <form className="mb-4" onSubmit={handleChangeEmail}>
             <div className="mb-2">
               <label className="block text-sm font-medium mb-1">E-mail atual</label>

@@ -5,6 +5,7 @@ import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { TrialBanner } from '@/components/trial-banner';
+import { VerificationBanner } from '@/components/dashboard/verification-banner'; // Importação do novo componente
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -84,6 +85,7 @@ export default function DashboardLayout({
   }
 
   const isOnTrial = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
+  const isEmailVerified = user?.emailVerified;
 
   return (
     <>
@@ -91,9 +93,10 @@ export default function DashboardLayout({
       <WelcomeModal />
       <NotificationModalProvider />
       <TrialBanner />
-      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
+      <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", (isOnTrial || !isEmailVerified) && "pt-12")}>
         <DashboardSidebar />
         <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+          <VerificationBanner />
           {children}
         </main>
       </div>
