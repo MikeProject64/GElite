@@ -25,7 +25,7 @@ export function Hero({ landingPageImages }: HeroProps) {
   };
 
   return (
-    <section className="w-full py-20 md:py-32 lg:py-40 relative overflow-hidden">
+    <section className="w-full py-20 md:py-24 lg:py-32 relative overflow-hidden">
       <NetworkAnimation />
       <div className="container px-4 md:px-6 lg:px-24 mx-auto relative z-10">
         <div className="grid gap-8 lg:grid-cols-5 lg:gap-x-16 items-center">
@@ -49,7 +49,6 @@ export function Hero({ landingPageImages }: HeroProps) {
               </div>
           </ScrollReveal>
           <ScrollReveal delay={200} className="flex flex-col justify-center items-center lg:col-span-3">
-            <h3 className="text-xl font-semibold mb-4 text-center">A plataforma completa para gestão de serviços</h3>
             <Image
               src={heroImage}
               alt="Ilustração de pessoas analisando gráficos"
