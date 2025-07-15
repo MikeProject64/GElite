@@ -1,7 +1,6 @@
 'use server';
 
-import { getAuth } from 'firebase-admin/auth';
-import { initFirebaseAdminApp, dbAdmin } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { verifyAdmin } from '@/lib/server-auth';
 
 /**
@@ -13,13 +12,13 @@ import { verifyAdmin } from '@/lib/server-auth';
 export async function createImpersonationToken(uid: string): Promise<{ success: boolean; token?: string; message?: string; }> {
   try {
     await verifyAdmin(); // Protege a ação
-    await initFirebaseAdminApp();
+    const { adminAuth } = await getFirebaseAdmin();
     
     if (!uid) {
       throw new Error('O UID do usuário é obrigatório.');
     }
 
-    const customToken = await getAuth().createCustomToken(uid);
+    const customToken = await adminAuth.createCustomToken(uid);
     
     return { success: true, token: customToken };
 
@@ -36,11 +35,11 @@ export async function createImpersonationToken(uid: string): Promise<{ success: 
 export async function deleteUsers(uids: string[]): Promise<{ success: boolean; message?: string; }> {
   try {
     await verifyAdmin(); // Protege a ação
-    await initFirebaseAdminApp();
+    const { adminAuth, dbAdmin } = await getFirebaseAdmin();
     if (!uids || uids.length === 0) throw new Error("Nenhum UID de usuário fornecido.");
 
     // Excluir do Firebase Auth (em lotes de 1000, que é o máximo)
-    await getAuth().deleteUsers(uids);
+    await adminAuth.deleteUsers(uids);
 
     // Excluir do Firestore usando Batched Write (lotes de 500)
     const batch = dbAdmin.batch();
@@ -66,7 +65,7 @@ export async function deleteUsers(uids: string[]): Promise<{ success: boolean; m
 export async function updateUsersRole(uids: string[], role: 'admin' | 'user'): Promise<{ success: boolean; message?: string; }> {
    try {
     await verifyAdmin(); // Protege a ação
-    await initFirebaseAdminApp();
+    const { dbAdmin } = await getFirebaseAdmin();
     if (!uids || uids.length === 0) throw new Error("Nenhum UID de usuário fornecido.");
 
     const batch = dbAdmin.batch();
@@ -92,7 +91,7 @@ export async function updateUsersRole(uids: string[], role: 'admin' | 'user'): P
 export async function updateUsersPlan(uids: string[], planId: string): Promise<{ success: boolean; message?: string; }> {
    try {
     await verifyAdmin(); // Protege a ação
-    await initFirebaseAdminApp();
+    const { dbAdmin } = await getFirebaseAdmin();
     if (!uids || uids.length === 0) throw new Error("Nenhum UID de usuário fornecido.");
 
     const batch = dbAdmin.batch();

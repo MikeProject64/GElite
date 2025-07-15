@@ -1,9 +1,8 @@
 
 'use server';
 
-import { getAuth } from 'firebase-admin/auth';
 import { cookies } from 'next/headers';
-import { initFirebaseAdminApp } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 
 
 /**
@@ -13,11 +12,11 @@ import { initFirebaseAdminApp } from '@/lib/firebase-admin';
  */
 export async function createSessionCookie(idToken: string): Promise<{ success: boolean; message?: string }> {
   try {
-    await initFirebaseAdminApp();
+    const { adminAuth } = await getFirebaseAdmin();
     
     // Opcional: Verificar se o usuário é admin antes de criar uma sessão privilegiada
-    const decodedToken = await getAuth().verifyIdToken(idToken);
-    const user = await getAuth().getUser(decodedToken.uid);
+    const decodedToken = await adminAuth.verifyIdToken(idToken);
+    const user = await adminAuth.getUser(decodedToken.uid);
     
     if (user.customClaims?.['role'] !== 'admin') {
          // Se você quiser ser ainda mais seguro, pode definir a role como uma custom claim no Firebase
@@ -27,7 +26,7 @@ export async function createSessionCookie(idToken: string): Promise<{ success: b
 
     // 5 dias de validade para o cookie
     const expiresIn = 60 * 60 * 24 * 5 * 1000;
-    const sessionCookie = await getAuth().createSessionCookie(idToken, { expiresIn });
+    const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn });
 
     // Define o cookie na resposta. `secure: true` é crucial para produção.
     cookies().set('session', sessionCookie, { maxAge: expiresIn, httpOnly: true, secure: process.env.NODE_ENV === 'production' });

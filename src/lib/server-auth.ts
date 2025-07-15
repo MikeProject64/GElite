@@ -1,7 +1,6 @@
 
 import { cookies } from 'next/headers';
-import { getAuth } from 'firebase-admin/auth';
-import { initFirebaseAdminApp, dbAdmin } from '@/lib/firebase-admin';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 
 /**
  * Verifies the user's session from the request cookies on the server-side
@@ -16,7 +15,7 @@ import { initFirebaseAdminApp, dbAdmin } from '@/lib/firebase-admin';
  *          the user document doesn't exist, or the user is not an admin.
  */
 export async function verifyAdmin() {
-  await initFirebaseAdminApp();
+  const { adminAuth, dbAdmin } = await getFirebaseAdmin();
   const sessionCookie = cookies().get('session')?.value;
 
   if (!sessionCookie) {
@@ -25,7 +24,7 @@ export async function verifyAdmin() {
 
   let decodedIdToken;
   try {
-    decodedIdToken = await getAuth().verifySessionCookie(sessionCookie, true);
+    decodedIdToken = await adminAuth.verifySessionCookie(sessionCookie, true);
   } catch (error) {
     throw new Error('Sessão inválida ou expirada. Faça login novamente.');
   }
