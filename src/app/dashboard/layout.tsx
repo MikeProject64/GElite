@@ -89,14 +89,14 @@ export default function DashboardLayout({
       <DynamicLayoutEffects />
       <WelcomeModal />
       <NotificationModalProvider />
-      <div className="grid h-screen w-full md:grid-cols-[auto_1fr]">
-        <DashboardSidebar />
-        <div className="flex flex-col h-screen overflow-hidden">
-          <header className="shrink-0">
-            <TrialBanner />
-            <VerificationBanner />
-          </header>
-          <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+      <div className="flex flex-col h-screen bg-background">
+        <header className="shrink-0 z-50">
+          <TrialBanner />
+          <VerificationBanner />
+        </header>
+        <div className="grid flex-1 w-full md:grid-cols-[auto_1fr] overflow-hidden">
+          <DashboardSidebar />
+          <main className="overflow-y-auto bg-secondary/50 p-4 lg:p-6">
             {children}
           </main>
         </div>

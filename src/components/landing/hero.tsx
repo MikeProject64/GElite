@@ -15,7 +15,7 @@ export function Hero({ landingPageImages }: HeroProps) {
   const heroImage = landingPageImages?.heroImage || "https://placehold.co/600x550.png";
 
   return (
-    <section className="w-full py-20 md:py-24 lg:py-32 relative overflow-hidden">
+    <section className="w-full py-12 md:py-20 lg:py-24 relative overflow-hidden">
       <NetworkAnimation />
       <div className="container px-4 md:px-6 lg:px-24 mx-auto relative z-10">
         <div className="grid gap-8 lg:grid-cols-5 lg:gap-x-16 items-center">
@@ -39,7 +39,7 @@ export function Hero({ landingPageImages }: HeroProps) {
               alt="Ilustração de pessoas analisando gráficos"
               width={1200}
               height={900}
-              className="mx-auto aspect-[12/9] overflow-hidden rounded-xl object-contain shadow-2xl"
+              className="mx-auto aspect-[12/9] overflow-hidden rounded-xl object-cover shadow-2xl"
               data-ai-hint="data analytics"
               priority
               sizes="(max-width: 1024px) 100vw, 60vw"
