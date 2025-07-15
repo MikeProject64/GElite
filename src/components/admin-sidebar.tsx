@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -23,10 +22,25 @@ import {
   Package,
   TrendingUp,
   FileText,
+  Bell,
+  LineChart,
+  Package2,
+  Palette,
+  FileCode,
+  Globe,
+  Link as LinkIcon,
+  Mail,
+  List,
+  Send,
+  Mails
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
 import { availableIcons } from './icon-map';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from './ui/collapsible';
+import { ChevronDown } from 'lucide-react';
+import { useState } from 'react';
+import { clearSessionCookie } from '@/app/actions';
 
 function AdminNavContent() {
   const pathname = usePathname();
@@ -35,19 +49,22 @@ function AdminNavContent() {
   const { settings } = useSettings();
 
   const navItems = [
-    { href: '/admin/dashboard', label: 'Painel', icon: LayoutDashboard },
+    { href: '/admin/dashboard', label: 'Visão Geral', icon: LayoutDashboard },
+    { href: '/admin/users', label: 'Usuários', icon: Users },
+    { href: '/admin/notifications', label: 'Notificações', icon: Bell },
     { href: '/admin/analytics', label: 'Analytics', icon: TrendingUp },
     { href: '/admin/pages', label: 'Páginas', icon: FileText },
     { href: '/admin/home', label: 'Home', icon: ImageIcon },
-    { href: '/admin/users', label: 'Usuários', icon: Users },
     { href: '/admin/plans', label: 'Planos', icon: Package },
     { href: '/admin/stripe', label: 'Stripe', icon: CreditCard },
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },
+    { href: '/admin/email', label: 'Email Marketing', icon: Mails },
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
   ];
 
   const handleLogout = async () => {
     await signOut(auth);
+    // await clearSessionCookie(); // TODO: Re-enable when logout flow is server-side
     router.push('/admin/login');
   };
 
@@ -69,21 +86,22 @@ function AdminNavContent() {
       </div>
       <div className="flex-1 overflow-y-auto">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4 mt-2">
-          {navItems.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname.startsWith(href);
+          {navItems.map((item) => {
+            const IconComponent = item.icon;
+            const isActive = pathname.startsWith(item.href);
             return (
                 <Link
-                key={href}
-                href={href}
+                key={item.href}
+                href={item.href}
                 className={cn(
                     'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
                     isActive ? 'bg-muted text-primary' : ''
                 )}
                 >
-                <Icon className="h-4 w-4" />
-                {label}
+                <IconComponent className="h-4 w-4" />
+                {item.label}
                 </Link>
-            )
+            );
           })}
         </nav>
       </div>

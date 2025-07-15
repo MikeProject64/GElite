@@ -30,6 +30,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Admin can manage integration settings
+    match /integrations/{integrationId} {
+      allow read, write: if isAdmin();
+    }
+
     // --- User Accounts ---
     // Secure user creation during signup and protect user documents.
     match /users/{userId} {
@@ -99,6 +104,36 @@ service cloud.firestore {
       allow read: if resource.data.isPublic == true || isAdmin();
       // Only admins can create, update, or delete pages.
       allow write: if isAdmin();
+    }
+
+    // --- Admin Notifications ---
+    match /admin_notifications/{notificationId} {
+      allow read, write: if isAdmin();
+    }
+
+    // --- Email Marketing ---
+    // Only admins can manage email templates and lists.
+    match /emailTemplates/{templateId} {
+      allow read, write: if isAdmin();
+    }
+    match /emailLists/{listId} {
+      allow read, write: if isAdmin();
+    }
+     match /emailQueue/{jobId} {
+      allow create: if isAdmin(); // Admins can queue emails to be sent
+      allow read, write: if true; // TEMPORARY: Allow server-side worker to process.
+
+      // Admins need to be able to read the status of individual recipients.
+      match /recipients/{recipientId} {
+        allow read: if isAdmin();
+      }
+    }
+
+    // --- User Notification Status ---
+    // Users can read/update their own status. Admins can manage the full lifecycle.
+    match /users/{userId}/notifications/{notificationId} {
+      allow read, update: if isOwner(userId) || isAdmin(); // User can mark as read, admin can edit
+      allow create, delete: if isAdmin(); // Only admins can create/delete notifications for users
     }
   }
 }

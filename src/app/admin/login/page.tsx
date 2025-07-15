@@ -15,6 +15,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { createSessionCookie } from '@/app/actions';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um e-mail válido.' }),
@@ -46,8 +47,23 @@ export default function AdminLoginPage() {
       const userDocSnap = await getDoc(userDocRef);
 
       if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-        // 3. Role is confirmed, proceed to dashboard
-        router.push('/admin/dashboard');
+        // 3. Role is confirmed, get ID token
+        const idToken = await user.getIdToken();
+
+        // 4. Create session cookie via Server Action
+        const sessionResult = await createSessionCookie(idToken);
+
+        if (sessionResult.success) {
+            // 5. Proceed to dashboard
+            router.push('/admin/dashboard');
+        } else {
+            await signOut(auth);
+            toast({
+                variant: 'destructive',
+                title: 'Falha na Sessão',
+                description: sessionResult.message || 'Não foi possível iniciar uma sessão segura.',
+            });
+        }
       } else {
         // 4. Not an admin, sign out and show error
         await signOut(auth);
@@ -56,7 +72,6 @@ export default function AdminLoginPage() {
           title: 'Acesso Negado',
           description: 'Você não possui permissões de administrador.',
         });
-        setIsLoading(false);
       }
     } catch (error: any) {
       // This catches both Firebase Auth errors (wrong pass) and Firestore errors.
@@ -65,6 +80,7 @@ export default function AdminLoginPage() {
         title: 'Falha no Login',
         description: 'Credenciais incorretas ou você não tem permissão para acessar esta área.',
       });
+    } finally {
       setIsLoading(false);
     }
   };

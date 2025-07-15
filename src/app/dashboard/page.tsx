@@ -4,7 +4,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, FileText, CalendarClock, Briefcase, Package, FileSignature, Activity, Layout } from 'lucide-react';
+import { Wrench, Users, FileText, CalendarClock, Briefcase, Package, FileSignature, Activity, Layout, BellRing, Search, Settings } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -33,6 +33,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
+import { NotificationsPanel } from '@/components/dashboard/notifications-panel';
 
 
 // --- ESTRUTURA DE DADOS E MAPEAMENTO DE COMPONENTES ---
@@ -926,9 +927,15 @@ export default function DashboardPage() {
     setIsMounted(true);
     try {
       const storedVisible = localStorage.getItem('dashboard-feature-panels');
-      if (storedVisible) setVisiblePanels(JSON.parse(storedVisible));
-    } catch(e) {
-      // ignora erro
+      if (storedVisible) {
+        const parsed = JSON.parse(storedVisible);
+        // Garante que os dados do localStorage sejam um objeto, como no código original.
+        if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+          setVisiblePanels(parsed);
+        }
+      }
+    } catch (e) {
+      console.warn("Could not load panel settings from localStorage.", e);
     }
   }, []);
 
@@ -936,16 +943,20 @@ export default function DashboardPage() {
     if (isMounted) localStorage.setItem('dashboard-feature-panels', JSON.stringify(visiblePanels));
   }, [visiblePanels, isMounted]);
 
+  // Filtra funcionalidades liberadas com base nas configurações
+  const enabledPanels = useMemo(() => FEATURE_PANELS.filter(panel =>
+    settings.featureFlags &&
+    Object.prototype.hasOwnProperty.call(settings.featureFlags, panel.key) &&
+    settings.featureFlags[panel.key as keyof typeof settings.featureFlags]
+  ), [settings.featureFlags]);
+
   if (!isMounted) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40" />)}
+        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[350px]" />)}
       </div>
     );
   }
-
-  // Filtra funcionalidades liberadas
-  const enabledPanels = FEATURE_PANELS.filter(panel => settings.featureFlags && Object.prototype.hasOwnProperty.call(settings.featureFlags, panel.key) && settings.featureFlags[panel.key as keyof typeof settings.featureFlags]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -973,7 +984,7 @@ export default function DashboardPage() {
                 {enabledPanels.map(panel => (
                   <div key={panel.key} className="flex items-center justify-between rounded-lg border p-3">
                     <Label htmlFor={`switch-${panel.key}`} className="font-normal">{panel.label}</Label>
-                    <Switch id={`switch-${panel.key}`} checked={visiblePanels[panel.key] !== false} onCheckedChange={() => setVisiblePanels(prev => ({...prev, [panel.key]: !prev[panel.key]}))} />
+                    <Switch id={`switch-${panel.key}`} checked={visiblePanels[panel.key] !== false} onCheckedChange={() => setVisiblePanels(prev => ({ ...prev, [panel.key]: !prev[panel.key] }))} />
                   </div>
                 ))}
               </div>
@@ -983,6 +994,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <NotificationsPanel />
         {enabledPanels.map(panel => {
           if (visiblePanels[panel.key] === false) return null;
 
@@ -995,7 +1007,7 @@ export default function DashboardPage() {
           // Renderiza o card genérico para painéis ainda não implementados
           return (
             <Link key={panel.key} href={panel.href} className="group">
-              <Card className="h-[320px] transition-shadow group-hover:shadow-lg cursor-pointer flex flex-col justify-between">
+              <Card className="h-[350px] transition-shadow group-hover:shadow-lg cursor-pointer flex flex-col justify-between">
                 <CardHeader className="flex flex-row items-center gap-4 pb-2">
                   <div className="p-3 bg-primary/10 rounded-full">
                     {panel.icon}
@@ -1009,6 +1021,258 @@ export default function DashboardPage() {
             </Link>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+
+function GlobalSearch() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full md:w-[180px]">
+          <Search className="mr-2 h-4 w-4" />
+          Pesquisar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Pesquisar</DialogTitle>
+          <DialogDescription>
+            Pesquise por clientes, serviços, orçamentos, colaboradores e mais.
+          </DialogDescription>
+        </DialogHeader>
+        <Input placeholder="Pesquisar..." className="mb-4" />
+        <ScrollArea className="h-[300px] pr-4">
+          <div className="space-y-4">
+            <SearchResult
+              id="cliente1"
+              type="Cliente"
+              title="Cliente A"
+              description="Endereço: Rua A, 123"
+              href="/dashboard/base-de-clientes/cliente/cliente1"
+            />
+            <SearchResult
+              id="servico1"
+              type="Serviço"
+              title="Ordem de Serviço X"
+              description="Status: Em Andamento"
+              href="/dashboard/servicos/ordem-de-servico/servico1"
+            />
+            <SearchResult
+              id="orcamento1"
+              type="Orçamento"
+              title="Orçamento Y"
+              description="Status: Pendente"
+              href="/dashboard/orcamentos/orcamento/orcamento1"
+            />
+            <SearchResult
+              id="colaborador1"
+              type="Colaborador"
+              title="Colaborador Z"
+              description="Cargo: Técnico"
+              href="/dashboard/colaboradores/colaborador/colaborador1"
+            />
+          </div>
+        </ScrollArea>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SettingsDialog({ enabledPanels, setEnabledPanels }: { enabledPanels: string[]; setEnabledPanels: (panels: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full md:w-[180px]">
+          <Settings className="mr-2 h-4 w-4" />
+          Painéis
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Configurar Painéis</DialogTitle>
+          <DialogDescription>
+            Escolha quais painéis você deseja exibir no painel de controle.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4 py-4">
+          {FEATURE_PANELS.map((panel) => (
+            <div key={panel.key} className="flex items-center">
+              <Switch
+                id={`panel-${panel.key}`}
+                checked={enabledPanels.includes(panel.key)}
+                onCheckedChange={(checked) => {
+                  setEnabledPanels(checked ? [...enabledPanels, panel.key] : enabledPanels.filter(p => p !== panel.key));
+                }}
+              />
+              <Label htmlFor={`panel-${panel.key}`} className="ml-3 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                {panel.label}
+              </Label>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RecentActivities() {
+  const { loading, activities } = useRecentActivitiesData(null); // Pass null for user
+
+  return (
+    <Card className="h-[350px] flex flex-col">
+      <CardHeader className="flex flex-row items-center gap-4 pb-2">
+        <div className="p-3 bg-primary/10 rounded-full">
+          <Activity className="h-8 w-8 text-primary" />
+        </div>
+        <CardTitle className="font-headline text-lg">Atividades Recentes</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3 flex-1 justify-center px-4 overflow-y-auto">
+        {loading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+          </div>
+        ) : (
+          <div className="space-y-4 mt-2">
+            {activities.length > 0 ? (
+              activities.map(activity => (
+                <div key={activity.timestamp.toMillis()} className="flex items-start gap-3">
+                  <div className="h-2 w-2 rounded-full bg-primary mt-2" />
+                  <div className="flex-1">
+                    <p className="text-sm leading-tight">{activity.description}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {activity.userEmail.split('@')[0]} - {formatDistanceToNow(activity.timestamp.toDate(), { addSuffix: true, locale: ptBR })}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma atividade recente.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row gap-2 justify-end mt-2">
+        <Button asChild size="sm" variant="secondary" className="w-full sm:w-auto">
+          <Link href="/dashboard/atividades">Ver Todas</Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function QuickNotes() {
+  const [notes, setNotes] = useState<QuickNote[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newNote, setNewNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchNotes = async () => {
+      setLoading(true);
+      try {
+        const q = query(collection(db, 'quickNotes'), where('userId', '==', user?.uid));
+        const querySnapshot = await getDocs(q);
+        setNotes(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuickNote)));
+      } catch (err) {
+        setError('Erro ao buscar notas rápidas.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchNotes();
+  }, [user]);
+
+  const handleAddNote = async () => {
+    if (!newNote.trim() || !user) return;
+    try {
+      await addDoc(collection(db, 'quickNotes'), {
+        userId: user.uid,
+        text: newNote,
+        createdAt: Timestamp.now(),
+      });
+      setNewNote('');
+      setError(null);
+    } catch (err) {
+      setError('Erro ao adicionar nota rápida.');
+    }
+  };
+
+  return (
+    <Card className="h-[350px] flex flex-col">
+      <CardHeader className="flex flex-row items-center gap-4 pb-2">
+        <div className="p-3 bg-primary/10 rounded-full">
+          <FileText className="h-8 w-8 text-primary" />
+        </div>
+        <CardTitle className="font-headline text-lg">Notas Rápidas</CardTitle>
+      </CardHeader>
+      <CardContent className="flex-1 overflow-y-auto px-4">
+        {loading ? (
+          <div className="space-y-3 mt-2">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-8 w-full" />
+          </div>
+        ) : (
+          <div className="space-y-4 mt-2">
+            {notes.length > 0 ? (
+              notes.map(note => (
+                <div key={note.id} className="bg-muted/50 p-4 rounded-lg">
+                  <p className="text-sm">{note.text}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {formatDistanceToNow(note.createdAt.toDate(), { addSuffix: true, locale: ptBR })}
+                  </p>
+                </div>
+              ))
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground text-center py-8">Nenhuma nota rápida.</p>
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Nova nota rápida..."
+                value={newNote}
+                onChange={(e) => setNewNote(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter') handleAddNote();
+                }}
+              />
+              <Button onClick={handleAddNote} className="w-auto">Adicionar</Button>
+            </div>
+            {error && <p className="text-sm text-red-500 text-center">{error}</p>}
+          </div>
+        )}
+      </CardContent>
+      <CardFooter className="flex flex-col sm:flex-row gap-2 justify-end mt-2">
+        <Button asChild size="sm" variant="secondary" className="w-full sm:w-auto">
+          <Link href="/dashboard/notas-rapidas">Ver Todas</Link>
+        </Button>
+      </CardFooter>
+    </Card>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-5 w-48" />
+        </div>
+        <Skeleton className="h-10 w-24" />
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        {[...Array(8)].map((_, i) => (
+          <Skeleton key={i} className="h-[350px] w-full" />
+        ))}
       </div>
     </div>
   );

@@ -38,7 +38,7 @@ const emailFormSchema = z.object({
   smtpHost: z.string().optional(),
   smtpPort: z.coerce.number().optional(),
   smtpUser: z.string().email({ message: 'E-mail inválido.' }).optional().or(z.literal('')),
-  smtpPassword: z.string().optional(),
+  smtpPass: z.string().optional(),
   emailRecipients: z.string().optional(),
   notifyOnNewSubscription: z.boolean().default(false),
 });
@@ -386,29 +386,21 @@ function EmailSettingsForm() {
 
     const form = useForm<EmailFormValues>({
         resolver: zodResolver(emailFormSchema),
-        defaultValues: { 
+        defaultValues: {
             smtpHost: '',
             smtpPort: 465,
             smtpUser: '',
-            smtpPassword: '',
+            smtpPass: '',
             emailRecipients: '',
             notifyOnNewSubscription: false,
         },
     });
 
     useEffect(() => {
-        const settingsRef = doc(db, 'siteConfig', 'main');
+        const settingsRef = doc(db, 'integrations', 'email');
         const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
             if (docSnap.exists()) {
-                const data = docSnap.data();
-                form.reset({
-                    smtpHost: data.smtpHost || '',
-                    smtpPort: data.smtpPort || 465,
-                    smtpUser: data.smtpUser || '',
-                    smtpPassword: data.smtpPassword || '',
-                    emailRecipients: (data.emailRecipients || []).join('\n'),
-                    notifyOnNewSubscription: data.notifyOnNewSubscription || false,
-                });
+                form.reset(docSnap.data());
             }
             setIsLoading(false);
         });
@@ -423,12 +415,12 @@ function EmailSettingsForm() {
                 .map(email => email.trim())
                 .filter(email => email) || [];
 
-            const settingsRef = doc(db, 'siteConfig', 'main');
+            const settingsRef = doc(db, 'integrations', 'email');
             await setDoc(settingsRef, { 
                 smtpHost: data.smtpHost,
                 smtpPort: data.smtpPort,
                 smtpUser: data.smtpUser,
-                smtpPassword: data.smtpPassword,
+                smtpPass: data.smtpPass,
                 emailRecipients: recipientsArray,
                 notifyOnNewSubscription: data.notifyOnNewSubscription
              }, { merge: true });
@@ -486,7 +478,7 @@ function EmailSettingsForm() {
                         <FormField control={form.control} name="smtpUser" render={({ field }) => (
                             <FormItem><FormLabel>Usuário SMTP (E-mail)</FormLabel><FormControl><Input type="email" placeholder="contato@seudominio.com" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
-                         <FormField control={form.control} name="smtpPassword" render={({ field }) => (
+                         <FormField control={form.control} name="smtpPass" render={({ field }) => (
                             <FormItem><FormLabel>Senha SMTP</FormLabel><FormControl><Input type="password" placeholder="••••••••" {...field} /></FormControl><FormMessage /></FormItem>
                         )}/>
                     </div>

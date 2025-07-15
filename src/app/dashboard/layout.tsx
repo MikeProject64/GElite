@@ -11,6 +11,9 @@ import { useEffect, useState } from 'react';
 import { WhatsAppSupportButton } from '@/components/whatsapp-support-button';
 import { cn } from '@/lib/utils';
 import { WelcomeModal } from '@/components/dashboard/welcome-modal';
+import { NotificationModalProvider } from '@/components/notification-modal-provider';
+import { useSettings } from '@/components/settings-provider';
+
 
 export default function DashboardLayout({
   children,
@@ -21,6 +24,7 @@ export default function DashboardLayout({
   const router = useRouter();
   const pathname = usePathname();
   const [isMounted, setIsMounted] = useState(false);
+  const { settings } = useSettings();
 
   useEffect(() => {
     setIsMounted(true);
@@ -85,6 +89,7 @@ export default function DashboardLayout({
     <>
       <DynamicLayoutEffects />
       <WelcomeModal />
+      <NotificationModalProvider />
       <TrialBanner />
       <div className={cn("grid h-screen w-full md:grid-cols-[auto_1fr]", isOnTrial && "pt-12")}>
         <DashboardSidebar />

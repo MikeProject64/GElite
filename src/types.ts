@@ -298,3 +298,24 @@ export interface QuickNote {
     content: string;
     createdAt: Timestamp;
 }
+
+export type NotificationTarget = 'all' | 'specific';
+
+export interface AdminNotification {
+  id: string;
+  title: string;
+  message: string;
+  target: NotificationTarget;
+  sentTo: string[]; // Array of UIDs if target is 'specific'
+  createdAt: Timestamp;
+  scheduledFor?: Timestamp | null;
+  status: 'draft' | 'sent' | 'scheduled';
+  actionUrl?: string; // Optional URL for the action button
+  actionText?: string; // Optional text for the action button
+}
+
+export interface UserNotificationStatus {
+    id: string; // Corresponds to the AdminNotification ID
+    read: boolean;
+    readAt?: Timestamp | null;
+}

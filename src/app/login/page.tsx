@@ -2,12 +2,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import Link from 'next/link';
-import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendPasswordResetEmail, signInWithCustomToken } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,10 +36,12 @@ const RESET_COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isImpersonating, setIsImpersonating] = useState(false);
 
   // Rate limiting state
   const [loginAttempts, setLoginAttempts] = useState(0);
@@ -60,6 +62,34 @@ export default function LoginPage() {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email: '' },
   });
+
+  // Handle impersonation login
+  useEffect(() => {
+    const impersonateToken = searchParams.get('impersonate_token');
+    if (impersonateToken) {
+      setIsImpersonating(true);
+      const handleImpersonation = async () => {
+        try {
+          await signInWithCustomToken(auth, impersonateToken);
+          toast({
+            title: 'Sessão Iniciada com Sucesso',
+            description: 'Você agora está navegando como o usuário selecionado.',
+          });
+          router.push('/dashboard');
+        } catch (error) {
+          console.error('Falha ao logar como usuário:', error);
+          toast({
+            variant: 'destructive',
+            title: 'Erro de Autenticação',
+            description: 'O token de acesso é inválido ou expirou. Tente novamente.',
+          });
+          setIsImpersonating(false);
+           router.replace('/login', undefined);
+        }
+      };
+      handleImpersonation();
+    }
+  }, [searchParams, router, toast]);
 
   const getTimeRemaining = (until: number) => {
     const remaining = Math.ceil((until - Date.now()) / 1000);
@@ -165,6 +195,18 @@ export default function LoginPage() {
 
   const isLoginButtonDisabled = isLoading || !!loginDisabledUntil;
   const isResetButtonDisabled = isResetting || !!resetDisabledUntil;
+  
+  if (isImpersonating) {
+    return (
+      <main className="flex items-center justify-center min-h-screen bg-background p-4">
+        <div className="flex flex-col items-center justify-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <h2 className="text-xl font-semibold">Autenticando como usuário...</h2>
+            <p className="text-muted-foreground">Por favor, aguarde.</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>
