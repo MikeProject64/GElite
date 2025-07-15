@@ -35,10 +35,10 @@ export function Hero({ landingPageImages }: HeroProps) {
                 GESTÃO DE SERVIÇOS SIMPLIFICADA
               </p>
               <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl xl:text-6xl/none font-headline">
-                A plataforma completa para gestão de serviços
+                Teste grátis por 7 dias.
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
-                Centralize ordens de serviço, clientes e inventário em um só lugar.
+                Acesso completo por 7 dias. Sem necessidade de cartão de crédito.
               </p>
             </div>
             <div className="w-full max-w-md space-y-2">
@@ -48,7 +48,8 @@ export function Hero({ landingPageImages }: HeroProps) {
                 </Button>
               </div>
           </ScrollReveal>
-          <ScrollReveal delay={200} className="flex justify-center lg:col-span-3">
+          <ScrollReveal delay={200} className="flex flex-col justify-center items-center lg:col-span-3">
+            <h3 className="text-xl font-semibold mb-4 text-center">A plataforma completa para gestão de serviços</h3>
             <Image
               src={heroImage}
               alt="Ilustração de pessoas analisando gráficos"
