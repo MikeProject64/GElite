@@ -91,7 +91,7 @@ export default function DashboardLayout({
       <NotificationModalProvider />
       <div className="grid h-screen w-full md:grid-cols-[auto_1fr]">
         <DashboardSidebar />
-        <div className="flex flex-col h-screen">
+        <div className="flex flex-col h-screen overflow-hidden">
           <header className="shrink-0">
             <TrialBanner />
             <VerificationBanner />

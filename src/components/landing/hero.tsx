@@ -39,7 +39,7 @@ export function Hero({ landingPageImages }: HeroProps) {
               alt="Ilustração de pessoas analisando gráficos"
               width={1200}
               height={900}
-              className="mx-auto aspect-[12/9] overflow-hidden rounded-xl object-contain"
+              className="mx-auto aspect-[12/9] overflow-hidden rounded-xl object-contain shadow-2xl"
               data-ai-hint="data analytics"
               priority
               sizes="(max-width: 1024px) 100vw, 60vw"
