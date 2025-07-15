@@ -5,29 +5,47 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { differenceInDays } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Rocket, ShieldCheck } from 'lucide-react';
+import { Rocket, ShieldCheck, X } from 'lucide-react';
 import Link from 'next/link';
 
 export function TrialBanner() {
     const { systemUser } = useAuth();
     const [daysLeft, setDaysLeft] = useState<number | null>(null);
+    const [isVisible, setIsVisible] = useState(false);
 
     const isOnTrial = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt;
 
     useEffect(() => {
-        if (isOnTrial) {
-            const endDate = systemUser.trialEndsAt.toDate();
-            const now = new Date();
-            // Ensure we compare dates only, not times, to get an accurate day count
-            const startOfEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
-            const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-            
-            const days = differenceInDays(startOfEndDate, startOfNow);
-            setDaysLeft(Math.max(0, days));
+        try {
+            const bannerClosed = localStorage.getItem('trialBannerClosed') === 'true';
+            if (isOnTrial && !bannerClosed && systemUser?.trialEndsAt) {
+                const endDate = systemUser.trialEndsAt.toDate();
+                const now = new Date();
+                const startOfEndDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+                const startOfNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                
+                const days = differenceInDays(startOfEndDate, startOfNow);
+                setDaysLeft(Math.max(0, days));
+                setIsVisible(true);
+            } else {
+                setIsVisible(false);
+            }
+        } catch (error) {
+            console.error("Could not access localStorage:", error);
+            setIsVisible(true); 
         }
     }, [isOnTrial, systemUser?.trialEndsAt]);
 
-    if (!isOnTrial || daysLeft === null || (systemUser?.trialEndsAt && systemUser.trialEndsAt.toDate() < new Date())) {
+    const handleClose = () => {
+        try {
+            localStorage.setItem('trialBannerClosed', 'true');
+        } catch (error) {
+            console.error("Could not write to localStorage:", error);
+        }
+        setIsVisible(false);
+    };
+
+    if (!isVisible || !isOnTrial || daysLeft === null || (systemUser?.trialEndsAt && systemUser.trialEndsAt.toDate() < new Date())) {
         return null;
     }
 
@@ -49,12 +67,17 @@ export function TrialBanner() {
                         <Rocket className="h-4 w-4" />
                         <p className="text-xs sm:text-sm font-medium">{getMessage()}</p>
                     </div>
-                    <Button asChild size="sm" variant="secondary" className="shrink-0 h-7 text-xs">
-                        <Link href="/dashboard/plans">
-                            <ShieldCheck className="mr-2 h-4 w-4" />
-                            Assinar um Plano
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button asChild size="sm" variant="secondary" className="shrink-0 h-7 text-xs">
+                            <Link href="/dashboard/plans">
+                                <ShieldCheck className="mr-2 h-4 w-4" />
+                                Assinar um Plano
+                            </Link>
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary-foreground/80 hover:bg-primary/80 hover:text-primary-foreground" onClick={handleClose}>
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
             </div>
         </div>

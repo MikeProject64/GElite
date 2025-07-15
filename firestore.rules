@@ -74,6 +74,11 @@ service cloud.firestore {
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow list: if isAuthenticated();
     }
+    match /inventoryItems/{docId} {
+      allow create: if isOwner(request.resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
     match /inventoryMovements/{docId} {
       allow create: if isOwner(request.resource.data.userId);
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
