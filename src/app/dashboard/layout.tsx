@@ -5,7 +5,7 @@ import { useAuth } from '@/components/auth-provider';
 import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import DynamicLayoutEffects from '@/components/dynamic-layout-effects';
 import { TrialBanner } from '@/components/trial-banner';
-import { VerificationBanner } from '@/components/dashboard/verification-banner'; // Importação do novo componente
+import { VerificationBanner } from '@/components/dashboard/verification-banner';
 import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
