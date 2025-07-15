@@ -8,6 +8,7 @@ import type { UserSettings } from '@/types';
 import NetworkAnimation from './network-animation';
 import { ScrollReveal } from './scroll-reveal';
 import * as gtag from '@/lib/utils';
+import { Input } from '@/components/ui/input';
 
 interface HeroProps {
   landingPageImages?: UserSettings['landingPageImages'];
@@ -37,21 +38,15 @@ export function Hero({ landingPageImages }: HeroProps) {
                 A plataforma completa para gestão de serviços
               </h1>
               <p className="max-w-[600px] text-muted-foreground md:text-xl font-body">
-                Centralize ordens de serviço, clientes e inventário em um só lugar. Aumente a eficiência e a satisfação do cliente com o Gestor Elite.
+                Otimize suas operações, centralize seus dados e eleve a satisfação do cliente com o Gestor Elite.
               </p>
             </div>
-            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
-              <Button size="lg" asChild>
-                <Link href="/#pricing" onClick={() => handleCTAClick('hero_comece_agora')}>
-                  Comece Agora
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild>
-                <Link href="/#free-trial" onClick={() => handleCTAClick('hero_teste_gratis')}>
-                  Teste Grátis por 7 dias
-                </Link>
-              </Button>
-            </div>
+            <div className="w-full max-w-md space-y-2">
+                <Input type="email" placeholder="Digite seu e-mail aqui!." className="h-12 text-base" />
+                <Button size="lg" className="w-full text-base">
+                  Fazer cadastro
+                </Button>
+              </div>
           </ScrollReveal>
           <ScrollReveal delay={200} className="flex justify-center">
             <Image
