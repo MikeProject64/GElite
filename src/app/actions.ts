@@ -1,9 +1,10 @@
+
 'use server';
 
 import { getAuth } from 'firebase-admin/auth';
 import { cookies } from 'next/headers';
 import { initFirebaseAdminApp } from '@/lib/firebase-admin';
-import { UserRecord } from 'firebase-admin/auth';
+
 
 /**
  * Cria um cookie de sessão para o usuário autenticado.
