@@ -832,14 +832,14 @@ function InventarioPanel({ user }: { user: SystemUser | null }) {
   };
 
   return (
-    <Card className="h-[350px] flex flex-col">
+    <Card className="h-[350px] flex flex-col relative">
         <CardHeader className="flex flex-row items-center gap-4 pb-2">
             <div className="p-3 bg-primary/10 rounded-full">
                 <Package className="h-8 w-8 text-primary" />
             </div>
             <CardTitle className="font-headline text-lg">Inventário</CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col gap-4 justify-center">
+        <CardContent className="flex-1 flex flex-col gap-4 justify-center pb-20">
             {loading ? (
                 <div className="space-y-4">
                     <Skeleton className="h-8 w-3/4" />
@@ -862,11 +862,8 @@ function InventarioPanel({ user }: { user: SystemUser | null }) {
                 </div>
             )}
         </CardContent>
-        <CardFooter className="flex items-center justify-between mt-auto pt-4">
-            <Button asChild size="sm" href="/dashboard/inventario">
-                <Link href="/dashboard/inventario">+ Adicionar Produto</Link>
-            </Button>
-            <Button asChild size="sm" variant="secondary">
+        <CardFooter className="absolute bottom-0 left-0 right-0 flex items-center justify-between">
+             <Button asChild size="sm" variant="secondary">
                 <Link href="/dashboard/inventario">Ver Inventário</Link>
             </Button>
         </CardFooter>
@@ -1278,3 +1275,6 @@ function DashboardSkeleton() {
 
 
 
+
+
+    
