@@ -16,11 +16,12 @@ const fontSans = Inter({
   variable: '--font-sans',
 });
 
+// generateMetadata busca as configurações do site e cria as metatags para SEO e compartilhamento.
 export async function generateMetadata(): Promise<Metadata> {
-  // Fetch settings for dynamic metadata
+  // Valores padrão como fallback
   let siteName = 'Gestor Elite';
   let siteDescription = 'Otimize sua gestão de serviços com a plataforma completa para prestadores de serviço.';
-  let imageUrl = 'https://gestorelite.app/og-image.png'; // Fallback image
+  let imageUrl = 'https://gestorelite.app/og-image.png'; // Uma imagem de fallback genérica
 
   try {
     const settingsRef = doc(db, 'siteConfig', 'main');
@@ -33,10 +34,12 @@ export async function generateMetadata(): Promise<Metadata> {
       }
     }
   } catch (error) {
+    // Loga o erro, mas não impede a build, usando os valores de fallback
     console.error("Failed to fetch settings for metadata:", error);
   }
 
   return {
+    metadataBase: new URL('https://gestorelite.app'), // Define a URL base para todas as URLs relativas
     title: {
       default: siteName,
       template: `%s | ${siteName}`,
@@ -45,13 +48,14 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: siteName,
       description: siteDescription,
-      url: 'https://gestorelite.app',
+      url: '/', // URL canônica da página
       siteName: siteName,
       images: [
         {
           url: imageUrl,
           width: 1200,
           height: 630,
+          alt: `Apresentação do ${siteName}`,
         },
       ],
       locale: 'pt_BR',
@@ -64,7 +68,9 @@ export async function generateMetadata(): Promise<Metadata> {
         images: [imageUrl],
     },
     icons: {
-      icon: "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>‍</text></svg>",
+      icon: '/favicon.ico',
+      shortcut: '/favicon.ico',
+      apple: '/apple-touch-icon.png',
     },
   };
 }
