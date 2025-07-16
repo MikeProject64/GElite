@@ -237,6 +237,7 @@ function CreateServiceOrderForm() {
        
        const payload: Omit<ServiceOrder, 'id'> = {
         ...data,
+        serviceCategory: data.serviceCategory || '', // Ensure it's not undefined
         clientName: selectedCustomer.name,
         collaboratorName: selectedCollaborator.name,
         dueDate: Timestamp.fromDate(data.dueDate),
