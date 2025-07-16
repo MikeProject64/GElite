@@ -422,8 +422,7 @@ function useInventoryData(user: SystemUser | null) {
       return;
     }
     setLoading(true);
-    // ATENÇÃO: Assumindo coleção 'inventoryItems'. Mudar se o nome for outro.
-    const q = query(collection(db, 'inventoryItems'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'inventory'), where('userId', '==', user.uid));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)));
       setLoading(false);
@@ -458,7 +457,6 @@ function useAgreementsData(user: SystemUser | null) {
       return;
     }
     setLoading(true);
-    // ATENÇÃO: Assumindo coleção 'serviceAgreements'.
     const q = query(collection(db, 'serviceAgreements'), where('userId', '==', user.uid), where('status', '==', 'active'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setAgreements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceAgreement)));
@@ -864,10 +862,9 @@ function InventarioPanel({ user }: { user: SystemUser | null }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex items-center justify-between mt-2">
+      <CardFooter className="flex items-center justify-between mt-auto pt-4">
         <Button asChild size="sm">
-           {/* ATENÇÃO: A rota para "Adicionar Produto" é um palpite. Ajustar se necessário. */}
-          <Link href="/dashboard/inventario/criar">+ Adicionar Produto</Link>
+          <Link href="/dashboard/inventario">+ Adicionar Produto</Link>
         </Button>
         <Button asChild size="sm" variant="secondary">
           <Link href="/dashboard/inventario">Ver Inventário</Link>
@@ -1021,6 +1018,8 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
 
 
 function GlobalSearch() {
@@ -1273,6 +1272,7 @@ function DashboardSkeleton() {
     </div>
   );
 }
+
 
 
 
