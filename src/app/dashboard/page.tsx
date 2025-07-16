@@ -833,43 +833,43 @@ function InventarioPanel({ user }: { user: SystemUser | null }) {
 
   return (
     <Card className="h-[350px] flex flex-col">
-      <CardHeader className="flex flex-row items-center gap-4 pb-2">
-        <div className="p-3 bg-primary/10 rounded-full">
-          <Package className="h-8 w-8 text-primary" />
-        </div>
-        <CardTitle className="font-headline text-lg">Inventário</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 justify-center">
-        {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-8 w-1/2" />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4 text-center">
-            <div className="px-6 py-4 rounded-lg bg-destructive/10">
-              <p className="text-sm text-destructive font-semibold">Itens com Estoque Baixo</p>
-              <p className="text-5xl font-bold text-destructive">{lowStockItemsCount}</p>
+        <CardHeader className="flex flex-row items-center gap-4 pb-2">
+            <div className="p-3 bg-primary/10 rounded-full">
+                <Package className="h-8 w-8 text-primary" />
             </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Valor Total do Estoque</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalStockValue)}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Itens parados (+90 dias)</p>
-              <p className="text-2xl font-bold">{staleItemsCount}</p>
-            </div>
-          </div>
-        )}
-      </CardContent>
-      <CardFooter className="flex items-center justify-between mt-auto pt-4">
-        <Button asChild size="sm">
-          <Link href="/dashboard/inventario">+ Adicionar Produto</Link>
-        </Button>
-        <Button asChild size="sm" variant="secondary">
-          <Link href="/dashboard/inventario">Ver Inventário</Link>
-        </Button>
-      </CardFooter>
+            <CardTitle className="font-headline text-lg">Inventário</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 flex flex-col gap-4 justify-center">
+            {loading ? (
+                <div className="space-y-4">
+                    <Skeleton className="h-8 w-3/4" />
+                    <Skeleton className="h-12 w-1/2 mx-auto" />
+                </div>
+            ) : (
+                <div className="flex flex-col gap-4 text-center">
+                    <div className="px-6 py-4 rounded-lg bg-destructive/10">
+                        <p className="text-sm text-destructive font-semibold">Itens com Estoque Baixo</p>
+                        <p className="text-5xl font-bold text-destructive">{lowStockItemsCount}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Valor Total do Estoque</p>
+                        <p className="text-2xl font-bold">{formatCurrency(totalStockValue)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">Itens parados (+90 dias)</p>
+                        <p className="text-2xl font-bold">{staleItemsCount}</p>
+                    </div>
+                </div>
+            )}
+        </CardContent>
+        <CardFooter className="flex items-center justify-between mt-auto pt-4">
+            <Button asChild size="sm" href="/dashboard/inventario">
+                <Link href="/dashboard/inventario">+ Adicionar Produto</Link>
+            </Button>
+            <Button asChild size="sm" variant="secondary">
+                <Link href="/dashboard/inventario">Ver Inventário</Link>
+            </Button>
+        </CardFooter>
     </Card>
   );
 }
@@ -1018,6 +1018,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
 
 
 
@@ -1272,6 +1273,7 @@ function DashboardSkeleton() {
     </div>
   );
 }
+
 
 
 
