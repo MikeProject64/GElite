@@ -19,9 +19,6 @@ import { FinalCta } from '@/components/landing/final-cta';
 import { AdminPanelButton } from '@/components/admin-panel-button';
 import { ScrollDownArrow } from '@/components/landing/scroll-down-arrow';
 
-// Force dynamic rendering to ensure fresh data on every request.
-export const revalidate = 0;
-
 // This is now an async server component.
 export default async function Home() {
   
