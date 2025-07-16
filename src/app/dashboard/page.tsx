@@ -817,11 +817,7 @@ function ColaboradoresPanel({ user }: { user: SystemUser | null }) {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex items-center justify-between mt-2">
-        <Button asChild size="sm">
-          {/* ATENÇÃO: A rota para "Atribuir Tarefa" é um palpite. Ajustar se necessário. */}
-          <Link href="/dashboard/atividades/criar">+ Atribuir Tarefa</Link>
-        </Button>
+      <CardFooter className="flex items-center justify-end mt-2">
         <Button asChild size="sm" variant="secondary">
           <Link href="/dashboard/colaboradores">Ver Equipe</Link>
         </Button>
@@ -1277,5 +1273,6 @@ function DashboardSkeleton() {
     </div>
   );
 }
+
 
 
