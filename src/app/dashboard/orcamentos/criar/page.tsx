@@ -304,7 +304,7 @@ function CreateQuoteForm() {
                       <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
                     </Button>
                   </div>
-                  <div className="relative" ref={dropdownRef}>
+                  <div className="relative">
                     <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)} disabled={isVersioning || !!clientIdFromUrl}>
                       <span className='truncate'>
                         {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
@@ -312,7 +312,7 @@ function CreateQuoteForm() {
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                     {isDropdownOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
+                      <div ref={dropdownRef} className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
                         <div className="p-2">
                           <Input
                             placeholder="Buscar cliente..."
