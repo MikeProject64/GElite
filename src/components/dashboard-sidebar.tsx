@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -30,6 +29,13 @@ import {
   User,
   LifeBuoy,
   GraduationCap,
+  LayoutDashboard,
+  ShoppingCart,
+  Calendar,
+  BarChart2,
+  BookOpen,
+  Truck,
+  MessageSquare,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -38,6 +44,7 @@ import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { useToast } from '@/hooks/use-toast';
 
 
 // Padronizar tamanho dos ícones e espaçamento para compacto
@@ -147,6 +154,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
     { href: '/dashboard/colaboradores', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
     { href: '/dashboard/inventario', label: 'Estoque', icon: Package, flag: 'inventario' },
+    { href: '/dashboard/whatsapp', label: 'WhatsApp', icon: MessageSquare, flag: 'whatsapp' },
   ];
   
   return (
