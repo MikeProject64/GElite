@@ -8,13 +8,23 @@
  */
 
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
+import {onCall, HttpsError} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
+import {randomBytes} from "crypto";
 
 // Initialize Firebase Admin SDK
 admin.initializeApp();
 const db = admin.firestore();
+
+// Coloque a URL do seu app em produção aqui.
+const PROD_APP_URL = "https://servicewise-l8b2a.web.app";
+const DEV_APP_URL = "http://localhost:9002";
+
+const CORS_OPTIONS = {
+  cors: true, // Permite requisições de qualquer origem.
+};
 
 // Define the structure for SMTP settings for type safety
 interface SmtpConfig {
@@ -36,7 +46,131 @@ interface ListData {
   emails: string[];
 }
 
-// Cloud Function to process email queue
+/**
+ * Initiates the unified flow for email verification and password setup.
+ * Generates a secure token and queues a transactional email.
+ */
+export const iniciarFluxoUnificado = onCall(CORS_OPTIONS, async (request) => {
+  if (!request.auth) {
+    throw new HttpsError(
+      "unauthenticated",
+      "Você precisa estar autenticado para realizar esta ação."
+    );
+  }
+
+  const userId = request.auth.uid;
+  const userRecord = await admin.auth().getUser(userId);
+  const userEmail = userRecord.email;
+
+  if (!userEmail) {
+    throw new HttpsError(
+      "failed-precondition",
+      "O usuário não possui um e-mail para verificação."
+    );
+  }
+
+  // 1. Generate a secure, URL-safe token
+  const token = randomBytes(32).toString("hex");
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+  // 2. Save the token to Firestore
+  const tokenRef = db.collection("tokensDeAcao").doc(token);
+  await tokenRef.set({
+    userId: userId,
+    type: "VERIFICACAO_E_SENHA",
+    expiresAt: admin.firestore.Timestamp.fromDate(expiresAt),
+    used: false,
+  });
+
+  // 3. Queue the email
+  // IMPORTANT: Ensure you have a 'verificacao-e-senha' template in Firestore
+  const appUrl = process.env.FUNCTIONS_EMULATOR ? DEV_APP_URL : PROD_APP_URL;
+  const actionUrl = `${appUrl}/auth/definir-senha?token=${token}`;
+  const emailQueueRef = db.collection("emailQueue").doc();
+  await emailQueueRef.set({
+    to: userEmail,
+    templateId: "verificacao-e-senha",
+    templateData: {
+      ACTION_URL: actionUrl,
+      USER_NAME: userRecord.displayName || "Usuário",
+    },
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  logger.info(
+    `Fluxo unificado iniciado para o usuário ${userId}. E-mail para ${userEmail} enfileirado.`
+  );
+  return {success: true, message: "E-mail de verificação enviado."};
+});
+
+
+/**
+ * Executes the unified action: verifies email and sets the new password.
+ */
+export const executarAcaoUnificada = onCall(CORS_OPTIONS, async (request) => {
+  const {token, novaSenha} = request.data;
+
+  if (!token || !novaSenha) {
+    throw new HttpsError(
+      "invalid-argument",
+      "Token e nova senha são obrigatórios."
+    );
+  }
+
+  if (novaSenha.length < 6) {
+    throw new HttpsError(
+      "invalid-argument",
+      "A senha deve ter pelo menos 6 caracteres."
+    );
+  }
+
+  const tokenRef = db.collection("tokensDeAcao").doc(token);
+  const tokenDoc = await tokenRef.get();
+
+  if (!tokenDoc.exists) {
+    throw new HttpsError("not-found", "Token inválido ou não encontrado.");
+  }
+
+  const tokenData = tokenDoc.data();
+
+  if (
+    !tokenData ||
+    tokenData.used ||
+    tokenData.expiresAt.toDate() < new Date()
+  ) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Token expirado ou já utilizado."
+    );
+  }
+
+  const userId = tokenData.userId;
+
+  try {
+    // Update user in Firebase Auth
+    await admin.auth().updateUser(userId, {
+      emailVerified: true,
+      password: novaSenha,
+    });
+
+    // Mark token as used
+    await tokenRef.update({used: true});
+
+    logger.info(`Ação unificada executada com sucesso para o usuário ${userId}.`);
+    return {success: true, message: "E-mail verificado e senha definida!"};
+  } catch (error) {
+    logger.error(`Erro ao executar ação unificada para ${userId}:`, error);
+    throw new HttpsError(
+      "internal",
+      "Ocorreu um erro ao atualizar sua conta."
+    );
+  }
+});
+
+
+/**
+ * Processes the email queue for both marketing campaigns and transactional emails.
+ */
 export const processEmailQueue = onDocumentCreated("emailQueue/{jobId}",
   async (event) => {
     const jobData = event.data?.data();
@@ -48,15 +182,13 @@ export const processEmailQueue = onDocumentCreated("emailQueue/{jobId}",
     }
 
     logger.info(
-      `[${jobId}] Starting email queue processing...`, {jobData},
+      `[${jobId}] Starting email queue processing...`, {jobData}
     );
 
-    const {templateId, listIds} = jobData;
+    const {templateId, listIds, to, templateData = {}} = jobData;
 
     // Mark job as 'processing'
     const jobRef = db.collection("emailQueue").doc(jobId);
-    const recipientsRef = jobRef.collection("recipients");
-
     await jobRef.update({
       status: "processing",
       startedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -68,12 +200,8 @@ export const processEmailQueue = onDocumentCreated("emailQueue/{jobId}",
       const configSnap = await configRef.get();
       const smtpConfig: SmtpConfig = configSnap.data() || {};
 
-      if (
-        !smtpConfig.smtpHost ||
-        !smtpConfig.smtpPort ||
-        !smtpConfig.smtpUser ||
-        !smtpConfig.smtpPass
-      ) {
+      if (!smtpConfig.smtpHost || !smtpConfig.smtpPort ||
+          !smtpConfig.smtpUser || !smtpConfig.smtpPass) {
         throw new Error("SMTP configuration is incomplete.");
       }
 
@@ -83,87 +211,64 @@ export const processEmailQueue = onDocumentCreated("emailQueue/{jobId}",
       if (!templateSnap.exists) {
         throw new Error(`Email template with ID ${templateId} not found.`);
       }
-      const {subject, htmlContent} = templateSnap.data() as TemplateData;
+      const {subject, htmlContent: rawHtmlContent} =
+        templateSnap.data() as TemplateData;
 
-      // 3. Fetch all emails from the selected lists
-      let allEmails: string[] = [];
-      for (const listId of listIds) {
-        const listRef = db.collection("emailLists").doc(listId);
-        const listSnap = await listRef.get();
-        if (listSnap.exists) {
-          const listEmails = (listSnap.data() as ListData).emails || [];
-          allEmails = [...allEmails, ...listEmails];
+      // 3. Determine recipients
+      let uniqueEmails: string[] = [];
+      if (to) { // Transactional email
+        uniqueEmails = [to];
+      } else if (listIds && listIds.length > 0) { // Campaign email
+        const allEmails: string[] = [];
+        for (const listId of listIds) {
+          const listRef = db.collection("emailLists").doc(listId);
+          const listSnap = await listRef.get();
+          if (listSnap.exists) {
+            allEmails.push(...(listSnap.data() as ListData).emails || []);
+          }
         }
+        uniqueEmails = [...new Set(allEmails)];
       }
-      const uniqueEmails = [...new Set(allEmails)];
 
       if (uniqueEmails.length === 0) {
-        await jobRef.update({
-          status: "completed",
-          finishedAt: admin.firestore.FieldValue.serverTimestamp(),
-          sentCount: 0,
-          error: "No emails to send.",
-        });
-        logger.warn(`[${jobId}] No unique emails found to send.`);
-        return;
+        throw new Error("No recipients found for this job.");
       }
 
-      // 4. Configure Nodemailer transporter
+      // 4. Configure Nodemailer
       const transporter = nodemailer.createTransport({
         host: smtpConfig.smtpHost,
         port: smtpConfig.smtpPort,
         secure: smtpConfig.smtpSecure ?? true,
-        auth: {
-          user: smtpConfig.smtpUser,
-          pass: smtpConfig.smtpPass,
-        },
+        auth: {user: smtpConfig.smtpUser, pass: smtpConfig.smtpPass},
       });
 
       // 5. Send emails
-      const fromName = smtpConfig.fromName || "Gestor Elite";
-      const fromEmail = smtpConfig.fromEmail || smtpConfig.smtpUser;
-      const fromAddress = `"${fromName}" <${fromEmail}>`;
+      const fromAddress = `"${smtpConfig.fromName || "Gestor Elite"}" <${
+        smtpConfig.fromEmail || smtpConfig.smtpUser
+      }>`;
       let sentCount = 0;
-      const errors: string[] = [];
-
-      // Batch write recipient status
-      const batch = db.batch();
+      const errors: {email: string; error: string}[] = [];
 
       for (const email of uniqueEmails) {
-        const recipientDocRef = recipientsRef.doc(
-          email.replace(/[^a-zA-Z0-9]/g, "_")
-        );
+        // Replace variables in template
+        const html = Object.entries(templateData)
+          .reduce((acc, [key, value]) => {
+            const regex = new RegExp(`{{${key}}}`, "g");
+            return acc.replace(regex, String(value));
+          }, rawHtmlContent);
+
         try {
-          await transporter.sendMail({
-            from: fromAddress,
-            to: email,
-            subject: subject,
-            html: htmlContent,
-          });
+          await transporter.sendMail({from: fromAddress, to: email, subject, html});
           sentCount++;
-          batch.set(recipientDocRef, {
-            email: email,
-            status: "sent",
-            sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
-        } catch (error: any) {
-          logger.error(
-            `[${jobId}] Failed to send email to ${email}`,
-            error,
-          );
-          errors.push(`Failed for ${email}: ${error.message}`);
-          batch.set(recipientDocRef, {
-            email: email,
-            status: "failed",
-            error: error.message,
-            sentAt: admin.firestore.FieldValue.serverTimestamp(),
-          });
+          // Log individual success if needed
+        } catch (err: unknown) {
+          const error = err as Error;
+          logger.error(`[${jobId}] Failed to send to ${email}`, error);
+          errors.push({email, error: error.message});
         }
       }
 
-      await batch.commit();
-
-      // 6. Update job status to 'completed'
+      // 6. Update job status
       await jobRef.update({
         status: "completed",
         finishedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -171,11 +276,13 @@ export const processEmailQueue = onDocumentCreated("emailQueue/{jobId}",
         errorCount: errors.length,
         errors: errors,
       });
-      const emailTotal = uniqueEmails.length;
+
       logger.info(
-        `[${jobId}] Finished. Sent ${sentCount} of ${emailTotal} emails.`,
+        `[${jobId}] Finished. Sent ${sentCount} of ` +
+        `${uniqueEmails.length} emails.`
       );
-    } catch (error: any) {
+    } catch (err: unknown) {
+      const error = err as Error;
       logger.error(`[${jobId}] A critical error occurred:`, error);
       await jobRef.update({
         status: "failed",

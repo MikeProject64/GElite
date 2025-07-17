@@ -76,18 +76,19 @@ export function VerificationBanner() {
                         <AlertTriangle className="h-4 w-4" />
                         <p className="text-xs sm:text-sm font-medium">
                             <span className="hidden sm:inline">Sua conta não está verificada.</span>
-                            <Link href="/dashboard/perfil" className="underline font-bold ml-1">Clique aqui</Link> para reenviar o e-mail de confirmação.
+                            <Link href="/dashboard/perfil" className="underline font-bold ml-1">Clique aqui</Link> para gerenciar as configurações de segurança.
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
                          <Button 
-                            onClick={handleSendVerification} 
-                            disabled={sendingVerification} 
+                            asChild
                             size="sm"
                             className="bg-amber-600 hover:bg-amber-700 text-white shrink-0 h-7 text-xs"
                         >
-                            <MailCheck className="mr-2 h-4 w-4" />
-                            {sendingVerification ? 'Enviando...' : 'Reenviar E-mail'}
+                            <Link href="/dashboard/perfil">
+                                <MailCheck className="mr-2 h-4 w-4" />
+                                Verificar E-mail
+                            </Link>
                         </Button>
                         <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-900/80 hover:bg-amber-500/50 hover:text-amber-900" onClick={handleClose}>
                             <X className="h-4 w-4" />

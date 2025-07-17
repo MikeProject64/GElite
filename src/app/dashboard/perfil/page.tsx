@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/components/auth-provider';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,11 +12,10 @@ import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Sun, Moon, Monitor } from 'lucide-react';
-import { sendEmailVerification } from 'firebase/auth';
-import { useState } from 'react';
 import { toast } from '@/hooks/use-toast';
 import { updateEmail, verifyBeforeUpdateEmail, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
-import { storage, db } from '@/lib/firebase';
+import { storage, db, auth, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { ref as storageRef, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
 import { updateProfile } from 'firebase/auth';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -46,6 +45,7 @@ export default function PerfilPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [savedFields, setSavedFields] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
+  const [sendingVerification, setSendingVerification] = useState(false);
 
   const form = useForm<PerfilFormValues>({
     resolver: zodResolver(perfilSchema),
@@ -65,9 +65,8 @@ export default function PerfilPage() {
         name: systemUser.name || '',
         companyName: systemUser.companyName || '',
         phone: systemUser.phone || '',
-        // Os campos abaixo não existem em SystemUser por padrão:
-        cpfCnpj: '', // systemUser.cpfCnpj || ''
-        endereco: '', // systemUser.endereco || ''
+        cpfCnpj: '',
+        endereco: '',
       });
     }
   }, [systemUser, form]);
@@ -82,7 +81,6 @@ export default function PerfilPage() {
         toast({ title: 'Confirme no novo e-mail', description: 'Enviamos um link de confirmação para o novo e-mail.' });
       } else {
         await updateEmail(user, newEmail);
-        // Sincronizar e-mail no Firestore
         await updateDoc(doc(db, 'users', user.uid), { email: newEmail });
         toast({ title: 'E-mail atualizado', description: 'Seu e-mail foi alterado com sucesso.' });
       }
@@ -113,12 +111,31 @@ export default function PerfilPage() {
     }
   };
 
+  const handleStartUnifiedFlow = async () => {
+    setSendingVerification(true);
+    try {
+      const iniciarFluxo = httpsCallable(functions, 'iniciarFluxoUnificado');
+      await iniciarFluxo();
+      toast({
+        title: 'E-mail Enviado',
+        description: 'Verifique sua caixa de entrada (e spam) para continuar o processo.',
+      });
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: err.message || 'Não foi possível iniciar o processo. Tente novamente.',
+      });
+    } finally {
+      setSendingVerification(false);
+    }
+  };
+
   const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!user || !systemUser || !e.target.files?.length) return;
     const file = e.target.files[0];
     setIsUploadingPhoto(true);
     try {
-      // Remove foto antiga se existir
       if (user.photoURL) {
         try {
           const oldRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
@@ -127,7 +144,6 @@ export default function PerfilPage() {
           if (err.code !== 'storage/object-not-found') console.warn('Erro ao remover foto antiga:', err);
         }
       }
-      // Upload nova foto
       const fileRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
       await uploadBytes(fileRef, file, { customMetadata: { userId: user.uid } });
       const url = await getDownloadURL(fileRef);
@@ -135,7 +151,7 @@ export default function PerfilPage() {
       await updateProfile(user, { photoURL: url });
       await updateDoc(doc(db, 'users', user.uid), { photoURL: url });
       toast({ title: 'Foto atualizada', description: 'Sua foto de perfil foi alterada.' });
-    } catch (err) {
+    } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atualizar a foto.' });
     } finally {
       setIsUploadingPhoto(false);
@@ -153,7 +169,7 @@ export default function PerfilPage() {
       await updateDoc(doc(db, 'users', user.uid), { photoURL: '' });
       setPhotoPreview(null);
       toast({ title: 'Foto removida', description: 'Sua foto de perfil foi removida.' });
-    } catch (err) {
+    } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível remover a foto.' });
     } finally {
       setIsUploadingPhoto(false);
@@ -168,12 +184,11 @@ export default function PerfilPage() {
         name: values.name,
         companyName: values.companyName,
         phone: values.phone,
-        // cpfCnpj e endereco só se existirem no modelo
       });
       setSavedFields(['name', 'companyName', 'phone']);
       toast({ title: 'Perfil atualizado', description: 'Suas informações foram salvas com sucesso.' });
       setTimeout(() => setSavedFields([]), 1500);
-    } catch (err) {
+    } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível salvar as alterações.' });
     } finally {
       setIsSaving(false);
@@ -214,9 +229,7 @@ export default function PerfilPage() {
     <div className="max-w-7xl mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-8">Meu Perfil</h1>
       <div className="grid md:grid-cols-2 gap-8 w-full h-full">
-        {/* Card Informações do Perfil */}
         <div className="bg-white dark:bg-card rounded-lg shadow p-6 flex flex-col h-full w-full grow">
-          {/* Botão de tema no canto superior direito */}
           <div className="absolute top-4 right-4">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -232,7 +245,6 @@ export default function PerfilPage() {
             </DropdownMenu>
           </div>
           <h2 className="text-xl font-semibold mb-4">Informações do Perfil</h2>
-          {/* Foto de perfil e upload */}
           <div className="flex items-center gap-4 mb-6">
             {photoPreview ? (
               <Image src={photoPreview} alt="Foto de perfil" width={80} height={80} className="w-20 h-20 rounded-full object-cover border" />
@@ -304,40 +316,66 @@ export default function PerfilPage() {
             </form>
           </Form>
         </div>
-        {/* Card Segurança da Conta */}
-        <div className="bg-white dark:bg-card rounded-lg shadow p-6 flex flex-col h-full w-full grow">
-          <h2 className="text-xl font-semibold mb-4">Segurança da Conta</h2>
-          <form className="mb-4" onSubmit={handleChangeEmail}>
-            <div className="mb-2">
-              <label className="block text-sm font-medium mb-1">E-mail atual</label>
-              <Input type="email" value={user?.email || ''} disabled />
+
+        {/* Card de Segurança da Conta */}
+        <div className="bg-white dark:bg-card rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-6">Segurança da Conta</h2>
+          <div className="space-y-6">
+
+            {/* Seção de Verificação de E-mail */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-medium">Status do E-mail</p>
+                <p className={`text-sm ${user?.emailVerified ? 'text-green-600' : 'text-amber-600'}`}>
+                  {user?.emailVerified ? 'E-mail verificado' : 'E-mail não verificado'}
+                </p>
+              </div>
+              {!user?.emailVerified && (
+                <Button onClick={handleStartUnifiedFlow} disabled={sendingVerification} size="sm">
+                  {sendingVerification ? 'Enviando...' : 'Verificar E-mail'}
+                </Button>
+              )}
             </div>
-            <div className="mb-2">
-              <label className="block text-sm font-medium mb-1">Novo e-mail</label>
-              <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Novo e-mail" required />
+
+            {/* Seção Alterar E-mail */}
+            <div className="border-t pt-6">
+              <form onSubmit={handleChangeEmail} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">E-mail atual</label>
+                  <Input type="email" value={user?.email || ''} disabled />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Novo e-mail</label>
+                  <Input type="email" value={newEmail} onChange={e => setNewEmail(e.target.value)} placeholder="Digite o novo e-mail" required />
+                </div>
+                <Button type="submit" className="w-full" disabled={changingEmail || !newEmail || newEmail === user?.email}>
+                  {changingEmail ? 'Enviando Link...' : 'Alterar E-mail'}
+                </Button>
+              </form>
             </div>
-            <Button type="submit" className="btn btn-secondary mt-2" disabled={changingEmail || !newEmail || newEmail === user?.email}>
-              {changingEmail ? 'Alterando...' : 'Alterar E-mail'}
-            </Button>
-          </form>
-          <form className="grid gap-4 mt-6" onSubmit={handleChangePassword} autoComplete="off">
-            <div>
-              <label className="block text-sm font-medium mb-1">Senha Atual</label>
-              <Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="Senha atual" required autoComplete="current-password" />
+
+            {/* Seção Alterar Senha */}
+            <div className="border-t pt-6">
+              <form onSubmit={handleChangePassword} autoComplete="off" className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Senha Atual</label>
+                  <Input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} placeholder="••••••••" required autoComplete="current-password" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Nova Senha</label>
+                  <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="••••••••" required autoComplete="new-password" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Confirmar Nova Senha</label>
+                  <Input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} placeholder="••••••••" required autoComplete="new-password" />
+                </div>
+                <Button type="submit" className="w-full" disabled={changingPassword || !currentPassword || !newPassword || newPassword !== confirmNewPassword}>
+                  {changingPassword ? 'Alterando...' : 'Alterar Senha'}
+                </Button>
+              </form>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Nova Senha</label>
-              <Input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} placeholder="Nova senha" required autoComplete="new-password" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Confirmar Nova Senha</label>
-              <Input type="password" value={confirmNewPassword} onChange={e => setConfirmNewPassword(e.target.value)} placeholder="Confirmar nova senha" required autoComplete="new-password" />
-            </div>
-            <Button type="submit" className="btn btn-primary mt-2" disabled={changingPassword || !currentPassword || !newPassword || newPassword !== confirmNewPassword}>
-              {changingPassword ? 'Alterando...' : 'Alterar Senha'}
-            </Button>
-          </form>
-          {/* ...demais funcionalidades de segurança... */}
+            
+          </div>
         </div>
       </div>
     </div>
