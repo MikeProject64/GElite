@@ -6,7 +6,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, PlusCircle } from 'lucide-react';
+import { Send, PlusCircle, LogOut } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -16,6 +16,7 @@ import {
     DialogFooter,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import Image from 'next/image';
 
 
 interface Message {
@@ -35,6 +36,10 @@ interface Chat {
 
 const WhatsAppPage = () => {
     const [status, setStatus] = useState<string>('Autenticando...');
+    const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null); // Estado para o QR Code
+    const [isQrExpired, setIsQrExpired] = useState(false);
+    const [countdown, setCountdown] = useState(20);
+    const [isDisconnected, setIsDisconnected] = useState(false);
     const [socket, setSocket] = useState<Socket | null>(null);
     const [chats, setChats] = useState<Record<string, Chat>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -74,6 +79,25 @@ const WhatsAppPage = () => {
 
         fetchInitialChats();
     }, [user]);
+
+    // Efeito para o contador regressivo do QR Code
+    useEffect(() => {
+        if (qrCodeUrl && !isQrExpired) {
+            const countdownInterval = setInterval(() => {
+                setCountdown(prev => prev > 0 ? prev - 1 : 0);
+            }, 1000);
+
+            const expiryTimeout = setTimeout(() => {
+                setIsQrExpired(true);
+                setQrCodeUrl(null); // Opcional: limpa o QR antigo da tela
+            }, 20000); // 20 segundos
+
+            return () => {
+                clearInterval(countdownInterval);
+                clearTimeout(expiryTimeout);
+            };
+        }
+    }, [qrCodeUrl, isQrExpired]);
     
     // Conecta ao WebSocket
     useEffect(() => {
@@ -95,10 +119,33 @@ const WhatsAppPage = () => {
             }
         });
 
-        newSocket.on('qr', () => setStatus('QR Code recebido. Por favor, escaneie.'));
-        newSocket.on('connected', () => setStatus('Conectado ao WhatsApp!'));
-        newSocket.on('disconnected', (message: string) => setStatus(`Desconectado: ${message}`));
-        newSocket.on('replaced', (message: string) => setStatus(`Sessão substituída: ${message}`));
+        newSocket.on('qr', (url: string) => {
+            setStatus('QR Code recebido. Por favor, escaneie.');
+            setQrCodeUrl(url);
+            setIsQrExpired(false); // Reseta o estado de expiração
+            setCountdown(20); // Reseta o contador
+            setIsDisconnected(false);
+        });
+        newSocket.on('connected', () => {
+            setStatus('Conectado ao WhatsApp!');
+            setQrCodeUrl(null); // Limpa o QR code após a conexão
+            setIsQrExpired(false);
+            setIsDisconnected(false);
+        });
+        newSocket.on('disconnected', (message: string) => {
+            setStatus(`Desconectado: ${message}`);
+            setQrCodeUrl(null);
+            setIsQrExpired(false);
+            setChats({});
+            setActiveChatId(null);
+            setIsDisconnected(true);
+        });
+        newSocket.on('replaced', (message: string) => {
+            setStatus(`Sessão substituída: ${message}`);
+            setQrCodeUrl(null);
+            setIsQrExpired(false);
+            setIsDisconnected(false);
+        });
         newSocket.on('auth_error', (message: string) => setStatus(`Erro de autenticação: ${message}`));
 
         newSocket.on('new_message', ({ contactId, message }: { contactId: string, message: Message }) => {
@@ -196,129 +243,231 @@ const WhatsAppPage = () => {
         });
     };
 
+    const handleLogout = () => {
+        if (socket) {
+            socket.emit('logout_session');
+        }
+    };
+
+    const handleRequestNewQr = () => {
+        if (socket) {
+            setStatus('Solicitando novo QR Code...');
+            socket.emit('request_new_qr');
+        }
+    };
+
+    if (qrCodeUrl) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
+                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
+                    <h2 className="text-2xl font-bold mb-2">Conecte seu WhatsApp</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">{status}</p>
+                    <div className="relative w-64 h-64 mx-auto">
+                        <Image src={qrCodeUrl} alt="QR Code do WhatsApp" width={256} height={256} />
+                    </div>
+                    <p className="mt-4 text-lg font-mono">Tempo restante: {countdown}s</p>
+                    <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                        1. Abra o WhatsApp no seu celular. <br />
+                        2. Toque em Menu ou Configurações e selecione <strong>Aparelhos conectados</strong>. <br />
+                        3. Aponte seu celular para esta tela para capturar o código.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
+    if (isQrExpired) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
+                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
+                    <h2 className="text-2xl font-bold mb-2">Tempo Esgotado</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">
+                        O QR Code expirou. Por favor, tente novamente.
+                    </p>
+                    <Button onClick={handleRequestNewQr}>
+                        Gerar Novo QR Code
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
+    if (isDisconnected) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
+                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
+                    <h2 className="text-2xl font-bold mb-2">Sessão Encerrada</h2>
+                    <p className="text-gray-600 dark:text-gray-300 mb-4">{status}</p>
+                    <Button onClick={handleRequestNewQr}>
+                        Conectar Novamente
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+    
+
     return (
         <div className="h-full w-full flex flex-col">
-            <Tabs defaultValue="whatsapp" className="flex flex-col flex-grow p-4 md:p-6">
-                <TabsList className="mb-4 shrink-0">
-                    <TabsTrigger value="whatsapp">WhatsApp</TabsTrigger>
-                    <TabsTrigger value="clientes" disabled>Clientes</TabsTrigger>
-                    <TabsTrigger value="configuracoes" disabled>Configurações</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="whatsapp" className="flex-grow overflow-hidden">
-                    <div className="flex h-full border rounded-lg overflow-hidden">
-                        {/* Coluna da Esquerda: Lista de Chats */}
-                        <div className="w-full md:w-1/3 flex flex-col border-r">
-                            <div className="p-4 border-b shrink-0">
-                                <div className="flex justify-between items-center">
-                                    <h2 className="text-xl font-bold">Conversas</h2>
-                                    <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
-                                        <PlusCircle className="h-6 w-6" />
-                                    </Button>
-                                </div>
-                                <p className="text-sm text-gray-500 truncate">{status}</p>
-                            </div>
-                            <div className="flex-grow overflow-y-auto">
-                                {isLoading ? (
-                                    <p className="p-4 text-center text-gray-500">Carregando...</p>
-                                ) : (
-                                    Object.values(chats).sort((a, b) => new Date(b.lastMessageTimestamp).getTime() - new Date(a.lastMessageTimestamp).getTime()).map((chat) => (
-                                        <div
-                                            key={chat.id}
-                                            className={`p-4 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${activeChatId === chat.id ? 'bg-gray-200 dark:bg-gray-700' : ''}`}
-                                            onClick={() => handleChatClick(chat.id)}
-                                        >
-                                            <div className="flex items-center">
-                                                <Avatar className="mr-4">
-                                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name.replace(' ', '+')}`} />
-                                                    <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                                </Avatar>
-                                                <div className="flex-grow">
+            {/* Barra de Status */}
+            <div className="p-2 bg-blue-500 text-white text-center text-sm flex justify-center items-center">
+                <span className="flex-1">Status: {status}</span>
+                {status === 'Conectado ao WhatsApp!' && (
+                    <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-none ml-4">
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Encerrar Sessão
+                    </Button>
+                )}
+            </div>
+            
+            <div className="flex flex-1 overflow-hidden">
+                {/* Lista de Chats */}
+                <aside className="w-1/3 border-r overflow-y-auto">
+                    {/* Header da Lista de Chats */}
+                    <div className="p-4 border-b flex justify-between items-center">
+                        <h2 className="text-xl font-semibold">Conversas</h2>
+                        <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
+                            <PlusCircle className="h-6 w-6" />
+                        </Button>
+                    </div>
+
+                    {isLoading ? (
+                        <div className="p-4">Carregando conversas...</div>
+                    ) : (
+                        <Tabs defaultValue="all">
+                            <TabsList className="w-full">
+                                <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
+                                <TabsTrigger value="unread" className="flex-1">Não Lidas</TabsTrigger>
+                            </TabsList>
+
+                            <TabsContent value="all">
+                                {Object.values(chats).map((chat) => (
+                                    <div key={chat.id} 
+                                         onClick={() => handleChatClick(chat.id)}
+                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
+                                        <div className="flex items-center">
+                                            <Avatar className="mr-4">
+                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
+                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between">
                                                     <h3 className="font-semibold">{chat.name}</h3>
-                                                    <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+                                                    {chat.unreadCount > 0 && (
+                                                        <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                                            {chat.unreadCount}
+                                                        </span>
+                                                    )}
                                                 </div>
-                                                {chat.unreadCount > 0 && (
-                                                    <div className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                                        {chat.unreadCount}
-                                                    </div>
-                                                )}
+                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
                                             </div>
                                         </div>
-                                    ))
-                                )}
+                                    </div>
+                                ))}
+                            </TabsContent>
+                            <TabsContent value="unread">
+                                {Object.values(chats).filter(c => c.unreadCount > 0).map((chat) => (
+                                    <div key={chat.id} 
+                                         onClick={() => handleChatClick(chat.id)}
+                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
+                                        <div className="flex items-center">
+                                            <Avatar className="mr-4">
+                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
+                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="flex-1">
+                                                <div className="flex justify-between">
+                                                    <h3 className="font-semibold">{chat.name}</h3>
+                                                    <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                                        {chat.unreadCount}
+                                                    </span>
+                                                </div>
+                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </TabsContent>
+                        </Tabs>
+                    )}
+                </aside>
+                
+                {/* Janela de Chat Ativa */}
+                <main className="flex-1 flex flex-col">
+                    {activeChat ? (
+                        <>
+                            {/* Header do Chat */}
+                            <header className="p-4 border-b flex items-center">
+                                <Avatar className="mr-4">
+                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name}&background=random`} />
+                                    <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
+                                </Avatar>
+                                <h2 className="text-xl font-semibold">{activeChat.name}</h2>
+                            </header>
+
+                            {/* Mensagens */}
+                            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+                                {activeChat.messages.map((msg, index) => (
+                                    <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
+                                        <div className={`rounded-lg px-4 py-2 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
+                                            <p>{msg.text}</p>
+                                            <span className="text-xs text-right opacity-70 block mt-1">
+                                                {new Date(msg.timestamp).toLocaleTimeString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* Input de Mensagem */}
+                            <footer className="p-4 border-t">
+                                <div className="flex items-center">
+                                    <Input
+                                        value={messageInput}
+                                        onChange={(e) => setMessageInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                        placeholder="Digite sua mensagem..."
+                                        className="flex-1 mr-4"
+                                    />
+                                    <Button onClick={handleSendMessage}>
+                                        <Send className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                            </footer>
+                        </>
+                    ) : (
+                        <div className="flex items-center justify-center h-full">
+                            <div className="text-center">
+                                <h2 className="text-2xl font-semibold">Selecione uma conversa</h2>
+                                <p className="text-gray-500">Ou inicie uma nova para começar a conversar.</p>
                             </div>
                         </div>
+                    )}
+                </main>
+            </div>
 
-                        {/* Coluna da Direita: Chat Ativo */}
-                        <div className="hidden md:flex w-2/3 flex-col">
-                            {activeChat ? (
-                                <>
-                                    <div className="p-4 border-b flex items-center shrink-0">
-                                        <Avatar className="mr-4">
-                                            <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name.replace(' ', '+')}`} />
-                                            <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
-                                        </Avatar>
-                                        <h2 className="text-xl font-bold">{activeChat.name}</h2>
-                                    </div>
-                                    <div className="flex-grow p-4 overflow-y-auto bg-gray-50 dark:bg-gray-900">
-                                        {activeChat.messages.map((msg, index) => (
-                                            <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
-                                                <div className={`rounded-lg p-3 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-white'}`}>
-                                                    <p>{msg.text}</p>
-                                                    <p className="text-xs text-right mt-1 opacity-75">{new Date(msg.timestamp).toLocaleTimeString()}</p>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="p-4 border-t bg-white shrink-0">
-                                        <form
-                                            onSubmit={(e) => {
-                                                e.preventDefault();
-                                                handleSendMessage();
-                                            }}
-                                            className="flex items-center"
-                                        >
-                                            <Input
-                                                placeholder="Digite uma mensagem..."
-                                                className="flex-grow"
-                                                value={messageInput}
-                                                onChange={(e) => setMessageInput(e.target.value)}
-                                            />
-                                            <Button type="submit" className="ml-4">
-                                                <Send size={20} />
-                                            </Button>
-                                        </form>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex-grow flex items-center justify-center">
-                                    <p className="text-gray-500">Selecione uma conversa para começar.</p>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </TabsContent>
-            </Tabs>
-
+            {/* Dialog para Novo Chat */}
             <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Iniciar Nova Conversa</DialogTitle>
                         <DialogDescription>
-                            Digite o número de telefone completo com código do país (ex: 5511999998888).
+                            Digite o número de telefone do WhatsApp (incluindo o código do país).
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="py-4">
+                    <div className="grid gap-4 py-4">
                         <Input
-                            placeholder="5511999998888"
+                            id="phoneNumber"
                             value={newChatNumber}
                             onChange={(e) => setNewChatNumber(e.target.value)}
+                            placeholder="Ex: 5511999998888"
                         />
-                        {newChatError && <p className="text-red-500 text-sm mt-2">{newChatError}</p>}
+                        {newChatError && (
+                            <p className="text-sm text-red-500">{newChatError}</p>
+                        )}
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setIsNewChatDialogOpen(false)}>Cancelar</Button>
-                        <Button onClick={handleNewChat}>Verificar e Abrir</Button>
+                        <Button type="submit" onClick={handleNewChat}>Verificar e Iniciar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -326,4 +475,4 @@ const WhatsAppPage = () => {
     );
 };
 
-export default WhatsAppPage; 
+export default WhatsAppPage;

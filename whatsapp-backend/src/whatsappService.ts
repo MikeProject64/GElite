@@ -211,6 +211,41 @@ export function initWhatsApp(socketIO: SocketIO, io: Server, userId: string) {
         }
     });
 
+    socketIO.on('logout_session', async () => {
+        const sessionLogger = logger.child({ sessionId: userId });
+        sessionLogger.info('Recebida solicitação de logout.');
+        
+        const sock = sessions.get(userId);
+        if (sock) {
+            try {
+                await sock.logout(); // Desconecta do WhatsApp
+            } catch (error) {
+                sessionLogger.error({ error }, 'Erro ao fazer logout da sessão do Baileys.');
+            } finally {
+                sessions.delete(userId); // Remove da memória
+                
+                // Remove a pasta da sessão do disco
+                const sessionPath = path.join(SESSIONS_DIR, userId);
+                if (fs.existsSync(sessionPath)) {
+                    fs.rmSync(sessionPath, { recursive: true, force: true });
+                    sessionLogger.info('Pasta da sessão removida do disco.');
+                }
+            }
+        }
+        
+        // Notifica o cliente que foi desconectado
+        socketIO.emit('disconnected', 'Você foi desconectado com sucesso.');
+    });
+
+    socketIO.on('request_new_qr', () => {
+        const sessionLogger = logger.child({ sessionId: userId });
+        sessionLogger.info('Recebida solicitação de novo QR Code.');
+        
+        // Simplesmente tenta criar um novo socket. A lógica existente em
+        // createWhatsAppSocket cuidará da geração de um novo QR code.
+        createWhatsAppSocket(userId, socketIO);
+    });
+
     socketIO.on('disconnect', () => {
         logger.info({ userId, socketId: socketIO.id }, 'Cliente desconectado do Socket.IO.');
         userSocketMap.delete(userId);
