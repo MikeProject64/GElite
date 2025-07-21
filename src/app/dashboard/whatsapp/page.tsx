@@ -6,7 +6,7 @@ import { useAuth } from '@/components/auth-provider';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, PlusCircle, LogOut } from 'lucide-react';
+import { Send, PlusCircle, LogOut, Trash2, Plus } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -17,8 +17,9 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
+import { v4 as uuidv4 } from 'uuid';
 
-
+// Tipos
 interface Message {
     fromMe: boolean;
     text: string;
@@ -34,417 +35,357 @@ interface Chat {
     messages: Message[];
 }
 
+interface WhatsAppSession {
+    id: string;
+    name: string; // Ex: "Celular Principal", "Celular de Vendas"
+    status: 'disconnected' | 'connected' | 'connecting' | 'qr' | 'error' | 'replaced';
+    qrCodeUrl?: string;
+    qrCountdown?: number;
+    isQrExpired?: boolean;
+    chats: Record<string, Chat>;
+}
+
 const WhatsAppPage = () => {
-    const [status, setStatus] = useState<string>('Autenticando...');
-    const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null); // Estado para o QR Code
-    const [isQrExpired, setIsQrExpired] = useState(false);
-    const [countdown, setCountdown] = useState(20);
-    const [isDisconnected, setIsDisconnected] = useState(false);
+    const [sessions, setSessions] = useState<Record<string, WhatsAppSession>>({});
+    const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
     const [socket, setSocket] = useState<Socket | null>(null);
-    const [chats, setChats] = useState<Record<string, Chat>>({});
     const [activeChatId, setActiveChatId] = useState<string | null>(null);
-    const [messageInput, setMessageInput] = useState(''); // Estado para o input de mensagem
+    const [messageInput, setMessageInput] = useState('');
     const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
     const [newChatNumber, setNewChatNumber] = useState('');
     const [newChatError, setNewChatError] = useState('');
+    const [isNewSessionDialogOpen, setIsNewSessionDialogOpen] = useState(false);
+    const [newSessionName, setNewSessionName] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
 
-    // Carrega os chats iniciais da API
+    // Carrega sessões iniciais da API
     useEffect(() => {
-        const fetchInitialChats = async () => {
+        const fetchInitialSessions = async () => {
             if (!user) return;
-
             try {
                 const token = await user.getIdToken();
-                const response = await fetch('/api/whatsapp/chats', {
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
+                const response = await fetch('/api/whatsapp/sessions', { // Rota a ser criada no Next.js
+                    headers: { Authorization: `Bearer ${token}` },
                 });
+                if (!response.ok) throw new Error('Falha ao buscar sessões.');
+                const initialSessions: WhatsAppSession[] = await response.json();
 
-                if (!response.ok) {
-                    throw new Error('Falha ao buscar as conversas.');
+                const sessionsMap: Record<string, WhatsAppSession> = {};
+                initialSessions.forEach(session => {
+                    sessionsMap[session.id] = { ...session, chats: {} }; // Chats serão carregados sob demanda ou via WS
+                });
+                setSessions(sessionsMap);
+                if (initialSessions.length > 0) {
+                    setActiveSessionId(initialSessions[0].id);
                 }
-
-                const initialChats = await response.json();
-                setChats(initialChats);
             } catch (error) {
-                console.error("Erro ao carregar chats iniciais:", error);
-                setStatus('Erro ao carregar suas conversas.');
+                console.error("Erro ao carregar sessões:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-
-        fetchInitialChats();
+        fetchInitialSessions();
     }, [user]);
 
-    // Efeito para o contador regressivo do QR Code
+    // Conecta ao WebSocket e gerencia eventos
     useEffect(() => {
-        if (qrCodeUrl && !isQrExpired) {
-            const countdownInterval = setInterval(() => {
-                setCountdown(prev => prev > 0 ? prev - 1 : 0);
-            }, 1000);
-
-            const expiryTimeout = setTimeout(() => {
-                setIsQrExpired(true);
-                setQrCodeUrl(null); // Opcional: limpa o QR antigo da tela
-            }, 20000); // 20 segundos
-
-            return () => {
-                clearInterval(countdownInterval);
-                clearTimeout(expiryTimeout);
-            };
-        }
-    }, [qrCodeUrl, isQrExpired]);
-    
-    // Conecta ao WebSocket
-    useEffect(() => {
-        if (!user) {
-            setStatus('Você precisa estar logado para conectar o WhatsApp.');
-            return;
-        }
-
-        let newSocket: Socket;
+        if (!user) return;
 
         const connectSocket = async () => {
-            try {
-                const token = await user.getIdToken();
-                const backendUrl = process.env.NEXT_PUBLIC_WS_BACKEND_URL || 'http://localhost:8000';
-                
-                newSocket = io(backendUrl, {
-                    auth: {
-                        token: token
+            const token = await user.getIdToken();
+            const backendUrl = process.env.NEXT_PUBLIC_WS_BACKEND_URL || 'http://localhost:8000';
+            const newSocket = io(backendUrl, {
+                auth: { token },
+                transports: ['websocket'],
+            });
+            setSocket(newSocket);
+
+            newSocket.on('connect', () => {
+                console.log('Socket.IO conectado.');
+                // Inicia todas as sessões existentes
+                Object.keys(sessions).forEach(sessionId => {
+                    newSocket.emit('startSession', { sessionId });
+                });
+            });
+
+            newSocket.on('qr', ({ sessionId, qrCodeUrl }) => {
+                setSessions(prev => ({
+                    ...prev,
+                    [sessionId]: {
+                        ...prev[sessionId],
+                        status: 'qr',
+                        qrCodeUrl,
+                        isQrExpired: false,
+                        qrCountdown: 20,
                     },
-                    // Opcional: força o transporte de websocket se houver problemas com polling
-                    transports: ['websocket']
-                });
+                }));
+            });
 
-                setSocket(newSocket);
+            newSocket.on('connected', ({ sessionId }) => {
+                setSessions(prev => ({
+                    ...prev,
+                    [sessionId]: { ...prev[sessionId], status: 'connected', qrCodeUrl: undefined },
+                }));
+            });
 
-                newSocket.on('connect', () => {
-                    setStatus('Conectado. Iniciando sessão...');
-                    // O sessionId é o próprio UID do usuário
-                    newSocket.emit('startSession', { sessionId: user.uid });
-                });
-                
-                newSocket.on('qr', (url: string) => {
-                    setStatus('QR Code recebido. Por favor, escaneie.');
-                    setQrCodeUrl(url);
-                    setIsQrExpired(false);
-                    setCountdown(20);
-                    setIsDisconnected(false);
-                });
-                
-                newSocket.on('connected', () => {
-                    setStatus('Conectado ao WhatsApp!');
-                    setQrCodeUrl(null);
-                    setIsQrExpired(false);
-                    setIsDisconnected(false);
-                });
-                
-                newSocket.on('disconnected', (message: string) => {
-                    setStatus(`Desconectado: ${message || 'Sessão encerrada.'}`);
-                    setQrCodeUrl(null);
-                    setIsQrExpired(false);
-                    setChats({});
-                    setActiveChatId(null);
-                    setIsDisconnected(true);
-                });
-                
-                newSocket.on('replaced', (message: string) => {
-                    setStatus(`Sessão substituída: ${message}`);
-                    setQrCodeUrl(null);
-                    setIsQrExpired(false);
-                    setIsDisconnected(false);
-                });
-                
-                newSocket.on('auth_error', (message: string) => setStatus(`Erro de autenticação: ${message}`));
+            newSocket.on('disconnected', ({ sessionId, message }) => {
+                setSessions(prev => ({
+                    ...prev,
+                    [sessionId]: { ...prev[sessionId], status: 'disconnected', chats: {} },
+                }));
+            });
 
-                newSocket.on('new_message', ({ contactId, message }: { contactId: string, message: Message }) => {
-                    setChats(prevChats => {
-                        const updatedChat = {
-                            ...prevChats[contactId],
-                            id: contactId,
-                            name: prevChats[contactId]?.name || contactId,
-                            messages: [...(prevChats[contactId]?.messages || []), message],
-                            lastMessage: message.text,
-                            lastMessageTimestamp: message.timestamp,
-                            unreadCount: (prevChats[contactId]?.unreadCount || 0) + 1,
+            newSocket.on('replaced', ({ sessionId, message }) => {
+                setSessions(prev => ({
+                    ...prev,
+                    [sessionId]: { ...prev[sessionId], status: 'replaced' },
+                }));
+            });
+
+            newSocket.on('new_message', ({ sessionId, contactId, message }) => {
+                setSessions(prev => {
+                    const targetSession = prev[sessionId];
+                    if (!targetSession) return prev;
+                    const updatedChat = {
+                        ...targetSession.chats[contactId],
+                        id: contactId,
+                        name: targetSession.chats[contactId]?.name || contactId,
+                        messages: [...(targetSession.chats[contactId]?.messages || []), message],
+                        lastMessage: message.text,
+                        lastMessageTimestamp: message.timestamp,
+                        unreadCount: (targetSession.chats[contactId]?.unreadCount || 0) + 1,
+                    };
+                    return {
+                        ...prev,
+                        [sessionId]: {
+                            ...targetSession,
+                            chats: { ...targetSession.chats, [contactId]: updatedChat },
+                        },
+                    };
+                });
+            });
+
+            newSocket.on('number_check_result', ({ sessionId, valid, jid, number, error }) => {
+                if (valid) {
+                    setSessions(prev => {
+                        const targetSession = prev[sessionId];
+                        if (!targetSession || targetSession.chats[jid]) return prev;
+                        const newChat: Chat = {
+                            id: jid, name: number, messages: [],
+                            lastMessage: 'Chat iniciado.',
+                            lastMessageTimestamp: new Date().toISOString(),
+                            unreadCount: 0,
                         };
-                        return { ...prevChats, [contactId]: updatedChat };
+                        return {
+                            ...prev,
+                            [sessionId]: {
+                                ...targetSession,
+                                chats: { ...targetSession.chats, [jid]: newChat },
+                            },
+                        };
                     });
-                });
-        
-                newSocket.on('number_check_result', ({ valid, jid, number, error }) => {
-                    if (valid) {
-                        setChats(prev => {
-                            if (prev[jid]) { 
-                                return prev;
-                            }
-                            const newChat: Chat = {
-                                id: jid,
-                                name: number,
-                                messages: [],
-                                lastMessage: 'Chat iniciado.',
-                                lastMessageTimestamp: new Date().toISOString(),
-                                unreadCount: 0,
-                            };
-                            return { ...prev, [jid]: newChat };
-                        });
-                        setActiveChatId(jid);
-                        setIsNewChatDialogOpen(false);
-                        setNewChatNumber('');
-                        setNewChatError('');
-                    } else {
-                        setNewChatError(error);
-                    }
-                });
+                    setActiveChatId(jid);
+                    setIsNewChatDialogOpen(false);
+                    setNewChatNumber('');
+                    setNewChatError('');
+                } else {
+                    setNewChatError(error);
+                }
+            });
 
-            } catch (error) {
-                console.error("Erro ao obter token ou conectar:", error);
-                setStatus('Falha na autenticação inicial.');
-            }
         };
 
         connectSocket();
 
         return () => {
-            if (newSocket) {
-                newSocket.disconnect();
-            }
+            socket?.disconnect();
         };
-    }, [user]);
+    }, [user, sessions]);
+
+    // Efeito para contagem regressiva do QR Code
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setSessions(prev => {
+                const newSessions = { ...prev };
+                let changed = false;
+                Object.keys(newSessions).forEach(sid => {
+                    const s = newSessions[sid];
+                    if (s.status === 'qr' && s.qrCountdown && s.qrCountdown > 0) {
+                        newSessions[sid] = { ...s, qrCountdown: s.qrCountdown - 1 };
+                        changed = true;
+                    } else if (s.status === 'qr' && s.qrCountdown === 0 && !s.isQrExpired) {
+                        newSessions[sid] = { ...s, isQrExpired: true };
+                        changed = true;
+                    }
+                });
+                return changed ? newSessions : prev;
+            });
+        }, 1000);
+        return () => clearInterval(interval);
+    }, []);
+
+    const handleAddNewSession = async () => {
+        if (!user || !newSessionName.trim()) return;
+        const sessionId = uuidv4();
+        const newSession: WhatsAppSession = {
+            id: sessionId,
+            name: newSessionName,
+            status: 'connecting',
+            chats: {},
+        };
+
+        // Adiciona na UI otimistamente
+        setSessions(prev => ({ ...prev, [sessionId]: newSession }));
+
+        // Salva no backend (rota a ser criada)
+        const token = await user.getIdToken();
+        await fetch('/api/whatsapp/sessions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ id: sessionId, name: newSessionName }),
+        });
+
+        // Inicia a sessão no backend
+        socket?.emit('startSession', { sessionId });
+        setActiveSessionId(sessionId);
+        setIsNewSessionDialogOpen(false);
+        setNewSessionName('');
+    };
 
     const handleSendMessage = () => {
-        if (!socket || !activeChatId || !messageInput.trim()) {
-            return;
-        }
-
+        if (!socket || !activeSessionId || !activeChatId || !messageInput.trim()) return;
         const message: Message = {
             fromMe: true,
             text: messageInput,
             timestamp: new Date().toISOString(),
         };
 
-        // Adiciona a mensagem à UI imediatamente
-        setChats(prevChats => {
+        setSessions(prev => {
+            const newSessions = { ...prev };
+            const session = newSessions[activeSessionId];
+            if (!session) return prev;
+            const chat = session.chats[activeChatId];
+            if (!chat) return prev;
             const updatedChat = {
-                ...prevChats[activeChatId],
-                messages: [...(prevChats[activeChatId]?.messages || []), message],
+                ...chat,
+                messages: [...chat.messages, message],
                 lastMessage: message.text,
                 lastMessageTimestamp: message.timestamp,
             };
-            return { ...prevChats, [activeChatId]: updatedChat };
+            session.chats[activeChatId] = updatedChat;
+            return newSessions;
         });
 
-        // Envia a mensagem para o backend
         socket.emit('send_message', {
+            sessionId: activeSessionId,
             contactId: activeChatId,
             content: messageInput,
         });
-
-        setMessageInput(''); // Limpa o input
+        setMessageInput('');
     };
 
     const handleNewChat = () => {
-        if (socket && newChatNumber.trim()) {
+        if (socket && activeSessionId && newChatNumber.trim()) {
             setNewChatError('');
-            socket.emit('check_number', { phoneNumber: newChatNumber });
+            socket.emit('check_number', { sessionId: activeSessionId, phoneNumber: newChatNumber });
         }
     };
     
-    const activeChat = activeChatId ? chats[activeChatId] : null;
-
-    const handleChatClick = (chatId: string) => {
-        setActiveChatId(chatId);
-        // Zera o contador de não lidas ao abrir o chat
-        setChats(prev => {
-            if (prev[chatId]?.unreadCount > 0) {
-                return { ...prev, [chatId]: { ...prev[chatId], unreadCount: 0 } };
-            }
-            return prev;
-        });
+    const handleLogoutSession = (sessionId: string) => {
+        socket?.emit('logout_session', { sessionId });
     };
 
-    const handleLogout = () => {
-        if (socket) {
-            socket.emit('logout_session');
-        }
+    const handleRequestNewQr = (sessionId: string) => {
+        socket?.emit('request_new_qr', { sessionId });
     };
 
-    const handleRequestNewQr = () => {
-        if (socket) {
-            setStatus('Solicitando novo QR Code...');
-            socket.emit('request_new_qr');
-        }
-    };
+    const activeSession = activeSessionId ? sessions[activeSessionId] : null;
+    const activeChat = activeSession && activeChatId ? activeSession.chats[activeChatId] : null;
 
-    if (qrCodeUrl) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
-                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
-                    <h2 className="text-2xl font-bold mb-2">Conecte seu WhatsApp</h2>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">{status}</p>
-                    <div className="relative w-64 h-64 mx-auto">
-                        <Image src={qrCodeUrl} alt="QR Code do WhatsApp" width={256} height={256} />
+    if (isLoading) {
+        return <div>Carregando...</div>;
+    }
+
+    const renderSessionContent = (session: WhatsAppSession) => {
+        if (session.status === 'qr') {
+            return (
+                <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
+                    <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
+                        <h2 className="text-2xl font-bold mb-2">Conecte: {session.name}</h2>
+                        <p className="text-gray-600 dark:text-gray-300 mb-4">Escaneie o QR Code</p>
+                        {session.qrCodeUrl && !session.isQrExpired ? (
+                            <>
+                                <div className="relative w-64 h-64 mx-auto">
+                                    <Image src={session.qrCodeUrl} alt="QR Code" width={256} height={256} />
+                                </div>
+                                <p className="mt-4 text-lg font-mono">Tempo: {session.qrCountdown}s</p>
+                            </>
+                        ) : (
+                            <div>
+                                <p>QR Code expirado.</p>
+                                <Button onClick={() => handleRequestNewQr(session.id)}>Gerar Novo</Button>
+                            </div>
+                        )}
                     </div>
-                    <p className="mt-4 text-lg font-mono">Tempo restante: {countdown}s</p>
-                    <p className="mt-4 text-sm text-gray-500 dark:text-gray-400">
-                        1. Abra o WhatsApp no seu celular. <br />
-                        2. Toque em Menu ou Configurações e selecione <strong>Aparelhos conectados</strong>. <br />
-                        3. Aponte seu celular para esta tela para capturar o código.
-                    </p>
                 </div>
-            </div>
-        );
-    }
+            );
+        }
 
-    if (isQrExpired) {
+        if (session.status === 'disconnected' || session.status === 'error' || session.status === 'replaced') {
+             return (
+                <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
+                    <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
+                        <h2 className="text-2xl font-bold mb-2">Sessão {session.name} Encerrada</h2>
+                        <p className="text-gray-600 dark:text-gray-300 mb-4">
+                            {session.status === 'replaced' ? 'Sessão substituída.' : 'A sessão foi desconectada.'}
+                        </p>
+                        <Button onClick={() => handleRequestNewQr(session.id)}>
+                            Conectar Novamente
+                        </Button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Conteúdo principal do chat para uma sessão conectada
         return (
-            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
-                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
-                    <h2 className="text-2xl font-bold mb-2">Tempo Esgotado</h2>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">
-                        O QR Code expirou. Por favor, tente novamente.
-                    </p>
-                    <Button onClick={handleRequestNewQr}>
-                        Gerar Novo QR Code
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-
-    if (isDisconnected) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
-                <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
-                    <h2 className="text-2xl font-bold mb-2">Sessão Encerrada</h2>
-                    <p className="text-gray-600 dark:text-gray-300 mb-4">{status}</p>
-                    <Button onClick={handleRequestNewQr}>
-                        Conectar Novamente
-                    </Button>
-                </div>
-            </div>
-        );
-    }
-    
-
-    return (
-        <div className="h-full w-full flex flex-col">
-            {/* Barra de Status */}
-            <div className="p-2 bg-blue-500 text-white text-center text-sm flex justify-center items-center">
-                <span className="flex-1">Status: {status}</span>
-                {status === 'Conectado ao WhatsApp!' && (
-                    <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-none ml-4">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Encerrar Sessão
-                    </Button>
-                )}
-            </div>
-            
-            <div className="flex flex-1 overflow-hidden">
-                {/* Lista de Chats */}
+             <div className="flex flex-1 overflow-hidden">
                 <aside className="w-1/3 border-r overflow-y-auto">
-                    {/* Header da Lista de Chats */}
                     <div className="p-4 border-b flex justify-between items-center">
                         <h2 className="text-xl font-semibold">Conversas</h2>
                         <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
                             <PlusCircle className="h-6 w-6" />
                         </Button>
                     </div>
-
-                    {isLoading ? (
-                        <div className="p-4">Carregando conversas...</div>
-                    ) : (
-                        <Tabs defaultValue="all">
-                            <TabsList className="w-full">
-                                <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
-                                <TabsTrigger value="unread" className="flex-1">Não Lidas</TabsTrigger>
-                            </TabsList>
-
-                            <TabsContent value="all">
-                                {Object.values(chats).map((chat) => (
-                                    <div key={chat.id} 
-                                         onClick={() => handleChatClick(chat.id)}
-                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                                        <div className="flex items-center">
-                                            <Avatar className="mr-4">
-                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
-                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <div className="flex justify-between">
-                                                    <h3 className="font-semibold">{chat.name}</h3>
-                                                    {chat.unreadCount > 0 && (
-                                                        <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                                            {chat.unreadCount}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                            <TabsContent value="unread">
-                                {Object.values(chats).filter(c => c.unreadCount > 0).map((chat) => (
-                                    <div key={chat.id} 
-                                         onClick={() => handleChatClick(chat.id)}
-                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                                        <div className="flex items-center">
-                                            <Avatar className="mr-4">
-                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
-                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <div className="flex justify-between">
-                                                    <h3 className="font-semibold">{chat.name}</h3>
-                                                    <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                                        {chat.unreadCount}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                        </Tabs>
-                    )}
+                    {Object.values(session.chats).map((chat) => (
+                        <div key={chat.id}
+                             onClick={() => setActiveChatId(chat.id)}
+                             className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
+                            {/* ... UI do item de chat ... */}
+                        </div>
+                    ))}
                 </aside>
                 
-                {/* Janela de Chat Ativa */}
                 <main className="flex-1 flex flex-col">
                     {activeChat ? (
                         <>
-                            {/* Header do Chat */}
                             <header className="p-4 border-b flex items-center">
-                                <Avatar className="mr-4">
+                                 <Avatar className="mr-4">
                                     <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name}&background=random`} />
                                     <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
                                 </Avatar>
                                 <h2 className="text-xl font-semibold">{activeChat.name}</h2>
                             </header>
-
-                            {/* Mensagens */}
                             <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
                                 {activeChat.messages.map((msg, index) => (
                                     <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
                                         <div className={`rounded-lg px-4 py-2 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
                                             <p>{msg.text}</p>
-                                            <span className="text-xs text-right opacity-70 block mt-1">
-                                                {new Date(msg.timestamp).toLocaleTimeString()}
-                                            </span>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-
-                            {/* Input de Mensagem */}
                             <footer className="p-4 border-t">
                                 <div className="flex items-center">
                                     <Input
@@ -454,45 +395,86 @@ const WhatsAppPage = () => {
                                         placeholder="Digite sua mensagem..."
                                         className="flex-1 mr-4"
                                     />
-                                    <Button onClick={handleSendMessage}>
-                                        <Send className="h-5 w-5" />
-                                    </Button>
+                                    <Button onClick={handleSendMessage}><Send className="h-5 w-5" /></Button>
                                 </div>
                             </footer>
                         </>
                     ) : (
                         <div className="flex items-center justify-center h-full">
-                            <div className="text-center">
-                                <h2 className="text-2xl font-semibold">Selecione uma conversa</h2>
-                                <p className="text-gray-500">Ou inicie uma nova para começar a conversar.</p>
-                            </div>
+                            <p>Selecione uma conversa.</p>
                         </div>
                     )}
                 </main>
             </div>
+        );
+    };
 
-            {/* Dialog para Novo Chat */}
-            <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
+    return (
+        <div className="h-full w-full flex">
+            {/* Barra Lateral de Sessões */}
+            <aside className="w-1/4 bg-gray-100 dark:bg-gray-800 p-4 border-r">
+                <h1 className="text-2xl font-bold mb-4">Sessões</h1>
+                <Button className="w-full mb-4" onClick={() => setIsNewSessionDialogOpen(true)}>
+                    <Plus className="mr-2 h-4 w-4" /> Nova Sessão
+                </Button>
+                <div className="space-y-2">
+                    {Object.values(sessions).map(session => (
+                        <div key={session.id}
+                             onClick={() => setActiveSessionId(session.id)}
+                             className={`p-3 rounded-lg cursor-pointer ${activeSessionId === session.id ? 'bg-blue-500 text-white' : 'bg-white'}`}>
+                            <div className="flex justify-between items-center">
+                                <span className="font-semibold">{session.name}</span>
+                                <span className={`h-3 w-3 rounded-full ${session.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                            </div>
+                            <p className="text-sm opacity-70">{session.status}</p>
+                        </div>
+                    ))}
+                </div>
+            </aside>
+
+            {/* Conteúdo Principal */}
+            <main className="flex-1 flex flex-col">
+                {activeSession ? renderSessionContent(activeSession) : (
+                    <div className="flex items-center justify-center h-full">
+                        <p>Selecione ou crie uma sessão para começar.</p>
+                    </div>
+                )}
+            </main>
+
+            {/* Dialog para Nova Sessão */}
+            <Dialog open={isNewSessionDialogOpen} onOpenChange={setIsNewSessionDialogOpen}>
+                 <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Adicionar Nova Sessão</DialogTitle>
+                        <DialogDescription>
+                            Dê um nome para sua nova conexão do WhatsApp.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Input
+                        value={newSessionName}
+                        onChange={(e) => setNewSessionName(e.target.value)}
+                        placeholder="Ex: Celular de Vendas"
+                    />
+                    <DialogFooter>
+                        <Button onClick={handleAddNewSession}>Adicionar</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog para Novo Chat (pode ser necessário ajustar o estado que o controla) */}
+             <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle>Iniciar Nova Conversa</DialogTitle>
-                        <DialogDescription>
-                            Digite o número de telefone do WhatsApp (incluindo o código do país).
-                        </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Input
-                            id="phoneNumber"
-                            value={newChatNumber}
-                            onChange={(e) => setNewChatNumber(e.target.value)}
-                            placeholder="Ex: 5511999998888"
-                        />
-                        {newChatError && (
-                            <p className="text-sm text-red-500">{newChatError}</p>
-                        )}
-                    </div>
+                     <Input
+                        value={newChatNumber}
+                        onChange={(e) => setNewChatNumber(e.target.value)}
+                        placeholder="Ex: 5511999998888"
+                    />
+                    {newChatError && <p className="text-sm text-red-500">{newChatError}</p>}
                     <DialogFooter>
-                        <Button type="submit" onClick={handleNewChat}>Verificar e Iniciar</Button>
+                        <Button onClick={handleNewChat}>Verificar e Iniciar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

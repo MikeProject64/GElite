@@ -82,62 +82,85 @@ io.use(authSocket(logger));
 
 io.on('connection', (socket) => {
     const userId = (socket as any).user.uid;
-    const sessionLogger = logger.child({ sessionId: userId });
-    let currentSessionId: string | null = null;
+    const userLogger = logger.child({ userId });
 
-    sessionLogger.info('Novo cliente conectado via WebSocket.');
-    
+    userLogger.info('Novo cliente conectado via WebSocket.');
+
     socket.on('startSession', ({ sessionId }: { sessionId: string }) => {
-        sessionLogger.info({ sessionId }, 'Cliente solicitou para iniciar/usar a sessão.');
-        currentSessionId = sessionId;
-        
-        // Inicia e configura a sessão do WhatsApp
-        initWhatsApp(socket, io, userId);
+        const sessionLogger = userLogger.child({ sessionId });
+        sessionLogger.info('Cliente solicitou para iniciar/usar a sessão.');
+
+        // Associa o socket a uma sala específica para o usuário e outra para a sessão
+        socket.join(userId);
+        socket.join(sessionId);
+
+        // Inicia e configura a sessão do WhatsApp, passando o sessionId
+        initWhatsApp(socket, io, userId, sessionId);
     });
 
     socket.on('disconnect', () => {
-        sessionLogger.info({ currentSessionId }, 'Cliente desconectado.');
-        if (currentSessionId) {
-            // Remove a sessão do Baileys de forma graciosa ao desconectar
-            removeSession(currentSessionId);
-        }
+        userLogger.info('Cliente desconectado.');
+        // A lógica de limpeza de sessão agora pode ser mais robusta,
+        // talvez baseada em quais sessões o socket estava gerenciando.
+        // Por enquanto, a lógica em `initWhatsApp` no evento 'disconnect' do socket.io cuidará disso.
     });
 });
 
 // Rota para deletar um chat e suas mensagens
-app.delete('/chats/:chatId', verifyToken, async (req: any, res: any) => {
-    const userId = req.user.uid;
-    const { chatId } = req.params;
-
-    if (!userId || !chatId) {
-        return res.status(400).send('User ID e Chat ID são obrigatórios.');
-    }
-    
-    const loggerWithSession = logger.child({ sessionId: userId, chatId });
+// Rota para buscar todas as sessões de um usuário
+app.get('/sessions', verifyToken, async (req: Request, res: Response) => {
+    const userId = (req as any).user.uid;
+    const userLogger = logger.child({ userId });
 
     try {
-        loggerWithSession.info('Iniciando exclusão de chat.');
-        
-        const chatRef = db.collection('users').doc(userId).collection('whatsapp_chats').doc(chatId);
-        const messagesSnapshot = await chatRef.collection('messages').get();
+        userLogger.info('Buscando sessões do WhatsApp.');
+        const sessionsRef = db.collection('users').doc(userId).collection('whatsapp_sessions');
+        const snapshot = await sessionsRef.get();
 
-        if (messagesSnapshot.empty) {
-            loggerWithSession.info('Nenhuma mensagem encontrada para deletar, deletando apenas o chat.');
-        } else {
-             const batch = db.batch();
-             messagesSnapshot.docs.forEach(doc => {
-                batch.delete(doc.ref);
-            });
+        if (snapshot.empty) {
+            userLogger.info('Nenhuma sessão encontrada.');
+            return res.status(200).json([]);
+        }
+
+        const sessionsList = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        userLogger.info(`Encontradas ${sessionsList.length} sessões.`);
+        res.status(200).json(sessionsList);
+    } catch (error) {
+        userLogger.error({ error }, 'Erro ao buscar sessões.');
+        res.status(500).send({ error: 'Falha ao buscar as sessões do WhatsApp.' });
+    }
+});
+
+
+app.delete('/sessions/:sessionId/chats/:chatId', verifyToken, async (req: Request, res: Response) => {
+    const userId = (req as any).user.uid;
+    const { sessionId, chatId } = req.params;
+    const sessionLogger = logger.child({ userId, sessionId, chatId });
+
+    try {
+        sessionLogger.info('Iniciando exclusão de chat.');
+
+        const chatRef = db.collection('users').doc(userId).collection('whatsapp_sessions').doc(sessionId).collection('chats').doc(chatId);
+        
+        // Deletar subcoleção de mensagens (opcional, mas recomendado para limpeza completa)
+        const messagesSnapshot = await chatRef.collection('messages').get();
+        if (!messagesSnapshot.empty) {
+            const batch = db.batch();
+            messagesSnapshot.docs.forEach(doc => batch.delete(doc.ref));
             await batch.commit();
-            loggerWithSession.info(`Lote de ${messagesSnapshot.size} mensagens deletado com sucesso.`);
+            sessionLogger.info(`Lote de ${messagesSnapshot.size} mensagens deletado.`);
         }
         
         await chatRef.delete();
-
-        loggerWithSession.info('Chat deletado com sucesso.');
+        sessionLogger.info('Chat deletado com sucesso.');
         res.status(200).send({ message: 'Chat deletado com sucesso.' });
+
     } catch (error) {
-        loggerWithSession.error({ error }, 'Erro ao deletar o chat.');
+        sessionLogger.error({ error }, 'Erro ao deletar o chat.');
         res.status(500).send({ error: 'Falha ao deletar o chat.' });
     }
 });
