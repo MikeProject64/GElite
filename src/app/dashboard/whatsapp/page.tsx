@@ -106,90 +106,115 @@ const WhatsAppPage = () => {
             return;
         }
 
-        const backendUrl = process.env.NEXT_PUBLIC_WS_BACKEND_URL || 'http://localhost:3001';
-        const newSocket = io(backendUrl);
-        setSocket(newSocket);
+        let newSocket: Socket;
 
-        newSocket.on('connect', async () => {
-            setStatus('Conectado. Autenticando...');
-            const token = await user.getIdToken();
-            if (token) {
-                newSocket.emit('auth', token);
-                setStatus('Sessão autenticada. Aguardando conexão com WhatsApp...');
-            }
-        });
-
-        newSocket.on('qr', (url: string) => {
-            setStatus('QR Code recebido. Por favor, escaneie.');
-            setQrCodeUrl(url);
-            setIsQrExpired(false); // Reseta o estado de expiração
-            setCountdown(20); // Reseta o contador
-            setIsDisconnected(false);
-        });
-        newSocket.on('connected', () => {
-            setStatus('Conectado ao WhatsApp!');
-            setQrCodeUrl(null); // Limpa o QR code após a conexão
-            setIsQrExpired(false);
-            setIsDisconnected(false);
-        });
-        newSocket.on('disconnected', (message: string) => {
-            setStatus(`Desconectado: ${message}`);
-            setQrCodeUrl(null);
-            setIsQrExpired(false);
-            setChats({});
-            setActiveChatId(null);
-            setIsDisconnected(true);
-        });
-        newSocket.on('replaced', (message: string) => {
-            setStatus(`Sessão substituída: ${message}`);
-            setQrCodeUrl(null);
-            setIsQrExpired(false);
-            setIsDisconnected(false);
-        });
-        newSocket.on('auth_error', (message: string) => setStatus(`Erro de autenticação: ${message}`));
-
-        newSocket.on('new_message', ({ contactId, message }: { contactId: string, message: Message }) => {
-            setChats(prevChats => {
-                const updatedChat = {
-                    ...prevChats[contactId],
-                    id: contactId,
-                    name: prevChats[contactId]?.name || contactId,
-                    messages: [...(prevChats[contactId]?.messages || []), message],
-                    lastMessage: message.text,
-                    lastMessageTimestamp: message.timestamp,
-                    unreadCount: (prevChats[contactId]?.unreadCount || 0) + 1,
-                };
-                return { ...prevChats, [contactId]: updatedChat };
-            });
-        });
-
-        newSocket.on('number_check_result', ({ valid, jid, number, error }) => {
-            if (valid) {
-                setChats(prev => {
-                    if (prev[jid]) { // Se o chat já existe, apenas abre ele
-                        return prev;
-                    }
-                    // Cria um novo chat se não existir
-                    const newChat: Chat = {
-                        id: jid,
-                        name: number,
-                        messages: [],
-                        lastMessage: 'Chat iniciado.',
-                        lastMessageTimestamp: new Date().toISOString(),
-                        unreadCount: 0,
-                    };
-                    return { ...prev, [jid]: newChat };
+        const connectSocket = async () => {
+            try {
+                const token = await user.getIdToken();
+                const backendUrl = process.env.NEXT_PUBLIC_WS_BACKEND_URL || 'http://localhost:8000';
+                
+                newSocket = io(backendUrl, {
+                    auth: {
+                        token: token
+                    },
+                    // Opcional: força o transporte de websocket se houver problemas com polling
+                    transports: ['websocket']
                 });
-                setActiveChatId(jid);
-                setIsNewChatDialogOpen(false);
-                setNewChatNumber('');
-                setNewChatError('');
-            } else {
-                setNewChatError(error);
-            }
-        });
 
-        return () => { newSocket.disconnect(); };
+                setSocket(newSocket);
+
+                newSocket.on('connect', () => {
+                    setStatus('Conectado. Iniciando sessão...');
+                    // O sessionId é o próprio UID do usuário
+                    newSocket.emit('startSession', { sessionId: user.uid });
+                });
+                
+                newSocket.on('qr', (url: string) => {
+                    setStatus('QR Code recebido. Por favor, escaneie.');
+                    setQrCodeUrl(url);
+                    setIsQrExpired(false);
+                    setCountdown(20);
+                    setIsDisconnected(false);
+                });
+                
+                newSocket.on('connected', () => {
+                    setStatus('Conectado ao WhatsApp!');
+                    setQrCodeUrl(null);
+                    setIsQrExpired(false);
+                    setIsDisconnected(false);
+                });
+                
+                newSocket.on('disconnected', (message: string) => {
+                    setStatus(`Desconectado: ${message || 'Sessão encerrada.'}`);
+                    setQrCodeUrl(null);
+                    setIsQrExpired(false);
+                    setChats({});
+                    setActiveChatId(null);
+                    setIsDisconnected(true);
+                });
+                
+                newSocket.on('replaced', (message: string) => {
+                    setStatus(`Sessão substituída: ${message}`);
+                    setQrCodeUrl(null);
+                    setIsQrExpired(false);
+                    setIsDisconnected(false);
+                });
+                
+                newSocket.on('auth_error', (message: string) => setStatus(`Erro de autenticação: ${message}`));
+
+                newSocket.on('new_message', ({ contactId, message }: { contactId: string, message: Message }) => {
+                    setChats(prevChats => {
+                        const updatedChat = {
+                            ...prevChats[contactId],
+                            id: contactId,
+                            name: prevChats[contactId]?.name || contactId,
+                            messages: [...(prevChats[contactId]?.messages || []), message],
+                            lastMessage: message.text,
+                            lastMessageTimestamp: message.timestamp,
+                            unreadCount: (prevChats[contactId]?.unreadCount || 0) + 1,
+                        };
+                        return { ...prevChats, [contactId]: updatedChat };
+                    });
+                });
+        
+                newSocket.on('number_check_result', ({ valid, jid, number, error }) => {
+                    if (valid) {
+                        setChats(prev => {
+                            if (prev[jid]) { 
+                                return prev;
+                            }
+                            const newChat: Chat = {
+                                id: jid,
+                                name: number,
+                                messages: [],
+                                lastMessage: 'Chat iniciado.',
+                                lastMessageTimestamp: new Date().toISOString(),
+                                unreadCount: 0,
+                            };
+                            return { ...prev, [jid]: newChat };
+                        });
+                        setActiveChatId(jid);
+                        setIsNewChatDialogOpen(false);
+                        setNewChatNumber('');
+                        setNewChatError('');
+                    } else {
+                        setNewChatError(error);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Erro ao obter token ou conectar:", error);
+                setStatus('Falha na autenticação inicial.');
+            }
+        };
+
+        connectSocket();
+
+        return () => {
+            if (newSocket) {
+                newSocket.disconnect();
+            }
+        };
     }, [user]);
 
     const handleSendMessage = () => {

@@ -8,25 +8,13 @@
  */
 
 import {onDocumentCreated} from "firebase-functions/v2/firestore";
-import {onCall, HttpsError} from "firebase-functions/v2/https";
+import {onCall, HttpsError, CallableOptions} from "firebase-functions/v2/https";
 import * as logger from "firebase-functions/logger";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
 import {randomBytes} from "crypto";
 
-// Initialize Firebase Admin SDK
-admin.initializeApp();
-const db = admin.firestore();
-
-// Coloque a URL do seu app em produção aqui.
-const PROD_APP_URL = "https://servicewise-l8b2a.web.app";
-const DEV_APP_URL = "http://localhost:9002";
-
-const CORS_OPTIONS = {
-  cors: true, // Permite requisições de qualquer origem.
-};
-
-// Define the structure for SMTP settings for type safety
+// Interfaces para os dados
 interface SmtpConfig {
   smtpHost?: string;
   smtpPort?: number;
@@ -45,6 +33,57 @@ interface TemplateData {
 interface ListData {
   emails: string[];
 }
+
+// Inicialização do Firebase Admin
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+const db = admin.firestore();
+
+// Coloque a URL do seu app em produção aqui.
+const PROD_APP_URL = "https://servicewise-l8b2a.web.app";
+const DEV_APP_URL = "http://localhost:9002";
+
+const CORS_OPTIONS: CallableOptions = {
+  cors: ["http://localhost:3000", "https://gelite.vercel.app"], // Adicione todos os seus domínios
+  enforceAppCheck: false, // Defina como true em produção
+  maxInstances: 10,
+};
+
+/**
+ * Checks if an email already exists in the users collection.
+ * This is a callable function to be invoked from the client-side.
+ */
+export const checkEmailExistsCallable = onCall(
+  CORS_OPTIONS,
+  async (request) => {
+    const email = request.data.email;
+    if (!email || typeof email !== "string") {
+      throw new HttpsError(
+        "invalid-argument",
+        "O e-mail não foi fornecido ou é inválido."
+      );
+    }
+
+    try {
+      const usersRef = db.collection("users");
+      const snapshot = await usersRef.where("email", "==", email).get();
+
+      if (snapshot.empty) {
+        return {exists: false};
+      }
+
+      return {exists: true};
+    } catch (error) {
+      logger.error("Erro ao verificar a existência do e-mail:", error);
+      throw new HttpsError(
+        "internal",
+        "Ocorreu um erro ao verificar o e-mail."
+      );
+    }
+  }
+);
+
 
 /**
  * Initiates the unified flow for email verification and password setup.

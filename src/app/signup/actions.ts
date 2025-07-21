@@ -1,7 +1,8 @@
 'use server';
 
 import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
-import { db, auth } from '@/lib/firebase';
+import { db, auth, functions } from '@/lib/firebase';
+import { httpsCallable } from 'firebase/functions';
 import { sendPasswordResetEmail, createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
 import { headers } from 'next/headers';
@@ -25,13 +26,17 @@ export async function checkEmailExists(email: string): Promise<{ exists: boolean
         return { exists: false, error: 'E-mail não fornecido.' };
     }
     try {
-        const usersRef = collection(db, 'users');
-        const q = query(usersRef, where("email", "==", email));
-        const querySnapshot = await getDocs(q);
-        return { exists: !querySnapshot.empty };
+        const checkEmail = httpsCallable(functions, 'checkEmailExistsCallable');
+        const result = await checkEmail({ email });
+        const exists = (result.data as { exists: boolean }).exists;
+        return { exists: exists };
     } catch (error: any) {
         console.error("Error checking email existence: ", error);
-        return { exists: false, error: "Não foi possível verificar o e-mail no momento. A verificação final ocorrerá ao criar a conta." };
+        // Fallback or specific error handling
+        if (error.code === 'functions/unauthenticated') {
+             return { exists: false, error: "Você não tem permissão para esta ação." };
+        }
+        return { exists: false, error: "Não foi possível verificar o e-mail no momento." };
     }
 }
 
