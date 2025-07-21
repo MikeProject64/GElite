@@ -362,7 +362,23 @@ const WhatsAppPage = () => {
                         <div key={chat.id}
                              onClick={() => setActiveChatId(chat.id)}
                              className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                            {/* ... UI do item de chat ... */}
+                             <div className="flex items-center">
+                                 <Avatar className="mr-4">
+                                     <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
+                                     <AvatarFallback>{chat.name[0]}</AvatarFallback>
+                                 </Avatar>
+                                 <div className="flex-1">
+                                     <div className="flex justify-between">
+                                         <h3 className="font-semibold">{chat.name}</h3>
+                                         {chat.unreadCount > 0 && (
+                                             <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                                 {chat.unreadCount}
+                                             </span>
+                                         )}
+                                     </div>
+                                     <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+                                 </div>
+                             </div>
                         </div>
                     ))}
                 </aside>
