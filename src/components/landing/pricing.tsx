@@ -168,12 +168,11 @@ export function Pricing() {
                               )}
                               </div>
                               <ul className="space-y-4 font-body flex-grow">
-                              {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
-                                  enabled &&
-                                  <li key={featureKey} className="flex items-center gap-2">
+                              {plan.planItems?.map((item, index) => (
+                                <li key={index} className="flex items-center gap-2">
                                   <CheckCircle className="w-5 h-5 text-green-500" />
-                                  <span>{featureMap[featureKey] || featureKey}</span>
-                                  </li>
+                                  <span>{item.value}</span>
+                                </li>
                               ))}
                               </ul>
                           </CardContent>
@@ -218,12 +217,11 @@ export function Pricing() {
                     )}
                     </div>
                     <ul className="space-y-4 font-body flex-grow">
-                    {plan.features && Object.entries(plan.features).map(([featureKey, enabled]) => (
-                        enabled &&
-                        <li key={featureKey} className="flex items-center gap-2">
+                    {plan.planItems?.map((item, index) => (
+                      <li key={index} className="flex items-center gap-2">
                         <CheckCircle className="w-5 h-5 text-green-500" />
-                        <span>{featureMap[featureKey] || featureKey}</span>
-                        </li>
+                        <span>{item.value}</span>
+                      </li>
                     ))}
                     </ul>
                 </CardContent>

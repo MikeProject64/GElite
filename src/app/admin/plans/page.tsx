@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, query, onSnapshot, orderBy, doc, updateDoc, deleteDoc, Timestamp, writeBatch } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { syncPlanWithStripe } from './actions';
@@ -20,23 +20,17 @@ import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, For
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
-import { Loader2, MoreHorizontal, PlusCircle, CreditCard, Trash2, DollarSign, CheckCircle } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, CreditCard, Trash2, DollarSign, CheckCircle, Star, X } from 'lucide-react';
 import type { Plan } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 
-const featureList = [
-    { id: 'servicos', label: 'Serviços' },
-    { id: 'orcamentos', label: 'Orçamentos' },
-    { id: 'contratos', label: 'Contratos' },
-    { id: 'prazos', label: 'Prazos' },
-    { id: 'atividades', label: 'Atividades' },
-    { id: 'clientes', label: 'Clientes' },
-    { id: 'colaboradores', label: 'Colaboradores' },
-    { id: 'inventario', label: 'Inventário' },
-] as const;
-
-type FeatureId = typeof featureList[number]['id'];
+// Definição do tipo para os grupos de menu
+type MenuGroup = {
+  id: string;
+  label: string;
+};
 
 const planFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome do plano deve ter pelo menos 3 caracteres.' }),
@@ -44,12 +38,9 @@ const planFormSchema = z.object({
   monthlyPrice: z.coerce.number().min(0, { message: 'O preço mensal não pode ser negativo.' }),
   yearlyPrice: z.coerce.number().min(0, { message: 'O preço anual não pode ser negativo.' }),
   isPublic: z.boolean().default(true),
-  features: z.object(
-    featureList.reduce((acc, feature) => {
-        acc[feature.id] = z.boolean().default(false);
-        return acc;
-    }, {} as Record<FeatureId, z.ZodBoolean>)
-  ).default({}),
+  isTrial: z.boolean().default(false),
+  allowedGroups: z.record(z.boolean()).default({}),
+  planItems: z.array(z.object({ value: z.string().min(1, 'O item não pode estar vazio.') })).default([]),
   stripeProductId: z.string().optional(),
   stripeMonthlyPriceId: z.string().optional(),
   stripeYearlyPriceId: z.string().optional(),
@@ -64,6 +55,7 @@ export default function AdminPlansPage() {
   const { toast } = useToast();
   
   const [plans, setPlans] = useState<Plan[]>([]);
+  const [menuGroups, setMenuGroups] = useState<MenuGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -78,52 +70,72 @@ export default function AdminPlansPage() {
       monthlyPrice: 0,
       yearlyPrice: 0,
       isPublic: true,
-      features: featureList.reduce((acc, feature) => ({ ...acc, [feature.id]: false }), {}),
+      isTrial: false,
+      allowedGroups: {},
+      planItems: [],
       stripeProductId: '',
       stripeMonthlyPriceId: '',
       stripeYearlyPriceId: '',
     },
   });
+  
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "planItems"
+  });
 
+  // Carregar grupos de menu
+  useEffect(() => {
+    const menuConfigRef = doc(db, 'siteConfig', 'menu');
+    const unsubscribe = onSnapshot(menuConfigRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const groups = (data.navMenu || [])
+            .filter((item: any) => item.subItems && item.subItems.length > 0)
+            .map((item: any) => ({ id: item.id, label: item.label }));
+        setMenuGroups(groups);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Carregar planos
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
     const q = query(collection(db, 'plans'), orderBy('monthlyPrice', 'asc'));
-
-    const unsubscribe = onSnapshot(q, (querySnapshot) => {
-      const planList = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Plan));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const planList = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Plan));
       setPlans(planList);
       setIsLoading(false);
     }, (error: any) => {
         console.error("Error fetching plans: ", error);
-        toast({
-            variant: "destructive",
-            title: "Erro ao buscar dados",
-            description: "Não foi possível carregar os planos. Verifique as regras de segurança.",
-        });
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível carregar os planos." });
         setIsLoading(false);
     });
-
     return () => unsubscribe();
   }, [user, toast]);
   
   useEffect(() => {
     if (isDialogOpen) {
       if (editingPlan) {
-        form.reset(editingPlan);
+        const defaultGroups = menuGroups.reduce((acc, group) => ({...acc, [group.id]: false}), {});
+        const allowedGroups = {...defaultGroups, ...editingPlan.allowedGroups};
+        form.reset({
+            ...editingPlan,
+            allowedGroups,
+        });
       } else {
         form.reset({
-          name: '', description: '', monthlyPrice: 0, yearlyPrice: 0, isPublic: true,
-          features: featureList.reduce((acc, feature) => ({ ...acc, [feature.id]: false }), {}),
+          name: '', description: '', monthlyPrice: 0, yearlyPrice: 0, isPublic: true, isTrial: false,
+          allowedGroups: menuGroups.reduce((acc, group) => ({...acc, [group.id]: false}), {}),
+          planItems: [],
           stripeProductId: '', stripeMonthlyPriceId: '', stripeYearlyPriceId: '',
         });
       }
     }
-  }, [isDialogOpen, editingPlan, form]);
-
+  }, [isDialogOpen, editingPlan, form, menuGroups]);
+  
   const handleAddNew = () => {
     setEditingPlan(null);
     setIsDialogOpen(true);
@@ -142,6 +154,7 @@ export default function AdminPlansPage() {
   const confirmDelete = async () => {
     if (!deletingPlanId) return;
     try {
+      // Opcional: Adicionar lógica para remover do Stripe aqui se necessário
       await deleteDoc(doc(db, 'plans', deletingPlanId));
       toast({ title: "Sucesso!", description: "Plano excluído." });
     } catch (error) {
@@ -153,8 +166,34 @@ export default function AdminPlansPage() {
     }
   };
 
+  const handleSetTrialPlan = async (planId: string) => {
+    const batch = writeBatch(db);
+    plans.forEach(plan => {
+      const planRef = doc(db, 'plans', plan.id);
+      batch.update(planRef, { isTrial: plan.id === planId });
+    });
+
+    try {
+      await batch.commit();
+      toast({ title: 'Sucesso!', description: 'Plano de teste gratuito definido.' });
+    } catch (error) {
+      console.error("Error setting trial plan: ", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível definir o plano de teste.' });
+    }
+  };
+
+
   const onSubmit = async (data: PlanFormValues) => {
     if (!user) return;
+
+    if (data.isTrial) {
+        const otherTrialPlan = plans.find(p => p.isTrial && p.id !== editingPlan?.id);
+        if (otherTrialPlan) {
+            toast({ variant: "destructive", title: "Aviso", description: `O plano "${otherTrialPlan.name}" já está definido como teste. Desmarque-o primeiro.` });
+            form.control.setError("isTrial", { message: "Apenas um plano pode ser de teste."});
+            return;
+        }
+    }
     
     try {
       const syncResult = await syncPlanWithStripe({
@@ -210,11 +249,11 @@ export default function AdminPlansPage() {
             <DialogHeader>
               <DialogTitle>{editingPlan ? "Editar Plano de Assinatura" : "Criar Novo Plano"}</DialogTitle>
               <DialogDescription>
-                Defina os detalhes, preços e funcionalidades disponíveis neste plano.
+                Defina os detalhes, preços e grupos de páginas disponíveis neste plano.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 max-h-[70vh] overflow-y-auto p-1 pr-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem><FormLabel>Nome do Plano</FormLabel><FormControl><Input placeholder="Ex: Profissional" {...field} /></FormControl><FormMessage /></FormItem>
                 )}/>
@@ -241,22 +280,51 @@ export default function AdminPlansPage() {
                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                   </FormItem>
                 )}/>
-
+                
+                <FormField control={form.control} name="isTrial" render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-amber-50">
+                    <div className="space-y-0.5"><FormLabel>Plano de Teste Gratuito</FormLabel><FormDescription>Define este como o plano padrão para novos usuários em teste.</FormDescription></div>
+                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                  </FormItem>
+                )}/>
+                
                 <Separator />
                 
                 <div>
-                  <h3 className="mb-4 text-lg font-medium">Funções do Plano</h3>
-                  <div className="space-y-4">
-                    {featureList.map((feature) => (
-                      <FormField key={feature.id} control={form.control} name={`features.${feature.id}`} render={({ field }) => (
+                  <h3 className="mb-4 text-lg font-medium">Grupos de Páginas Permitidos</h3>
+                  <div className="space-y-2">
+                    {menuGroups.map((group) => (
+                      <FormField key={group.id} control={form.control} name={`allowedGroups.${group.id}`} render={({ field }) => (
                         <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <div className="space-y-0.5"><FormLabel>{feature.label}</FormLabel></div>
-                          <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                          <FormLabel>{group.label}</FormLabel>
+                          <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                         </FormItem>
                       )}/>
                     ))}
                   </div>
                 </div>
+
+                <Separator />
+
+                <div>
+                    <h3 className="mb-4 text-lg font-medium">Itens Exibidos no Plano</h3>
+                    <div className="space-y-2">
+                        {fields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-2">
+                                <FormField control={form.control} name={`planItems.${index}.value`} render={({ field }) => (
+                                    <Input {...field} placeholder={`Benefício #${index + 1}`} className="flex-grow"/>
+                                )}/>
+                                <Button type="button" variant="ghost" size="icon" onClick={() => remove(index)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
+                     <Button type="button" variant="outline" size="sm" className="mt-2" onClick={() => append({ value: '' })}>
+                        Adicionar Item
+                    </Button>
+                </div>
+
 
                 <DialogFooter className='pt-4 sticky bottom-0 bg-background py-3'>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
@@ -285,8 +353,13 @@ export default function AdminPlansPage() {
       ) : (
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {plans.map(plan => (
-                <Card key={plan.id} className="flex flex-col">
+                <Card key={plan.id} className="flex flex-col relative">
                     <CardHeader>
+                        {plan.isTrial && (
+                            <Badge variant="secondary" className="absolute top-4 right-4 bg-amber-400 text-amber-900 z-10">
+                                <Star className="mr-2 h-4 w-4"/> Plano de Teste
+                            </Badge>
+                        )}
                         <div className="flex justify-between items-start">
                             <div>
                                 <CardTitle>{plan.name}</CardTitle>
@@ -296,6 +369,10 @@ export default function AdminPlansPage() {
                                 <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal className="h-4 w-4"/></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                     <DropdownMenuItem onClick={() => handleSetTrialPlan(plan.id)}>
+                                         <Star className="mr-2 h-4 w-4" />
+                                         {plan.isTrial ? "Remover Teste" : "Definir como Teste"}
+                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => handleEdit(plan)}>Editar</DropdownMenuItem>
                                     <DropdownMenuSeparator />
                                     <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(plan.id)}>
@@ -340,15 +417,13 @@ export default function AdminPlansPage() {
                         </div>
 
                         <Separator className="my-4"/>
-                        <h4 className="font-semibold mb-2">Funções Inclusas:</h4>
+                        <h4 className="font-semibold mb-2">Itens Inclusos:</h4>
                         <ul className="space-y-2 text-sm text-muted-foreground">
-                            {featureList.map(feature => (
-                                (plan.features as any)[feature.id] && (
-                                    <li key={feature.id} className="flex items-center gap-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        <span>{feature.label}</span>
-                                    </li>
-                                )
+                            {plan.planItems?.map((item: any, index: number) => (
+                                <li key={index} className="flex items-center gap-2">
+                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                    <span>{item.value}</span>
+                                </li>
                             ))}
                         </ul>
                     </CardContent>

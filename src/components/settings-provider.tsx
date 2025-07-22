@@ -217,24 +217,35 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
   // Effect to merge all settings and determine feature flags
   useEffect(() => {
     const baseSettings: UserSettings = { ...globalSettings, ...userSettings };
+    // Initialize final flags with all features disabled by default
     const finalFeatureFlags: UserSettings['featureFlags'] = { ...defaultSettings.featureFlags };
-    
-    const isTrialing = systemUser?.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
+    for (const key in finalFeatureFlags) {
+        (finalFeatureFlags as any)[key] = false;
+    }
 
-    if (isTrialing) {
-        // Grant all features during trial
-        for (const key in finalFeatureFlags) {
-            (finalFeatureFlags as any)[key] = true;
+    // Determine which features the user's plan allows
+    const planFeatures: { [key: string]: boolean } = { ...finalFeatureFlags };
+    if (activePlan) {
+        for (const key in planFeatures) {
+            planFeatures[key] = !!activePlan.features[key as keyof typeof activePlan.features];
         }
-    } else {
-        const globalFlags = globalSettings.featureFlags || {};
-        const planFeatures = activePlan?.features || {};
-        for (const key in finalFeatureFlags) {
-            const flagKey = key as keyof typeof finalFeatureFlags;
-            finalFeatureFlags[flagKey] = !!(globalFlags[flagKey] && planFeatures[flagKey]);
+    } else if (systemUser) { // System user has all features
+        for (const key in planFeatures) {
+            planFeatures[key] = true;
         }
     }
     
+    // Get global flags set by the admin
+    const globalFlags = globalSettings.featureFlags || {};
+
+    // A feature is active only if both the plan and the global settings allow it
+    for (const key in finalFeatureFlags) {
+        const flagKey = key as keyof typeof finalFeatureFlags;
+        const isPlanAllowed = planFeatures[flagKey];
+        const isGlobalAllowed = globalFlags[flagKey] !== false; // Consider it allowed unless explicitly false
+        finalFeatureFlags[flagKey] = isPlanAllowed && isGlobalAllowed;
+    }
+
     baseSettings.featureFlags = finalFeatureFlags;
     setMergedSettings(baseSettings);
 

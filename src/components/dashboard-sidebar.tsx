@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
@@ -36,19 +36,26 @@ import {
   BookOpen,
   Truck,
   MessageSquare,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
-import { useSettings } from './settings-provider';
-import { availableIcons } from './icon-map';
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { icons } from 'lucide-react';
 
 
 // Padronizar tamanho dos ícones e espaçamento para compacto
 const ICON_SIZE = 'h-5 w-5'; // Aumentado de h-4 w-4
+
+// Mapeia nomes de ícones (string) para componentes React
+const IconMap = icons;
+
 
 const NavItem: React.FC<{
   href: string;
@@ -80,6 +87,68 @@ const NavItem: React.FC<{
     </Tooltip>
   ) : (
     linkContent
+  );
+};
+
+const CollapsibleNavItem: React.FC<{
+  label: string;
+  icon: React.ElementType;
+  isCollapsed: boolean;
+  children: React.ReactNode;
+  pathname: string;
+  subItems: { href: string; flag?: string }[];
+}> = ({ label, icon: Icon, isCollapsed, children, pathname, subItems }) => {
+  // A section is active if any of its sub-items are active
+  const isActive = subItems.some(item => pathname.startsWith(item.href));
+  const [isOpen, setIsOpen] = React.useState(isActive);
+
+  React.useEffect(() => {
+    // Collapse the menu when the sidebar is collapsed
+    if (isCollapsed) {
+      setIsOpen(false);
+    }
+  }, [isCollapsed]);
+
+  const trigger = (
+    <div
+      className={cn(
+        'flex h-9 w-full items-center justify-between rounded-md px-3 py-1 text-muted-foreground transition-all hover:text-primary',
+        isCollapsed && 'justify-center',
+        isActive && 'font-semibold text-primary'
+      )}
+    >
+      <div className="flex items-center gap-3">
+        <Icon className={`${ICON_SIZE} shrink-0`} />
+        <span className={cn('truncate text-base font-medium', isCollapsed && 'sr-only')}>{label}</span>
+      </div>
+      {!isCollapsed && (
+        <ChevronDown
+          className={cn('h-4 w-4 shrink-0 transition-transform duration-200', isOpen && 'rotate-180')}
+        />
+      )}
+    </div>
+  );
+
+  if (isCollapsed) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent side="right">{label}</TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <button className="w-full">{trigger}</button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="overflow-hidden data-[state=closed]:animate-collapsible-up data-[state=open]:animate-collapsible-down">
+        <div className={cn('ml-4 flex flex-col gap-1 border-l py-1 pl-4')}>
+          {children}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   );
 };
 
@@ -129,9 +198,51 @@ const NavActionButton: React.FC<{
 function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolean, onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { systemUser, loading: authLoading } = useAuth(); // Usar o systemUser e o loading do auth
   const { setTheme } = useTheme();
-  const { user } = useAuth();
-  const { settings } = useSettings();
+  const [navMenu, setNavMenu] = useState<any[]>([]);
+  const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
+  const [allowedGroups, setAllowedGroups] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (authLoading) {
+      return; // Aguarda a autenticação terminar
+    }
+    if (!systemUser || !systemUser.planId) {
+      setIsLoading(false);
+      // Opcional: Redirecionar se não houver plano, ou mostrar menu limitado
+      return;
+    }
+
+    const unsubscribes: (() => void)[] = [];
+
+    // 1. Carregar configuração do menu
+    const menuConfigRef = doc(db, 'siteConfig', 'menu');
+    unsubscribes.push(onSnapshot(menuConfigRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setNavMenu(data.navMenu || []);
+        setSystemNavItems(data.systemNavItems || []);
+      }
+    }));
+
+    // 2. Carregar o plano do usuário para saber os grupos permitidos
+    const planRef = doc(db, 'plans', systemUser.planId);
+    unsubscribes.push(onSnapshot(planRef, (docSnap) => {
+        if (docSnap.exists()) {
+            const planData = docSnap.data();
+            const groups = planData.allowedGroups || {};
+            // Filtra para obter apenas as chaves (IDs dos grupos) cujo valor é true
+            const userAllowedGroups = Object.keys(groups).filter(key => groups[key]);
+            setAllowedGroups(userAllowedGroups);
+        }
+        setIsLoading(false); // Termina o loading aqui
+    }));
+
+    return () => unsubscribes.forEach(unsub => unsub());
+  }, [systemUser, authLoading]);
+
 
   const handleLogout = async () => {
     // Navigate away first to trigger component unmounts and listener cleanup
@@ -140,55 +251,89 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     await signOut(auth);
   };
 
-  const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-  const siteName = settings.siteName || 'Gestor Elite';
-  const logoURL = settings.logoURL;
-
-  const mainNavItems = [
-    { href: '/dashboard', label: 'Painel', icon: Home, flag: 'servicos' },
-    { href: '/dashboard/servicos', label: 'Serviços', icon: ClipboardList, flag: 'servicos' },
-    { href: '/dashboard/orcamentos', label: 'Orçamentos', icon: FileText, flag: 'orcamentos' },
-    { href: '/dashboard/contratos', label: 'Contratos', icon: FileSignature, flag: 'contratos' },
-    { href: '/dashboard/prazos', label: 'Prazos', icon: CalendarClock, flag: 'prazos' },
-    { href: '/dashboard/atividades', label: 'Atividades', icon: Bell, flag: 'atividades' },
-    { href: '/dashboard/base-de-clientes', label: 'Clientes', icon: Users, flag: 'clientes' },
-    { href: '/dashboard/colaboradores', label: 'Equipe', icon: Briefcase, flag: 'colaboradores' },
-    { href: '/dashboard/inventario', label: 'Estoque', icon: Package, flag: 'inventario' },
-    { href: '/dashboard/whatsapp', label: 'WhatsApp', icon: MessageSquare, flag: 'whatsapp' },
-  ];
+  type NavMenuItem = {
+    label: string;
+    icon: string; // Ícone agora é uma string
+    href?: string;
+    subItems?: NavMenuItem[];
+    enabled?: boolean;
+    id: string;
+  };
   
+  const renderNavItems = React.useCallback((items: NavMenuItem[], checkPermissions: boolean) => {
+    return items
+      .filter(item => {
+        if (item.enabled === false) return false; // Respeita o toggle de ativação
+        
+        // Se for um item que não é grupo (ex: Painel), sempre mostra
+        if (!checkPermissions || !item.subItems || item.subItems.length === 0) return true;
+
+        // Se for um grupo e a verificação estiver ativa, confere as permissões
+        return allowedGroups.includes(item.id);
+      })
+      .map((item, index) => {
+        const isGroup = item.subItems && item.subItems.length > 0;
+        const IconComponent = IconMap[item.icon as keyof typeof IconMap] || icons.Wrench;
+
+        if (isGroup) {
+          // Filtra sub-itens desativados
+          const visibleSubItems = item.subItems!.filter(subItem => subItem.enabled !== false);
+          if (visibleSubItems.length === 0) return null;
+
+          return (
+            <CollapsibleNavItem
+              key={item.id || index}
+              label={item.label}
+              icon={IconComponent}
+              isCollapsed={isCollapsed}
+              pathname={pathname}
+              subItems={visibleSubItems.map(si => ({ href: si.href! }))}
+            >
+              {/* Chamada recursiva não precisa mais checar permissões, pois o pai já foi validado */}
+              {renderNavItems(visibleSubItems, false)}
+            </CollapsibleNavItem>
+          );
+        }
+        
+        if (item.href) {
+          const isActive = (item.href === '/dashboard' && pathname === item.href) || (item.href.length > '/dashboard'.length && pathname.startsWith(item.href));
+          return <NavItem key={item.href} href={item.href} label={item.label} icon={IconComponent} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />;
+        }
+
+        return null;
+      });
+  }, [isCollapsed, pathname, onLinkClick, allowedGroups]);
+
+  if (isLoading || authLoading) {
+    // Pode adicionar um skeleton loader aqui se desejar
+    return (
+        <div className="p-4 space-y-4">
+            <div className="h-8 bg-muted rounded w-full"></div>
+            <div className="h-8 bg-muted rounded w-full"></div>
+            <div className="h-8 bg-muted rounded w-full"></div>
+        </div>
+    );
+  }
+
   return (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center border-b px-4 lg:h-[60px]">
         <Link href="/dashboard" className={cn("flex items-center gap-2 font-semibold", isCollapsed && 'justify-center')}>
-           {logoURL ? (
-            <Image src={logoURL} alt={siteName} width={24} height={24} className="h-6 w-6 object-contain" />
-          ) : (
-            <Icon className="h-6 w-6 text-primary" />
-          )}
-          <span className={cn(isCollapsed && 'sr-only')}>{siteName}</span>
+          <LayoutDashboard className="h-6 w-6 text-primary" />
+          <span className={cn(isCollapsed && 'sr-only')}>Gestor Elite</span>
         </Link>
       </div>
 
       <div className="flex-1 overflow-y-auto sidebar-scroll-content">
         <nav className="flex h-full flex-col px-2 py-4 text-base font-medium">
           <div className="space-y-1">
-            {/* Main Navigation Items */}
-            {mainNavItems.map(({ href, label, icon, flag }) => {
-                const showFeature = settings.featureFlags?.[flag as keyof typeof settings.featureFlags] !== false;
-                if (!showFeature) return null;
-                const isActive = (href === '/dashboard' && pathname === href) || (href.length > '/dashboard'.length && pathname.startsWith(href));
-                return <NavItem key={href} href={href} label={label} icon={icon} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />
-            })}
+            {renderNavItems(navMenu, true)}
           </div>
 
           {/* Bottom Navigation Items Wrapper */}
           <div className="mt-auto space-y-1 border-t pt-4 -mx-2">
               <div className='px-2'>
-                <NavItem href="/dashboard/configuracoes" label="Configurações" icon={Settings} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/configuracoes')} onClick={onLinkClick}/>
-                <NavItem href="/dashboard/plans" label="Assinatura" icon={CreditCard} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/plans')} onClick={onLinkClick}/>
-                <NavItem href="/dashboard/perfil" label="Meu Perfil" icon={User} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/perfil')} onClick={onLinkClick}/>
-                <NavItem href="/dashboard/tutoriais" label="Tutoriais" icon={GraduationCap} isCollapsed={isCollapsed} isActive={pathname.startsWith('/dashboard/tutoriais')} onClick={onLinkClick}/>
+                {renderNavItems(systemNavItems, false)}
                 
                 <NavActionButton
                   label="Sair"

@@ -113,16 +113,9 @@ export interface Plan {
   monthlyPrice: number;
   yearlyPrice: number;
   isPublic: boolean;
-  features: {
-    servicos?: boolean;
-    orcamentos?: boolean;
-    prazos?: boolean;
-    atividades?: boolean;
-    clientes?: boolean;
-    colaboradores?: boolean;
-    inventario?: boolean;
-    contratos?: boolean;
-  };
+  isTrial?: boolean;
+  allowedGroups?: Record<string, boolean>;
+  planItems?: { value: string }[];
   createdAt: Timestamp;
   stripeProductId?: string;
   stripeMonthlyPriceId?: string;

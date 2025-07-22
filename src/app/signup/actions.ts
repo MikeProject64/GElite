@@ -1,6 +1,6 @@
 'use server';
 
-import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { doc, getDoc, setDoc, Timestamp, collection, query, where, getDocs, limit, orderBy } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { sendPasswordResetEmail, createUserWithEmailAndPassword } from 'firebase/auth';
 import Stripe from 'stripe';
@@ -18,6 +18,23 @@ async function getStripeInstance(): Promise<Stripe> {
     }
     const stripeSecretKey = settingsSnap.data().stripeSecretKey;
     return new Stripe(stripeSecretKey);
+}
+
+async function getTrialPlanId(): Promise<string | null> {
+    const q = query(collection(db, 'plans'), where('isTrial', '==', true), limit(1));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) {
+        // Fallback or error if no trial plan is set
+        console.warn("Nenhum plano de teste gratuito foi definido pelo administrador.");
+        // Could fetch the cheapest plan as a fallback
+        const cheapestPlanQuery = query(collection(db, 'plans'), where('isPublic', '==', true), orderBy('monthlyPrice', 'asc'), limit(1));
+        const cheapestPlanSnapshot = await getDocs(cheapestPlanQuery);
+        if(!cheapestPlanSnapshot.empty) {
+            return cheapestPlanSnapshot.docs[0].id;
+        }
+        return null;
+    }
+    return snapshot.docs[0].id;
 }
 
 export async function checkEmailExists(email: string): Promise<{ exists: boolean; error?: string }> {
@@ -97,6 +114,11 @@ export async function createTrialUser(details: {
             throw new Error('Este e-mail já foi utilizado para criar uma conta.');
         }
 
+        const trialPlanId = await getTrialPlanId();
+        if (!trialPlanId) {
+            throw new Error('Não há um plano de teste configurado no sistema. Por favor, contate o suporte.');
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, details.email, details.password);
         const user = userCredential.user;
 
@@ -110,6 +132,7 @@ export async function createTrialUser(details: {
             subscriptionStatus: 'trialing',
             trialStartedAt: Timestamp.now(),
             trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
+            planId: trialPlanId,
         });
         
         return { success: true, email: user.email };
@@ -140,6 +163,11 @@ export async function createAndLoginQuickTrialUser(email: string) {
         const tempPassword = randomBytes(16).toString('hex');
         const name = email.split('@')[0];
 
+        const trialPlanId = await getTrialPlanId();
+         if (!trialPlanId) {
+            throw new Error('Não há um plano de teste configurado no sistema. Por favor, contate o suporte.');
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, tempPassword);
         const user = userCredential.user;
 
@@ -154,6 +182,7 @@ export async function createAndLoginQuickTrialUser(email: string) {
             subscriptionStatus: 'trialing',
             trialStartedAt: Timestamp.now(),
             trialEndsAt: Timestamp.fromDate(addDays(new Date(), 7)),
+            planId: trialPlanId,
         });
 
         // Send password reset email

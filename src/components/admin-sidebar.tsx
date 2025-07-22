@@ -60,6 +60,7 @@ function AdminNavContent() {
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },
     { href: '/admin/email', label: 'Email Marketing', icon: Mails },
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
+    { href: '/admin/menu-lateral', label: 'Menu Lateral', icon: List },
   ];
 
   const handleLogout = async () => {
