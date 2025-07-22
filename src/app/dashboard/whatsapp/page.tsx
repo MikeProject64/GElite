@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react';
 import io, { Socket } from 'socket.io-client';
 import { useAuth } from '@/components/auth-provider';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Send, PlusCircle, LogOut, Trash2, Plus } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -15,9 +13,10 @@ import {
     DialogDescription,
     DialogFooter,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
+import { SessionList } from '@/components/whatsapp/SessionList';
+import { ChatWindow } from '@/components/whatsapp/ChatWindow';
+import { QRCodeDisplay } from '@/components/whatsapp/QRCodeDisplay';
 
 // Tipos
 interface Message {
@@ -37,7 +36,7 @@ interface Chat {
 
 interface WhatsAppSession {
     id: string;
-    name: string; // Ex: "Celular Principal", "Celular de Vendas"
+    name: string;
     status: 'disconnected' | 'connected' | 'connecting' | 'qr' | 'error' | 'replaced';
     qrCodeUrl?: string;
     qrCountdown?: number;
@@ -59,33 +58,39 @@ const WhatsAppPage = () => {
     const [isLoading, setIsLoading] = useState(true);
     const { user } = useAuth();
 
-    // Carrega sessões iniciais da API
+    // Carrega sessões e chats iniciais
     useEffect(() => {
-        const fetchInitialSessions = async () => {
+        const fetchInitialData = async () => {
             if (!user) return;
+            setIsLoading(true);
             try {
                 const token = await user.getIdToken();
-                const response = await fetch('/api/whatsapp/sessions', { // Rota a ser criada no Next.js
+                const response = await fetch('/api/whatsapp/sessions', {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 if (!response.ok) throw new Error('Falha ao buscar sessões.');
                 const initialSessions: WhatsAppSession[] = await response.json();
 
                 const sessionsMap: Record<string, WhatsAppSession> = {};
-                initialSessions.forEach(session => {
-                    sessionsMap[session.id] = { ...session, chats: {} }; // Chats serão carregados sob demanda ou via WS
-                });
+                for (const session of initialSessions) {
+                    const chatsResponse = await fetch(`/api/whatsapp/sessions/${session.id}/chats`, {
+                        headers: { Authorization: `Bearer ${token}` },
+                    });
+                    const chats = await chatsResponse.json();
+                    sessionsMap[session.id] = { ...session, chats };
+                }
+
                 setSessions(sessionsMap);
                 if (initialSessions.length > 0) {
                     setActiveSessionId(initialSessions[0].id);
                 }
             } catch (error) {
-                console.error("Erro ao carregar sessões:", error);
+                console.error("Erro ao carregar dados iniciais:", error);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchInitialSessions();
+        fetchInitialData();
     }, [user]);
 
     // Conecta ao WebSocket e gerencia eventos
@@ -103,7 +108,6 @@ const WhatsAppPage = () => {
 
             newSocket.on('connect', () => {
                 console.log('Socket.IO conectado.');
-                // Inicia todas as sessões existentes
                 Object.keys(sessions).forEach(sessionId => {
                     newSocket.emit('startSession', { sessionId });
                 });
@@ -235,10 +239,8 @@ const WhatsAppPage = () => {
             chats: {},
         };
 
-        // Adiciona na UI otimistamente
         setSessions(prev => ({ ...prev, [sessionId]: newSession }));
 
-        // Salva no backend (rota a ser criada)
         const token = await user.getIdToken();
         await fetch('/api/whatsapp/sessions', {
             method: 'POST',
@@ -246,7 +248,6 @@ const WhatsAppPage = () => {
             body: JSON.stringify({ id: sessionId, name: newSessionName }),
         });
 
-        // Inicia a sessão no backend
         socket?.emit('startSession', { sessionId });
         setActiveSessionId(sessionId);
         setIsNewSessionDialogOpen(false);
@@ -292,10 +293,6 @@ const WhatsAppPage = () => {
         }
     };
     
-    const handleLogoutSession = (sessionId: string) => {
-        socket?.emit('logout_session', { sessionId });
-    };
-
     const handleRequestNewQr = (sessionId: string) => {
         socket?.emit('request_new_qr', { sessionId });
     };
@@ -309,27 +306,7 @@ const WhatsAppPage = () => {
 
     const renderSessionContent = (session: WhatsAppSession) => {
         if (session.status === 'qr') {
-            return (
-                <div className="flex flex-col items-center justify-center h-full w-full bg-gray-50 dark:bg-gray-900">
-                    <div className="text-center p-8 border rounded-lg shadow-lg bg-white dark:bg-gray-800">
-                        <h2 className="text-2xl font-bold mb-2">Conecte: {session.name}</h2>
-                        <p className="text-gray-600 dark:text-gray-300 mb-4">Escaneie o QR Code</p>
-                        {session.qrCodeUrl && !session.isQrExpired ? (
-                            <>
-                                <div className="relative w-64 h-64 mx-auto">
-                                    <Image src={session.qrCodeUrl} alt="QR Code" width={256} height={256} />
-                                </div>
-                                <p className="mt-4 text-lg font-mono">Tempo: {session.qrCountdown}s</p>
-                            </>
-                        ) : (
-                            <div>
-                                <p>QR Code expirado.</p>
-                                <Button onClick={() => handleRequestNewQr(session.id)}>Gerar Novo</Button>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            );
+            return <QRCodeDisplay session={session} onRequestNewQr={handleRequestNewQr} />;
         }
 
         if (session.status === 'disconnected' || session.status === 'error' || session.status === 'replaced') {
@@ -348,107 +325,29 @@ const WhatsAppPage = () => {
             );
         }
 
-        // Conteúdo principal do chat para uma sessão conectada
         return (
-             <div className="flex flex-1 overflow-hidden">
-                <aside className="w-1/3 border-r overflow-y-auto">
-                    <div className="p-4 border-b flex justify-between items-center">
-                        <h2 className="text-xl font-semibold">Conversas</h2>
-                        <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
-                            <PlusCircle className="h-6 w-6" />
-                        </Button>
-                    </div>
-                    {Object.values(session.chats).map((chat) => (
-                        <div key={chat.id}
-                             onClick={() => setActiveChatId(chat.id)}
-                             className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                             <div className="flex items-center">
-                                 <Avatar className="mr-4">
-                                     <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
-                                     <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                 </Avatar>
-                                 <div className="flex-1">
-                                     <div className="flex justify-between">
-                                         <h3 className="font-semibold">{chat.name}</h3>
-                                         {chat.unreadCount > 0 && (
-                                             <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                                 {chat.unreadCount}
-                                             </span>
-                                         )}
-                                     </div>
-                                     <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
-                                 </div>
-                             </div>
-                        </div>
-                    ))}
-                </aside>
-                
-                <main className="flex-1 flex flex-col">
-                    {activeChat ? (
-                        <>
-                            <header className="p-4 border-b flex items-center">
-                                 <Avatar className="mr-4">
-                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name}&background=random`} />
-                                    <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
-                                </Avatar>
-                                <h2 className="text-xl font-semibold">{activeChat.name}</h2>
-                            </header>
-                            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-                                {activeChat.messages.map((msg, index) => (
-                                    <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
-                                        <div className={`rounded-lg px-4 py-2 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
-                                            <p>{msg.text}</p>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                            <footer className="p-4 border-t">
-                                <div className="flex items-center">
-                                    <Input
-                                        value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                        placeholder="Digite sua mensagem..."
-                                        className="flex-1 mr-4"
-                                    />
-                                    <Button onClick={handleSendMessage}><Send className="h-5 w-5" /></Button>
-                                </div>
-                            </footer>
-                        </>
-                    ) : (
-                        <div className="flex items-center justify-center h-full">
-                            <p>Selecione uma conversa.</p>
-                        </div>
-                    )}
-                </main>
-            </div>
+            <ChatWindow
+                session={session}
+                activeChat={activeChat}
+                activeChatId={activeChatId}
+                onChatClick={setActiveChatId}
+                onNewChatClick={() => setIsNewChatDialogOpen(true)}
+                messageInput={messageInput}
+                onMessageInputChange={setMessageInput}
+                onSendMessage={handleSendMessage}
+            />
         );
     };
 
     return (
         <div className="h-full w-full flex">
-            {/* Barra Lateral de Sessões */}
-            <aside className="w-1/4 bg-gray-100 dark:bg-gray-800 p-4 border-r">
-                <h1 className="text-2xl font-bold mb-4">Sessões</h1>
-                <Button className="w-full mb-4" onClick={() => setIsNewSessionDialogOpen(true)}>
-                    <Plus className="mr-2 h-4 w-4" /> Nova Sessão
-                </Button>
-                <div className="space-y-2">
-                    {Object.values(sessions).map(session => (
-                        <div key={session.id}
-                             onClick={() => setActiveSessionId(session.id)}
-                             className={`p-3 rounded-lg cursor-pointer ${activeSessionId === session.id ? 'bg-blue-500 text-white' : 'bg-white'}`}>
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold">{session.name}</span>
-                                <span className={`h-3 w-3 rounded-full ${session.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}></span>
-                            </div>
-                            <p className="text-sm opacity-70">{session.status}</p>
-                        </div>
-                    ))}
-                </div>
-            </aside>
+            <SessionList
+                sessions={sessions}
+                activeSessionId={activeSessionId}
+                onSessionClick={setActiveSessionId}
+                onNewSessionClick={() => setIsNewSessionDialogOpen(true)}
+            />
 
-            {/* Conteúdo Principal */}
             <main className="flex-1 flex flex-col">
                 {activeSession ? renderSessionContent(activeSession) : (
                     <div className="flex items-center justify-center h-full">
@@ -457,7 +356,6 @@ const WhatsAppPage = () => {
                 )}
             </main>
 
-            {/* Dialog para Nova Sessão */}
             <Dialog open={isNewSessionDialogOpen} onOpenChange={setIsNewSessionDialogOpen}>
                  <DialogContent>
                     <DialogHeader>
@@ -477,7 +375,6 @@ const WhatsAppPage = () => {
                 </DialogContent>
             </Dialog>
 
-            {/* Dialog para Novo Chat (pode ser necessário ajustar o estado que o controla) */}
              <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
                 <DialogContent>
                     <DialogHeader>
