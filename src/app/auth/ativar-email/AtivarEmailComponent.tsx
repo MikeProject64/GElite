@@ -24,10 +24,11 @@ export default function AtivarEmailComponent() {
         return;
       }
       try {
+        // Só ativa o e-mail, não marca o token como usado ainda
         const res = await fetch('/api/activate-email', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token }),
+          body: JSON.stringify({ token, soAtivar: true }),
         });
         const data = await res.json();
         if (data.success) {
@@ -59,6 +60,7 @@ export default function AtivarEmailComponent() {
     }
     setIsSaving(true);
     try {
+      // Agora sim, ativa e marca o token como usado e define a senha
       const res = await fetch('/api/activate-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -79,7 +81,7 @@ export default function AtivarEmailComponent() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[80vh] bg-gradient-to-br from-[#f8fafc] to-[#e0e7ef] py-8 px-2">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-[#f4f7fa] via-[#e9eef5] to-[#dbeafe] py-12 px-2">
       <div className="mb-8 text-center">
         <h2 className="text-3xl font-headline font-bold text-primary mb-2 tracking-tight">Gestor Elite</h2>
       </div>

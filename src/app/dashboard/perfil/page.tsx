@@ -226,8 +226,30 @@ export default function PerfilPage() {
     );
   }
 
+  // Bloqueio visual se o e-mail não estiver verificado
+  const [bloqueado, setBloqueado] = useState(user && !user.emailVerified);
+
+  useEffect(() => {
+    if (user && user.emailVerified) {
+      setBloqueado(false);
+    } else if (user && !user.emailVerified) {
+      setBloqueado(true);
+    }
+  }, [user?.emailVerified]);
+
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4">
+    <div className="max-w-7xl mx-auto py-8 px-4 relative">
+      {bloqueado && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-lg shadow-lg">
+          <div className="bg-white dark:bg-card rounded-xl shadow-xl p-8 flex flex-col items-center max-w-md w-full border border-gray-200 dark:border-gray-800">
+            <h2 className="text-xl font-bold mb-2 text-center text-primary">Ative seu e-mail para editar o perfil</h2>
+            <p className="mb-4 text-center text-gray-700 dark:text-gray-200">Você precisa ativar seu e-mail para alterar suas informações ou senha.</p>
+            <Button onClick={handleSendActivationEmail} disabled={sendingVerification} size="lg" className="w-full max-w-xs">
+              {sendingVerification ? 'Enviando...' : 'Reenviar e-mail de ativação'}
+            </Button>
+          </div>
+        </div>
+      )}
       <h1 className="text-3xl font-bold mb-8">Meu Perfil</h1>
       <div className="grid md:grid-cols-2 gap-8 w-full h-full">
         <div className="bg-white dark:bg-card rounded-lg shadow p-6 flex flex-col h-full w-full grow">

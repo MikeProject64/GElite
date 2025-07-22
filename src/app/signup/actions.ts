@@ -185,9 +185,6 @@ export async function createAndLoginQuickTrialUser(email: string) {
             planId: trialPlanId,
         });
 
-        // Send password reset email
-        await sendPasswordResetEmail(auth, email);
-
         // Return the temporary password for client-side login
         return { success: true, tempPassword };
 
