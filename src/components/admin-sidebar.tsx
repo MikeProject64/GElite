@@ -32,7 +32,8 @@ import {
   Mail,
   List,
   Send,
-  Mails
+  Mails,
+  Shield // Adicionado
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';
@@ -59,6 +60,7 @@ function AdminNavContent() {
     { href: '/admin/stripe', label: 'Stripe', icon: CreditCard },
     { href: '/admin/integrations', label: 'Integrações', icon: Puzzle },
     { href: '/admin/email', label: 'Email Marketing', icon: Mails },
+    { href: '/admin/conta-e-seguranca', label: 'Conta e Segurança', icon: Shield }, // Adicionado
     { href: '/admin/configuracoes', label: 'Configurações', icon: Settings },
     { href: '/admin/menu-lateral', label: 'Menu Lateral', icon: List },
   ];

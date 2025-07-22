@@ -221,7 +221,22 @@ export default function MenuEditorPage() {
     const menuConfigRef = doc(db, 'siteConfig', 'menu');
     const unsubscribe = onSnapshot(menuConfigRef, (docSnap) => {
         if (docSnap.exists()) {
-            form.reset(docSnap.data());
+            const data = docSnap.data();
+            // Verifica se já existe o item 'Conta e Segurança'
+            const exists = data.navMenu?.some((item: any) => item.href === '/admin/conta-e-seguranca');
+            if (!exists) {
+              data.navMenu = [
+                ...data.navMenu,
+                {
+                  id: nanoid(6),
+                  label: 'Conta e Segurança',
+                  href: '/admin/conta-e-seguranca',
+                  icon: 'Shield',
+                  enabled: true,
+                },
+              ];
+            }
+            form.reset(data);
         }
         setIsLoading(false);
     });

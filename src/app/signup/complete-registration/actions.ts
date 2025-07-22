@@ -79,6 +79,55 @@ async function sendNewSubscriptionNotification(details: {
     }
 }
 
+async function sendActivationEmailAdmin(userId: string, userEmail: string, userName: string) {
+    // Gera token e envia e-mail de ativação via Firebase Admin (backend)
+    const { getFirebaseAdmin } = await import('@/lib/firebase-admin');
+    const { adminAuth, dbAdmin } = await getFirebaseAdmin();
+    const { randomBytes } = await import('crypto');
+    const nodemailer = (await import('nodemailer')).default;
+
+    // Gerar token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1h
+    await dbAdmin.collection('activationTokens').doc(token).set({
+      userId,
+      expiresAt,
+      used: false,
+    });
+
+    // Buscar modelo e SMTP
+    const configSnap = await dbAdmin.collection('siteConfig').doc('main').get();
+    const config = configSnap.data() || {};
+    const subject = config.activationEmailSubject || 'Ative sua conta';
+    const body = config.activationEmailBody || 'Olá {NOME},<br>Ative sua conta: {LINK}';
+    const smtpHost = config.smtpHost;
+    const smtpPort = config.smtpPort;
+    const smtpUser = config.smtpUser;
+    const smtpPassword = config.smtpPassword;
+    if (!smtpHost || !smtpPort || !smtpUser || !smtpPassword) {
+      throw new Error('Configuração SMTP incompleta.');
+    }
+
+    // Montar link
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+    const link = `${baseUrl}/auth/ativar-email?token=${token}`;
+    const html = body.replace(/\{NOME\}/g, userName).replace(/\{LINK\}/g, link);
+
+    // Enviar e-mail
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      auth: { user: smtpUser, pass: smtpPassword },
+    });
+    await transporter.sendMail({
+      from: `"Gestor Elite" <${smtpUser}>`,
+      to: userEmail,
+      subject,
+      html,
+    });
+}
+
 
 export async function verifyCheckoutAndCreateUser(sessionId: string) {
     if (!sessionId) {
@@ -142,9 +191,8 @@ export async function verifyCheckoutAndCreateUser(sessionId: string) {
             subscriptionStatus: 'active',
             subscriptionId: subscription.id,
         });
-        
-        // Send password reset email to allow the user to set their password
-        await sendPasswordResetEmail(auth, email);
+        // Enviar e-mail de ativação
+        await sendActivationEmailAdmin(uid, email, customer.name || email.split('@')[0]);
 
         let planData: Plan | null = null;
         try {

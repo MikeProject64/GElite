@@ -415,12 +415,13 @@ function EmailSettingsForm() {
                 .map(email => email.trim())
                 .filter(email => email) || [];
 
-            const settingsRef = doc(db, 'integrations', 'email');
+            // Salva as configurações no documento correto e com os nomes de campos esperados
+            const settingsRef = doc(db, 'siteConfig', 'main');
             await setDoc(settingsRef, { 
                 smtpHost: data.smtpHost,
                 smtpPort: data.smtpPort,
                 smtpUser: data.smtpUser,
-                smtpPass: data.smtpPass,
+                smtpPassword: data.smtpPass, // Corrigido para smtpPassword
                 emailRecipients: recipientsArray,
                 notifyOnNewSubscription: data.notifyOnNewSubscription
              }, { merge: true });

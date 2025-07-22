@@ -111,21 +111,22 @@ export default function PerfilPage() {
     }
   };
 
-  const handleStartUnifiedFlow = async () => {
+  const handleSendActivationEmail = async () => {
     setSendingVerification(true);
     try {
-      const iniciarFluxo = httpsCallable(functions, 'iniciarFluxoUnificado');
-      await iniciarFluxo();
-      toast({
-        title: 'E-mail Enviado',
-        description: 'Verifique sua caixa de entrada (e spam) para continuar o processo.',
+      const idToken = await user.getIdToken();
+      const res = await fetch('/api/send-activation-email', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${idToken}` },
       });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'E-mail enviado', description: 'Verifique sua caixa de entrada (e spam) para ativar seu e-mail.' });
+      } else {
+        toast({ variant: 'destructive', title: 'Erro', description: data.error || 'Não foi possível enviar o e-mail.' });
+      }
     } catch (err: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: err.message || 'Não foi possível iniciar o processo. Tente novamente.',
-      });
+      toast({ variant: 'destructive', title: 'Erro', description: err.message || 'Não foi possível enviar o e-mail.' });
     } finally {
       setSendingVerification(false);
     }
@@ -331,7 +332,7 @@ export default function PerfilPage() {
                 </p>
               </div>
               {!user?.emailVerified && (
-                <Button onClick={handleStartUnifiedFlow} disabled={sendingVerification} size="sm">
+                <Button onClick={handleSendActivationEmail} disabled={sendingVerification} size="sm">
                   {sendingVerification ? 'Enviando...' : 'Verificar E-mail'}
                 </Button>
               )}

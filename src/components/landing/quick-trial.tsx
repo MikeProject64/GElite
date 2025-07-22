@@ -46,14 +46,40 @@ export function QuickTrialForm() {
         // Fire conversion events
         gtag.event({ action: 'generate_lead', params: { currency: "BRL", value: 1 }});
         fbq.event('Lead');
-
-        toast({
-          title: 'Bem-vindo(a)! 🎉',
-          description: 'Sua conta de teste foi criada. Redirecionando para o painel...',
-        });
-        
-        // The onAuthStateChanged listener in the layout will handle the redirect.
-        router.push('/dashboard');
+        // Esperar auth.currentUser estar disponível
+        let user = auth.currentUser;
+        let waited = 0;
+        while (!user && waited < 2000) {
+          await new Promise(res => setTimeout(res, 100));
+          waited += 100;
+          user = auth.currentUser;
+        }
+        let emailSuccess = false;
+        if (user) {
+          try {
+            const idToken = await user.getIdToken();
+            const res = await fetch('/api/send-activation-email', {
+              method: 'POST',
+              headers: { 'Authorization': `Bearer ${idToken}` },
+            });
+            if (res.ok) {
+              emailSuccess = true;
+              toast({ title: 'Bem-vindo(a)! 🎉', description: 'Sua conta de teste foi criada. Verifique seu e-mail para ativar sua conta.' });
+              console.log('E-mail de ativação enviado com sucesso!');
+            } else {
+              const data = await res.json();
+              toast({ variant: 'destructive', title: 'Erro ao enviar e-mail de ativação', description: data.error || 'Falha ao enviar o e-mail de ativação.' });
+              console.error('Erro ao enviar e-mail de ativação:', data.error);
+            }
+          } catch (err: any) {
+            toast({ variant: 'destructive', title: 'Erro ao enviar e-mail de ativação', description: err.message || 'Falha ao enviar o e-mail de ativação.' });
+            console.error('Erro ao enviar e-mail de ativação:', err);
+          }
+        } else {
+          toast({ variant: 'destructive', title: 'Erro', description: 'Usuário não autenticado após cadastro (timeout).' });
+          console.error('auth.currentUser está null após cadastro (timeout).');
+        }
+        setTimeout(() => router.push('/dashboard'), 1500);
 
       } else {
         form.setError('email', { type: 'manual', message: result.message });
