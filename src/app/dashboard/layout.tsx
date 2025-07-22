@@ -86,7 +86,6 @@ export default function DashboardLayout({
   return (
     <>
       <DynamicLayoutEffects />
-      <WelcomeModal />
       <div className="flex flex-col h-screen bg-background">
         <header className="shrink-0 z-50">
           <TrialBanner />
@@ -99,7 +98,6 @@ export default function DashboardLayout({
           </main>
         </div>
       </div>
-      <WhatsAppSupportButton />
     </>
   );
 }

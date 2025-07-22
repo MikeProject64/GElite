@@ -216,7 +216,12 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
   // Effect to merge all settings and determine feature flags
   useEffect(() => {
-    const baseSettings: UserSettings = { ...globalSettings, ...userSettings };
+    // Forçar nome e ícone globais do admin
+    const baseSettings: UserSettings = {
+      ...globalSettings,
+      siteName: globalSettings.siteName,
+      iconName: globalSettings.iconName,
+    };
     // Initialize final flags with all features disabled by default
     const finalFeatureFlags: UserSettings['featureFlags'] = { ...defaultSettings.featureFlags };
     for (const key in finalFeatureFlags) {

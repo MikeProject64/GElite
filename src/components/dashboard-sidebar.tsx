@@ -48,6 +48,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { icons } from 'lucide-react';
+import { useSettings } from '@/components/settings-provider';
+import { availableIcons } from './icon-map';
 
 
 // Padronizar tamanho dos ícones e espaçamento para compacto
@@ -198,8 +200,11 @@ const NavActionButton: React.FC<{
 function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolean, onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { systemUser, loading: authLoading } = useAuth(); // Usar o systemUser e o loading do auth
+  const { systemUser, loading: authLoading } = useAuth();
   const { setTheme } = useTheme();
+  const { settings } = useSettings();
+  const iconKey = (settings.iconName && settings.iconName in availableIcons) ? settings.iconName : 'Wrench';
+  const Icon = availableIcons[iconKey as keyof typeof availableIcons];
   const [navMenu, setNavMenu] = useState<any[]>([]);
   const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
   const [allowedGroups, setAllowedGroups] = useState<string[]>([]);
@@ -319,8 +324,8 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center border-b px-4 lg:h-[60px]">
         <Link href="/dashboard" className={cn("flex items-center gap-2 font-semibold", isCollapsed && 'justify-center')}>
-          <LayoutDashboard className="h-6 w-6 text-primary" />
-          <span className={cn(isCollapsed && 'sr-only')}>Gestor Elite</span>
+          <Icon className="h-7 w-7 text-primary" />
+          {!isCollapsed && <span className="font-bold text-lg truncate">{settings.siteName || 'Gestor Elite'}</span>}
         </Link>
       </div>
 
@@ -380,15 +385,19 @@ const useSidebar = () => {
 
 export function DashboardSidebar() {
   const { isCollapsed, toggleSidebar } = useSidebar();
+  const { settings } = useSettings();
+  const iconKey = (settings.iconName && settings.iconName in availableIcons) ? settings.iconName : 'Wrench';
+  const Icon = availableIcons[iconKey as keyof typeof availableIcons];
   const [isSheetOpen, setIsSheetOpen] = React.useState(false);
   
   return (
     <TooltipProvider delayDuration={0}>
-      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[280px]", "transition-all duration-300 ease-in-out relative group")}>
-          <DashboardNavContent isCollapsed={isCollapsed} />
-          <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] -right-4 h-8 w-8 rounded-full border bg-card hover:bg-muted">
-            <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
-          </Button>
+      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[280px]", "transition-all duration-300 ease-in-out relative group")}> 
+        {/* Topo com nome e ícone do site - apenas uma vez! */}
+        <DashboardNavContent isCollapsed={isCollapsed} />
+        <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] -right-4 h-8 w-8 rounded-full border bg-card hover:bg-muted">
+          <ChevronsLeft className={cn("h-4 w-4 transition-transform", isCollapsed && "rotate-180")} />
+        </Button>
       </div>
       <header className="flex h-14 items-center gap-4 border-b bg-card px-4 lg:h-[60px] md:hidden">
          <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>

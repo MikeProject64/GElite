@@ -2,20 +2,18 @@
 'use server';
 
 import Stripe from 'stripe';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { subDays, format, eachDayOfInterval, startOfDay } from 'date-fns';
 
 // Helper to get Stripe instance
 async function getStripeInstance(): Promise<Stripe> {
-    const settingsRef = doc(db, 'siteConfig', 'main');
-    const settingsSnap = await getDoc(settingsRef);
+    const { dbAdmin } = await getFirebaseAdmin();
+    const settingsSnap = await dbAdmin.collection('siteConfig').doc('main').get();
 
-    if (!settingsSnap.exists()) {
+    if (!settingsSnap.exists) {
       throw new Error('Configurações do site não encontradas no banco de dados.');
     }
-
-    const settingsData = settingsSnap.data();
+    const settingsData = settingsSnap.data()!;
     const stripeSecretKey = settingsData.stripeSecretKey;
 
     if (!stripeSecretKey) {
@@ -51,9 +49,10 @@ export async function getStripeDashboardData(): Promise<StripeDashboardData> {
         const thirtyDaysAgoTimestamp = Math.floor(startDate.getTime() / 1000);
 
         // 1. Calculate MRR, Active Subscriptions, and Breakdown
-        for await (const subscription of stripe.subscriptions.list({ status: 'active', limit: 100, expand: ['data.plan.product'] })) {
+        for await (const _subscription of stripe.subscriptions.list({ status: 'active', limit: 100, expand: ['data.plan.product'] })) {
+            const subscription = _subscription as Stripe.Subscription;
             activeSubscriptions++;
-            const plan = subscription.plan;
+            const plan = (subscription as any).plan;
             if (plan && plan.amount) {
                 if (plan.interval === 'year') {
                     mrr += plan.amount / 12;
@@ -61,8 +60,8 @@ export async function getStripeDashboardData(): Promise<StripeDashboardData> {
                     mrr += plan.amount;
                 }
             }
-             // Subscription Breakdown Calculation
-            const productName = (plan.product as Stripe.Product)?.name || 'Plano Desconhecido';
+            // Subscription Breakdown Calculation
+            const productName = (plan?.product as Stripe.Product)?.name || 'Plano Desconhecido';
             subscriptionBreakdownMap.set(productName, (subscriptionBreakdownMap.get(productName) || 0) + 1);
         }
 

@@ -86,7 +86,13 @@ function GlobalSettingsForm() {
         const settingsRef = doc(db, 'siteConfig', 'main');
         const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
             if (docSnap.exists()) {
-                form.reset(docSnap.data());
+                const data = docSnap.data();
+                form.reset({
+                    siteName: typeof data.siteName === 'string' ? data.siteName : '',
+                    logoURL: typeof data.logoURL === 'string' ? data.logoURL : '',
+                    iconName: typeof data.iconName === 'string' ? data.iconName : 'Wrench',
+                    primaryColorHsl: data.primaryColorHsl && typeof data.primaryColorHsl === 'object' ? data.primaryColorHsl : { h: 210, s: 70, l: 40 },
+                });
             }
             setIsLoading(false);
         });
@@ -97,7 +103,10 @@ function GlobalSettingsForm() {
         setIsSaving(true);
         try {
             const settingsRef = doc(db, 'siteConfig', 'main');
-            await setDoc(settingsRef, data, { merge: true });
+            await setDoc(settingsRef, {
+                ...data,
+                logoURL: typeof data.logoURL === 'string' ? data.logoURL : '',
+            }, { merge: true });
             toast({
                 title: 'Sucesso!',
                 description: 'As configurações globais do site foram salvas.',

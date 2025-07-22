@@ -33,7 +33,8 @@ import {
   List,
   Send,
   Mails,
-  Shield // Adicionado
+  Shield, // Adicionado
+  MessageSquare
 } from 'lucide-react';
 import { useAuth } from './auth-provider';
 import { useSettings } from './settings-provider';

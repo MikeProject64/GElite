@@ -8,6 +8,9 @@ import { ReactNode, useEffect, Suspense, useRef } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import * as gtag from '@/lib/utils';
 import { ThemeProvider } from 'next-themes';
+import DynamicLayoutEffects from './dynamic-layout-effects';
+import { Loader2 } from 'lucide-react';
+import { useSettings } from '@/components/settings-provider';
 
 const AnalyticsTracker = () => {
   const pathname = usePathname();
@@ -67,13 +70,28 @@ export function Providers({ children }: { children: ReactNode }) {
     >
       <AuthProvider>
         <SettingsProvider>
+          <DynamicLayoutEffects />
           <Suspense fallback={null}>
             <AnalyticsTracker />
           </Suspense>
-          {children}
+          <SettingsLoader>{children}</SettingsLoader>
           <Toaster />
         </SettingsProvider>
       </AuthProvider>
     </ThemeProvider>
   );
+}
+
+function SettingsLoader({ children }: { children: ReactNode }) {
+  const { loadingSettings } = useSettings();
+  const pathname = usePathname();
+  // Permitir renderização imediata na página inicial
+  if (loadingSettings && pathname !== '/') {
+    return (
+      <div className="flex items-center justify-center min-h-screen w-full bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+  return <>{children}</>;
 }

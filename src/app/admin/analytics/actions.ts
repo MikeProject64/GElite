@@ -2,8 +2,7 @@
 'use server';
 
 import { BetaAnalyticsDataClient } from '@google-analytics/data';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { format, parse } from 'date-fns';
 
 interface AnalyticsReports {
@@ -22,13 +21,13 @@ interface AnalyticsReports {
 
 
 async function getGa4Client() {
-  const settingsRef = doc(db, 'siteConfig', 'main');
-  const settingsSnap = await getDoc(settingsRef);
+  const { dbAdmin } = await getFirebaseAdmin();
+  const settingsSnap = await dbAdmin.collection('siteConfig').doc('main').get();
 
-  if (!settingsSnap.exists()) {
+  if (!settingsSnap.exists) {
     throw new Error('Configurações do site não encontradas. Configure as integrações na página de administrador.');
   }
-  const settingsData = settingsSnap.data();
+  const settingsData = settingsSnap.data()!;
   const GA4_PROPERTY_ID = settingsData.ga4PropertyId;
   const GA4_CREDENTIALS_JSON = settingsData.ga4CredentialsJson;
 
