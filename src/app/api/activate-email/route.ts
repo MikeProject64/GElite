@@ -4,7 +4,7 @@ import { getFirebaseAdmin } from '@/lib/firebase-admin';
 export async function POST(req: NextRequest) {
   try {
     const { adminAuth, dbAdmin } = await getFirebaseAdmin();
-    const { token } = await req.json();
+    const { token, novaSenha } = await req.json();
     if (!token) {
       return NextResponse.json({ error: 'Token não informado.' }, { status: 400 });
     }
@@ -22,6 +22,13 @@ export async function POST(req: NextRequest) {
     }
     // Marcar e-mail como verificado
     await adminAuth.updateUser(tokenData.userId, { emailVerified: true });
+    // Se veio novaSenha, atualiza a senha
+    if (novaSenha) {
+      if (typeof novaSenha !== 'string' || novaSenha.length < 6) {
+        return NextResponse.json({ error: 'A senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+      }
+      await adminAuth.updateUser(tokenData.userId, { password: novaSenha });
+    }
     await tokenRef.update({ used: true });
     return NextResponse.json({ success: true });
   } catch (err: any) {
