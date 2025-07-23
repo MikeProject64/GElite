@@ -32,6 +32,14 @@ type MenuGroup = {
   label: string;
 };
 
+// Definição para uma Função (copiado de menu-lateral/page.tsx para consistência)
+type AppFunction = {
+  id: string;
+  name: string;
+  href: string;
+  isActive: boolean;
+};
+
 const planFormSchema = z.object({
   name: z.string().min(3, { message: 'O nome do plano deve ter pelo menos 3 caracteres.' }),
   description: z.string().optional(),
@@ -39,7 +47,7 @@ const planFormSchema = z.object({
   yearlyPrice: z.coerce.number().min(0, { message: 'O preço anual não pode ser negativo.' }),
   isPublic: z.boolean().default(true),
   isTrial: z.boolean().default(false),
-  allowedGroups: z.record(z.boolean()).default({}),
+  allowedFunctions: z.array(z.string()).default([]), // Alterado de allowedGroups para allowedFunctions
   planItems: z.array(z.object({ value: z.string().min(1, 'O item não pode estar vazio.') })).default([]),
   stripeProductId: z.string().optional(),
   stripeMonthlyPriceId: z.string().optional(),
@@ -55,7 +63,7 @@ export default function AdminPlansPage() {
   const { toast } = useToast();
   
   const [plans, setPlans] = useState<Plan[]>([]);
-  const [menuGroups, setMenuGroups] = useState<MenuGroup[]>([]);
+  const [availableFunctions, setAvailableFunctions] = useState<AppFunction[]>([]); // Novo estado para as funções
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
@@ -71,7 +79,7 @@ export default function AdminPlansPage() {
       yearlyPrice: 0,
       isPublic: true,
       isTrial: false,
-      allowedGroups: {},
+      allowedFunctions: [], // Alterado
       planItems: [],
       stripeProductId: '',
       stripeMonthlyPriceId: '',
@@ -84,16 +92,15 @@ export default function AdminPlansPage() {
     name: "planItems"
   });
 
-  // Carregar grupos de menu
+  // Carregar Funções disponíveis
   useEffect(() => {
     const menuConfigRef = doc(db, 'siteConfig', 'menu');
     const unsubscribe = onSnapshot(menuConfigRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        const groups = (data.navMenu || [])
-            .filter((item: any) => item.subItems && item.subItems.length > 0)
-            .map((item: any) => ({ id: item.id, label: item.label }));
-        setMenuGroups(groups);
+        // Filtra apenas as funções que estão ativas
+        const activeFunctions = (data.availableFunctions || []).filter((func: AppFunction) => func.isActive);
+        setAvailableFunctions(activeFunctions);
       }
     });
     return () => unsubscribe();
@@ -119,22 +126,20 @@ export default function AdminPlansPage() {
   useEffect(() => {
     if (isDialogOpen) {
       if (editingPlan) {
-        const defaultGroups = menuGroups.reduce((acc, group) => ({...acc, [group.id]: false}), {});
-        const allowedGroups = {...defaultGroups, ...editingPlan.allowedGroups};
         form.reset({
             ...editingPlan,
-            allowedGroups,
+            allowedFunctions: editingPlan.allowedFunctions || [], // Reset com as funções permitidas
         });
       } else {
         form.reset({
           name: '', description: '', monthlyPrice: 0, yearlyPrice: 0, isPublic: true, isTrial: false,
-          allowedGroups: menuGroups.reduce((acc, group) => ({...acc, [group.id]: false}), {}),
+          allowedFunctions: [], // Começa vazio
           planItems: [],
           stripeProductId: '', stripeMonthlyPriceId: '', stripeYearlyPriceId: '',
         });
       }
     }
-  }, [isDialogOpen, editingPlan, form, menuGroups]);
+  }, [isDialogOpen, editingPlan, form]);
   
   const handleAddNew = () => {
     setEditingPlan(null);
@@ -249,7 +254,7 @@ export default function AdminPlansPage() {
             <DialogHeader>
               <DialogTitle>{editingPlan ? "Editar Plano de Assinatura" : "Criar Novo Plano"}</DialogTitle>
               <DialogDescription>
-                Defina os detalhes, preços e grupos de páginas disponíveis neste plano.
+                Defina os detalhes, preços e funções disponíveis neste plano.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -291,15 +296,41 @@ export default function AdminPlansPage() {
                 <Separator />
                 
                 <div>
-                  <h3 className="mb-4 text-lg font-medium">Grupos de Páginas Permitidos</h3>
-                  <div className="space-y-2">
-                    {menuGroups.map((group) => (
-                      <FormField key={group.id} control={form.control} name={`allowedGroups.${group.id}`} render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <FormLabel>{group.label}</FormLabel>
-                          <FormControl><Checkbox checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                        </FormItem>
-                      )}/>
+                  <h3 className="mb-4 text-lg font-medium">Funções Permitidas no Plano</h3>
+                  <FormDescription>Selecione todas as funcionalidades que os assinantes deste plano poderão acessar.</FormDescription>
+                  <div className="space-y-2 mt-4">
+                    {availableFunctions.map((func) => (
+                      <FormField
+                        key={func.id}
+                        control={form.control}
+                        name="allowedFunctions"
+                        render={({ field }) => {
+                          return (
+                            <FormItem
+                              key={func.id}
+                              className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"
+                            >
+                              <FormLabel className="font-normal">
+                                {func.name}
+                              </FormLabel>
+                              <FormControl>
+                                <Checkbox
+                                  checked={field.value?.includes(func.id)}
+                                  onCheckedChange={(checked) => {
+                                    return checked
+                                      ? field.onChange([...field.value, func.id])
+                                      : field.onChange(
+                                          field.value?.filter(
+                                            (value) => value !== func.id
+                                          )
+                                        );
+                                  }}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          );
+                        }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -325,8 +356,7 @@ export default function AdminPlansPage() {
                     </Button>
                 </div>
 
-
-                <DialogFooter className='pt-4 sticky bottom-0 bg-background py-3'>
+                <DialogFooter>
                     <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
                     <Button type="submit" disabled={form.formState.isSubmitting}>
                         {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

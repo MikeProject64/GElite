@@ -58,6 +58,22 @@ const ICON_SIZE = 'h-5 w-5'; // Aumentado de h-4 w-4
 // Mapeia nomes de ícones (string) para componentes React
 const IconMap = icons;
 
+type AppFunction = {
+  id: string;
+  name: string;
+  href: string;
+  isActive: boolean;
+};
+
+type NavMenuItem = {
+  label: string;
+  icon: string;
+  href?: string;
+  subItems?: NavMenuItem[];
+  enabled?: boolean;
+  id: string;
+  functionId?: string;
+};
 
 const NavItem: React.FC<{
   href: string;
@@ -207,7 +223,8 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   const Icon = availableIcons[iconKey as keyof typeof availableIcons];
   const [navMenu, setNavMenu] = useState<any[]>([]);
   const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
-  const [allowedGroups, setAllowedGroups] = useState<string[]>([]);
+  const [allowedFunctions, setAllowedFunctions] = useState<string[]>([]);
+  const [availableFunctions, setAvailableFunctions] = useState<AppFunction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -227,29 +244,18 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     unsubscribes.push(onSnapshot(menuConfigRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        // Filtra o item "Conta e Segurança" do menu principal
-        const filteredNavMenu = (data.navMenu || []).filter(
-          (item: { label: string; }) => item.label !== 'Conta e Segurança'
-        );
-        setNavMenu(filteredNavMenu);
-        
-        // Também filtra dos itens de sistema para garantir
-        const filteredSystemNavItems = (data.systemNavItems || []).filter(
-            (item: { label: string; }) => item.label !== 'Conta e Segurança'
-        );
-        setSystemNavItems(filteredSystemNavItems);
+        setNavMenu(data.navMenu || []);
+        setSystemNavItems(data.systemNavItems || []);
+        setAvailableFunctions(data.availableFunctions || []);
       }
     }));
 
-    // 2. Carregar o plano do usuário para saber os grupos permitidos
+    // 2. Carregar o plano do usuário para saber as funções permitidas
     const planRef = doc(db, 'plans', systemUser.planId);
     unsubscribes.push(onSnapshot(planRef, (docSnap) => {
         if (docSnap.exists()) {
             const planData = docSnap.data();
-            const groups = planData.allowedGroups || {};
-            // Filtra para obter apenas as chaves (IDs dos grupos) cujo valor é true
-            const userAllowedGroups = Object.keys(groups).filter(key => groups[key]);
-            setAllowedGroups(userAllowedGroups);
+            setAllowedFunctions(planData.allowedFunctions || []);
         }
         setIsLoading(false); // Termina o loading aqui
     }));
@@ -272,51 +278,74 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     subItems?: NavMenuItem[];
     enabled?: boolean;
     id: string;
+    functionId?: string;
   };
   
-  const renderNavItems = React.useCallback((items: NavMenuItem[], checkPermissions: boolean) => {
+  const getFunctionById = (id: string) => availableFunctions.find(f => f.id === id);
+
+  const renderNavItems = React.useCallback((items: NavMenuItem[]) => {
     return items
       .filter(item => {
-        if (item.enabled === false) return false; // Respeita o toggle de ativação
-        
-        // Se for um item que não é grupo (ex: Painel), sempre mostra
-        if (!checkPermissions || !item.subItems || item.subItems.length === 0) return true;
+        // Regra 1: O item precisa estar habilitado no editor de menu
+        if (item.enabled === false) return false;
 
-        // Se for um grupo e a verificação estiver ativa, confere as permissões
-        return allowedGroups.includes(item.id);
+        const isGroup = item.subItems && item.subItems.length > 0;
+
+        // Regra 2: Se for um grupo, verifica se algum dos seus filhos é permitido
+        if (isGroup) {
+          return item.subItems!.some(subItem => {
+            if (subItem.enabled === false || !subItem.functionId) return false;
+            return allowedFunctions.includes(subItem.functionId);
+          });
+        }
+        
+        // Regra 3: Se for um item individual, verifica se ele tem uma função e se essa função é permitida
+        if (item.functionId) {
+          return allowedFunctions.includes(item.functionId);
+        }
+        
+        // Regra 4: Itens sem functionId (ex: links estáticos que podem existir no futuro) são permitidos por padrão
+        // mas atualmente nossa lógica não os cria.
+        return true; 
       })
-      .map((item, index) => {
+      .map((item) => {
         const isGroup = item.subItems && item.subItems.length > 0;
         const IconComponent = IconMap[item.icon as keyof typeof IconMap] || icons.Wrench;
 
         if (isGroup) {
-          // Filtra sub-itens desativados
-          const visibleSubItems = item.subItems!.filter(subItem => subItem.enabled !== false);
-          if (visibleSubItems.length === 0) return null;
+          // Filtra sub-itens que não são permitidos ou estão desabilitados antes de passar para o CollapsibleNavItem
+          const visibleSubItems = item.subItems!.filter(subItem => 
+            subItem.enabled !== false && subItem.functionId && allowedFunctions.includes(subItem.functionId)
+          );
+          
+          if (visibleSubItems.length === 0) return null; // Segurança extra, embora o filtro pai já deva ter cuidado disso
 
           return (
             <CollapsibleNavItem
-              key={item.id || index}
+              key={item.id}
               label={item.label}
               icon={IconComponent}
               isCollapsed={isCollapsed}
               pathname={pathname}
-              subItems={visibleSubItems.map(si => ({ href: si.href! }))}
+              subItems={visibleSubItems.map(si => {
+                const func = getFunctionById(si.functionId!);
+                return { href: func?.href || '#' };
+              })}
             >
-              {/* Chamada recursiva não precisa mais checar permissões, pois o pai já foi validado */}
-              {renderNavItems(visibleSubItems, false)}
+              {renderNavItems(visibleSubItems)}
             </CollapsibleNavItem>
           );
         }
         
-        if (item.href) {
-          const isActive = (item.href === '/dashboard' && pathname === item.href) || (item.href.length > '/dashboard'.length && pathname.startsWith(item.href));
-          return <NavItem key={item.href} href={item.href} label={item.label} icon={IconComponent} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />;
+        const func = item.functionId ? getFunctionById(item.functionId) : null;
+        if (func?.href) {
+          const isActive = (func.href === '/dashboard' && pathname === func.href) || (func.href.length > '/dashboard'.length && pathname.startsWith(func.href));
+          return <NavItem key={func.href} href={func.href} label={item.label} icon={IconComponent} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />;
         }
 
         return null;
       });
-  }, [isCollapsed, pathname, onLinkClick, allowedGroups]);
+  }, [isCollapsed, pathname, onLinkClick, allowedFunctions, availableFunctions]);
 
   if (isLoading || authLoading) {
     // Pode adicionar um skeleton loader aqui se desejar
@@ -341,13 +370,13 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
       <div className="flex-1 overflow-y-auto sidebar-scroll-content">
         <nav className="flex h-full flex-col px-2 py-4 text-base font-medium">
           <div className="space-y-1">
-            {renderNavItems(navMenu, true)}
+            {renderNavItems(navMenu)}
           </div>
 
           {/* Bottom Navigation Items Wrapper */}
           <div className="mt-auto space-y-1 border-t pt-4 -mx-2">
               <div className='px-2'>
-                {renderNavItems(systemNavItems, false)}
+                {renderNavItems(systemNavItems)}
                 
                 <NavActionButton
                   label="Sair"

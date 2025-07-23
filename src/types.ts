@@ -147,14 +147,19 @@ export type UserSettings = {
 };
 
 export type Plan = {
-    id: string;
-    name: string;
-    price: number;
-    features: {
-        [key in keyof FeatureFlags]?: boolean;
-    };
-    stripePriceId?: string;
-    description?: string;
+  id: string;
+  name: string;
+  description?: string;
+  monthlyPrice: number;
+  yearlyPrice: number;
+  isPublic: boolean;
+  isTrial: boolean;
+  allowedFunctions: string[];
+  planItems: { value: string }[];
+  stripeProductId?: string;
+  stripeMonthlyPriceId?: string;
+  stripeYearlyPriceId?: string;
+  createdAt?: Timestamp;
 }
 
 export type SystemUser = {
