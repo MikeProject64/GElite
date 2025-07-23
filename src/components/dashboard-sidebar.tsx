@@ -53,7 +53,7 @@ import { availableIcons } from './icon-map';
 
 
 // Padronizar tamanho dos ícones e espaçamento para compacto
-const ICON_SIZE = 'h-5 w-5'; // Aumentado de h-4 w-4
+const ICON_SIZE = 'h-4 w-4'; // Reduzido de h-5 w-5
 
 // Mapeia nomes de ícones (string) para componentes React
 const IconMap = icons;
@@ -97,7 +97,7 @@ const NavItem: React.FC<{
       )}
     >
       <Icon className={`${ICON_SIZE} shrink-0`} />
-      <span className={cn('truncate text-base font-medium', isCollapsed && 'sr-only')}>{label}</span>
+      <span className={cn('truncate text-sm font-medium', isCollapsed && 'sr-only')}>{label}</span>
     </Link>
   );
 
@@ -118,10 +118,15 @@ const CollapsibleNavItem: React.FC<{
   children: React.ReactNode;
   pathname: string;
   subItems: { href: string; flag?: string }[];
-}> = ({ label, icon: Icon, isCollapsed, children, pathname, subItems }) => {
+  isActive: boolean; // Adicionado para controle externo
+}> = ({ label, icon: Icon, isCollapsed, children, pathname, subItems, isActive }) => {
   // A section is active if any of its sub-items are active
-  const isActive = subItems.some(item => pathname.startsWith(item.href));
+  // const isActive = subItems.some(item => pathname.startsWith(item.href)); // Lógica movida para o chamador
   const [isOpen, setIsOpen] = React.useState(isActive);
+
+  React.useEffect(() => {
+    setIsOpen(isActive);
+  }, [isActive]);
 
   React.useEffect(() => {
     // Collapse the menu when the sidebar is collapsed
@@ -140,7 +145,7 @@ const CollapsibleNavItem: React.FC<{
     >
       <div className="flex items-center gap-3">
         <Icon className={`${ICON_SIZE} shrink-0`} />
-        <span className={cn('truncate text-base font-medium', isCollapsed && 'sr-only')}>{label}</span>
+        <span className={cn('truncate text-sm font-medium', isCollapsed && 'sr-only')}>{label}</span>
       </div>
       {!isCollapsed && (
         <ChevronDown
@@ -191,7 +196,7 @@ const NavActionButton: React.FC<{
     >
       <span className="flex items-center gap-3">
         {React.cloneElement(icon as React.ReactElement, { className: ICON_SIZE + ' shrink-0' })}
-        <span className={cn('truncate text-base font-medium', isCollapsed && 'sr-only')}>{label}</span>
+        <span className={cn('truncate text-sm font-medium', isCollapsed && 'sr-only')}>{label}</span>
       </span>
     </button>
   );
@@ -297,42 +302,43 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   
   const getFunctionById = (id: string) => availableFunctions.find(f => f.id === id);
 
+  const hasVisibleChildren = (item: NavMenuItem): boolean => {
+    if (item.enabled === false) return false;
+
+    const isLink = !!item.functionId;
+    const isGroup = !!item.subItems && item.subItems.length > 0;
+
+    if (isLink) {
+        return effectiveAllowedFunctions.includes(item.functionId!);
+    }
+
+    if (isGroup) {
+        return item.subItems!.some(hasVisibleChildren);
+    }
+    
+    // Itens que não são nem link nem grupo (grupos vazios)
+    return false;
+  };
+
   const renderNavItems = React.useCallback((items: NavMenuItem[]) => {
     return items
-      .filter(item => {
-        // Regra 1: O item precisa estar habilitado no editor de menu
-        if (item.enabled === false) return false;
-
-        const isGroup = item.subItems && item.subItems.length > 0;
-
-        // Regra 2: Se for um grupo, verifica se algum dos seus filhos é permitido
-        if (isGroup) {
-          return item.subItems!.some(subItem => {
-            if (subItem.enabled === false || !subItem.functionId) return false;
-            return effectiveAllowedFunctions.includes(subItem.functionId);
-          });
-        }
-        
-        // Regra 3: Se for um item individual, verifica se ele tem uma função e se essa função é permitida
-        if (item.functionId) {
-          return effectiveAllowedFunctions.includes(item.functionId);
-        }
-        
-        // Regra 4: Itens sem functionId (ex: links estáticos que podem existir no futuro) são permitidos por padrão
-        // mas atualmente nossa lógica não os cria.
-        return true; 
-      })
+      .filter(hasVisibleChildren) // Usa a nova função de filtro recursivo
       .map((item) => {
-        const isGroup = item.subItems && item.subItems.length > 0;
         const IconComponent = IconMap[item.icon as keyof typeof IconMap] || icons.Wrench;
-
+        const isLink = !!item.functionId;
+        const isGroup = !!item.subItems && item.subItems.length > 0;
+        
+        // Caso 1: Item é um link (pode ou não ser um "grupo" no editor, mas funcionalmente é um link)
+        if (isLink) {
+          const func = getFunctionById(item.functionId!);
+          if (!func) return null;
+          const isActive = pathname === func.href;
+          return <NavItem key={item.id} href={func.href} label={item.label} icon={IconComponent} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />;
+        }
+        
+        // Caso 2: Item é um grupo puro (sem link)
         if (isGroup) {
-          // Filtra sub-itens que não são permitidos ou estão desabilitados antes de passar para o CollapsibleNavItem
-          const visibleSubItems = item.subItems!.filter(subItem => 
-            subItem.enabled !== false && subItem.functionId && effectiveAllowedFunctions.includes(subItem.functionId)
-          );
-          
-          if (visibleSubItems.length === 0) return null; // Segurança extra, embora o filtro pai já deva ter cuidado disso
+          const isActive = item.subItems!.some(child => hasVisibleChildren(child) && getFunctionById(child.functionId!)?.href === pathname);
 
           return (
             <CollapsibleNavItem
@@ -341,23 +347,15 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
               icon={IconComponent}
               isCollapsed={isCollapsed}
               pathname={pathname}
-              subItems={visibleSubItems.map(si => {
-                const func = getFunctionById(si.functionId!);
-                return { href: func?.href || '#' };
-              })}
+              subItems={item.subItems!.map(si => ({ href: getFunctionById(si.functionId!)?.href || '#' }))}
+              isActive={isActive}
             >
-              {renderNavItems(visibleSubItems)}
+              {renderNavItems(item.subItems!)}
             </CollapsibleNavItem>
           );
         }
-        
-        const func = item.functionId ? getFunctionById(item.functionId) : null;
-        if (func?.href) {
-          const isActive = (func.href === '/dashboard' && pathname === func.href) || (func.href.length > '/dashboard'.length && pathname.startsWith(func.href));
-          return <NavItem key={func.href} href={func.href} label={item.label} icon={IconComponent} isCollapsed={isCollapsed} isActive={isActive} onClick={onLinkClick} />;
-        }
 
-        return null;
+        return null; // Caso de um item que não é nem link nem grupo
       });
   }, [isCollapsed, pathname, onLinkClick, effectiveAllowedFunctions, availableFunctions]);
 
@@ -444,7 +442,7 @@ export function DashboardSidebar() {
   
   return (
     <TooltipProvider delayDuration={0}>
-      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[280px]", "transition-all duration-300 ease-in-out relative group")}> 
+      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[300px]", "transition-all duration-300 ease-in-out relative group")}> 
         {/* Topo com nome e ícone do site - apenas uma vez! */}
         <DashboardNavContent isCollapsed={isCollapsed} />
         <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] -right-4 h-8 w-8 rounded-full border bg-card hover:bg-muted">

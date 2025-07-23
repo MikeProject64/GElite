@@ -142,6 +142,7 @@ const SortableMenuItem: FC<SortableMenuItemProps> = ({ item, control, path, inde
     const { fields: subItemFields, append, move, remove } = useFieldArray({ control, name: `${path}.${index}.subItems` as any });
     const { getValues } = useFormContext<MenuSettingsFormValues>();
     const functions = getValues('availableFunctions');
+    const sensors = useSensors(useSensor(PointerSensor));
 
     const iconValue = useWatch({
         control,
@@ -149,9 +150,11 @@ const SortableMenuItem: FC<SortableMenuItemProps> = ({ item, control, path, inde
     });
 
     const isGroup = item.subItems !== undefined;
-    const linkedFunction = item.functionId ? getFunctionById(functions, item.functionId) : null;
+    const isLink = !!item.functionId;
+    const linkedFunction = isLink ? getFunctionById(functions, item.functionId) : null;
     
-    const IconComponent = getIcon(iconValue, isGroup ? 'Folder' : 'File');
+    const fallbackIcon: keyof typeof icons = isGroup && !isLink ? 'Folder' : 'File';
+    const IconComponent = getIcon(iconValue, fallbackIcon);
 
 
     const onSubDragEnd = (event: DragEndEvent) => {
@@ -185,14 +188,21 @@ const SortableMenuItem: FC<SortableMenuItemProps> = ({ item, control, path, inde
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
-            {isGroup && (
+            {isGroup && !isLink && (
                 <div className="pl-8 pt-3 mt-2 border-l-2 border-dashed ml-4 space-y-2">
-                    <SortableContext items={subItemFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                        {subItemFields.map((subItem, subIndex) => (
-                            <SortableMenuItem key={subItem.id} item={subItem as any} control={control} path={`${path}.${index}.subItems`} index={subIndex} openIconModal={openIconModal} onRemove={() => remove(subIndex)} />
-                        ))}
-                    </SortableContext>
-                    <AddFunctionToMenuButton path={`${path}.${index}.subItems`} append={append} />
+                    <DndContext sensors={sensors} onDragEnd={onSubDragEnd} collisionDetection={closestCenter}>
+                        <SortableContext items={subItemFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                            {subItemFields.map((subItem, subIndex) => (
+                                <SortableMenuItem key={subItem.id} item={subItem as any} control={control} path={`${path}.${index}.subItems`} index={subIndex} openIconModal={openIconModal} onRemove={() => remove(subIndex)} />
+                            ))}
+                        </SortableContext>
+                    </DndContext>
+                     <div className="flex items-center gap-2 pt-2">
+                        <AddFunctionToMenuButton path={`${path}.${index}.subItems`} append={append} />
+                        <Button type="button" variant="outline" size="sm" onClick={() => append({ id: nanoid(6), label: 'Novo Subgrupo', icon: 'Folder', enabled: true, subItems: [] })}>
+                            <Plus className="mr-2 h-4 w-4" /> Adicionar Grupo
+                        </Button>
+                    </div>
                 </div>
             )}
         </div>
@@ -286,55 +296,6 @@ const AddFunctionToMenuButton: FC<{ path: string, append: (items: any | any[]) =
 // O componente SortableSubItem foi removido pois sua funcionalidade foi unificada no SortableMenuItem
 
 
-// Componente para um grupo principal
-const SortableGroup: FC<{ group: NavMenuItem; index: number; control: Control<MenuSettingsFormValues>; openIconModal: (path: string) => void; onRemove: () => void; }> = ({ group, index, control, openIconModal, onRemove }) => {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: group.id });
-  const style = { transform: CSS.Transform.toString(transform), transition };
-  const { fields, append, move, remove } = useFieldArray({ control, name: `navMenu.${index}.subItems` as const });
-  
-  const onSubDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-        const oldIndex = fields.findIndex(i => i.id === active.id);
-        const newIndex = fields.findIndex(i => i.id === over.id);
-        if(oldIndex !== -1 && newIndex !== -1) move(oldIndex, newIndex);
-    }
-  }
-  
-  const IconComponent = getIcon(group.icon, 'Folder');
-  
-  return (
-    <div ref={setNodeRef} style={style} className="p-3 rounded-lg border bg-muted/50 space-y-3">
-        {/* Cabeçalho do Grupo */}
-        <div className="flex items-center gap-2">
-            <div {...attributes} {...listeners} className="cursor-grab p-1"><GripVertical className="h-5 w-5" /></div>
-            <Button type="button" variant="ghost" size="icon" onClick={() => openIconModal(`navMenu.${index}.icon`)}><IconComponent className="h-5 w-5" /></Button>
-            <FormField control={control} name={`navMenu.${index}.label`} render={({ field }) => (<FormItem className="flex-grow"><FormControl><Input {...field} /></FormControl></FormItem>)} />
-            <FormField control={control} name={`navMenu.${index}.enabled`} render={({ field }) => (<FormItem><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
-            <AlertDialog>
-                <AlertDialogTrigger asChild><Button type="button" variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button></AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle><AlertDialogDescription>Isso excluirá permanentemente este grupo e todos os seus itens. Deseja continuar?</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={onRemove} className="bg-destructive hover:bg-destructive/90">Excluir Grupo</AlertDialogAction></AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
-        {/* Lista de Sub-itens */}
-        <div className="pl-8 pt-3 border-l-2 border-dashed ml-4 space-y-2">
-            <DndContext sensors={useSensors(useSensor(PointerSensor))} onDragEnd={onSubDragEnd} collisionDetection={closestCenter}>
-                <SortableContext items={fields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                    {fields.map((subItem, subIndex) => (
-                        <SortableMenuItem key={subItem.id} item={subItem as NavMenuItem} control={control} path={`navMenu.${index}.subItems`} index={subIndex} openIconModal={openIconModal} onRemove={() => remove(subIndex)}/>
-                    ))}
-                </SortableContext>
-            </DndContext>
-            <AddFunctionToMenuButton path={`navMenu.${index}.subItems`} append={append} />
-        </div>
-    </div>
-  );
-}
-
-
 export default function MenuEditorPage() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
@@ -372,71 +333,19 @@ export default function MenuEditorPage() {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const findItemContainer = (id: string, items: NavMenuItem[]) => {
-        for(const group of items) {
-            if (group.id === id) return 'root';
-            if (group.subItems?.some(item => item.id === id)) {
-                return group.id;
-            }
-        }
-        return null;
-    }
-
   const handleDragEnd = (event: DragEndEvent, menuName: 'navMenu' | 'footerNavMenu') => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const menu = form.getValues(menuName) || [];
-    const newMenu = JSON.parse(JSON.stringify(menu));
+    const fields = menuName === 'navMenu' ? navMenuFields : footerNavMenuFields;
+    const move = menuName === 'navMenu' ? moveNavMenu : moveFooterNavMenu;
 
-    const findItemContainer = (id: string, items: NavMenuItem[]): string | null => {
-        for (const item of items) {
-            if (item.id === id) return 'root';
-            if (item.subItems?.some(sub => sub.id === id)) {
-                return item.id;
-            }
-        }
-        return null;
-    };
-    
-    const overIsGroup = newMenu.find((item: NavMenuItem) => item.id === over.id)?.subItems !== undefined;
+    const oldIndex = fields.findIndex((item) => item.id === active.id);
+    const newIndex = fields.findIndex((item) => item.id === over.id);
 
-    const findItemAndParent = (id: string, items: NavMenuItem[]): [NavMenuItem | null, NavMenuItem[] | null, number] => {
-        for (const item of items) {
-            if (item.id === id) {
-                return [item, items, items.findIndex(i => i.id === id)];
-            }
-            if (item.subItems) {
-                const subIndex = item.subItems.findIndex(sub => sub.id === id);
-                if (subIndex !== -1) {
-                    return [item.subItems[subIndex], item.subItems, subIndex];
-                }
-            }
-        }
-        return [null, null, -1];
-    };
-    
-    const [movedItem, sourceList, sourceIndex] = findItemAndParent(active.id as string, newMenu);
-
-    if (!movedItem || !sourceList || sourceIndex === -1) return;
-
-    sourceList.splice(sourceIndex, 1);
-    
-    if (overIsGroup) {
-        const destGroup = newMenu.find((item: NavMenuItem) => item.id === over.id);
-        if (destGroup && destGroup.subItems) {
-            destGroup.subItems.push(movedItem);
-        }
-    } else {
-        const [, destList, destIndex] = findItemAndParent(over.id as string, newMenu);
-        if (destList) {
-             destList.splice(destIndex, 0, movedItem);
-        } else {
-            newMenu.push(movedItem);
-        }
+    if (oldIndex !== -1 && newIndex !== -1) {
+      move(oldIndex, newIndex);
     }
-    
-    form.setValue(menuName, newMenu, { shouldDirty: true });
   };
 
   const clearMenu = () => {
@@ -520,7 +429,7 @@ export default function MenuEditorPage() {
     <>
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <DndContext onDragEnd={(e) => handleDragEnd(e, 'navMenu')}>
+          <DndContext sensors={sensors} onDragEnd={(e) => handleDragEnd(e, 'navMenu')}>
             <div className="flex flex-col gap-6">
               <div className='flex justify-between items-center'>
                 <h1 className="text-3xl font-bold tracking-tight">Editor do Menu Lateral</h1>
