@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, FC } from 'react';
-import { useForm, useFieldArray, Control, FormProvider, useFormContext } from 'react-hook-form';
+import { useForm, useFieldArray, Control, FormProvider, useFormContext, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useToast } from '@/hooks/use-toast';
@@ -29,7 +29,35 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 // --- TIPOS E SCHEMAS ---
 
-const iconList = Object.keys(icons) as (keyof typeof icons)[];
+// Novo catálogo de ícones categorizados
+const iconCategories = [
+    {
+        title: 'Principal e Painel',
+        icons: ['LayoutDashboard', 'Home', 'BarChartBig', 'PieChart', 'BarChartHorizontalBig', 'AreaChart', 'LineChart'] as (keyof typeof icons)[],
+    },
+    {
+        title: 'Serviços e Operações',
+        icons: ['Wrench', 'Hammer', 'Truck', 'CalendarClock', 'Timer', 'FileSignature', 'FileText', 'Calculator', 'Receipt', 'PackageCheck', 'Construction', 'DraftingCompass'] as (keyof typeof icons)[],
+    },
+    {
+        title: 'Relacionamento e CRM',
+        icons: ['Users', 'Contact', 'AddressBook', 'UserCog', 'UserCheck', 'Briefcase', 'MessageSquare', 'Bot', 'Handshake', 'HeartHandshake', 'Target', 'Building2'] as (keyof typeof icons)[],
+    },
+    {
+        title: 'Recursos e Conteúdo',
+        icons: ['Boxes', 'Archive', 'Package', 'BookOpen', 'GraduationCap', 'HelpCircle', 'Library', 'Notebook', 'Bookmark'] as (keyof typeof icons)[],
+    },
+    {
+        title: 'Administração e Configurações',
+        icons: ['History', 'ClipboardList', 'UserCircle', 'Cog', 'Settings', 'SlidersHorizontal', 'CreditCard', 'Wallet', 'Gem', 'Shield', 'KeyRound', 'Lock'] as (keyof typeof icons)[],
+    },
+    {
+        title: 'Ícones Comuns de Interface',
+        icons: ['Plus', 'Minus', 'X', 'Check', 'Search', 'Menu', 'MoreHorizontal', 'Trash2', 'Edit', 'Copy', 'Save', 'LogOut', 'LogIn', 'Link', 'AlertTriangle', 'Info', 'GripVertical', 'File', 'Folder'] as (keyof typeof icons)[],
+    }
+];
+
+const allCategorizedIcons = iconCategories.flatMap(category => category.icons);
 
 // Nova definição para uma Função
 const functionSchema = z.object({
@@ -64,6 +92,7 @@ const navMenuItemSchema: z.ZodType<NavMenuItem> = z.object({
 
 const menuSettingsFormSchema = z.object({
   navMenu: z.array(navMenuItemSchema),
+  footerNavMenu: z.array(navMenuItemSchema).optional(), // Novo menu do rodapé
   availableFunctions: z.array(functionSchema).optional(), // O novo catálogo de funções
 });
 
@@ -114,10 +143,15 @@ const SortableMenuItem: FC<SortableMenuItemProps> = ({ item, control, path, inde
     const { getValues } = useFormContext<MenuSettingsFormValues>();
     const functions = getValues('availableFunctions');
 
+    const iconValue = useWatch({
+        control,
+        name: `${path}.${index}.icon` as any
+    });
+
     const isGroup = item.subItems !== undefined;
     const linkedFunction = item.functionId ? getFunctionById(functions, item.functionId) : null;
     
-    const IconComponent = getIcon(item.icon, isGroup ? 'Folder' : 'File');
+    const IconComponent = getIcon(iconValue, isGroup ? 'Folder' : 'File');
 
 
     const onSubDragEnd = (event: DragEndEvent) => {
@@ -168,14 +202,15 @@ const SortableMenuItem: FC<SortableMenuItemProps> = ({ item, control, path, inde
 // --- COMPONENTES ---
 
 const AddFunctionToMenuButton: FC<{ path: string, append: (items: any | any[]) => void }> = ({ append, path }) => {
-    const { watch } = useFormContext<MenuSettingsFormValues>();
+    const { watch, getValues } = useFormContext<MenuSettingsFormValues>();
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [selectedFunctions, setSelectedFunctions] = useState<string[]>([]);
 
     const functions = watch('availableFunctions');
     const navMenu = watch('navMenu');
+    const footerNavMenu = watch('footerNavMenu');
     
-    const usedFunctionIds = getUsedFunctionIds(navMenu || []);
+    const usedFunctionIds = [...getUsedFunctionIds(navMenu || []), ...getUsedFunctionIds(footerNavMenu || [])];
     const availableFunctions = functions?.filter(f => f.isActive && !usedFunctionIds.includes(f.id)) || [];
 
     const handleToggleSelection = (funcId: string) => {
@@ -311,10 +346,11 @@ export default function MenuEditorPage() {
 
   const form = useForm<MenuSettingsFormValues>({
     resolver: zodResolver(menuSettingsFormSchema),
-    defaultValues: { navMenu: [], availableFunctions: [] },
+    defaultValues: { navMenu: [], footerNavMenu: [], availableFunctions: [] },
   });
 
-  const { fields: navMenuFields, move: moveNavMenu, append: appendNavMenu, remove: removeNavMenu, update } = useFieldArray({ control: form.control, name: "navMenu" });
+  const { fields: navMenuFields, move: moveNavMenu, append: appendNavMenu, remove: removeNavMenu } = useFieldArray({ control: form.control, name: "navMenu" });
+  const { fields: footerNavMenuFields, move: moveFooterNavMenu, append: appendFooterNavMenu, remove: removeFooterNavMenu } = useFieldArray({ control: form.control, name: "footerNavMenu" });
   const { fields: functions, append: appendFunction, remove: removeFunction, update: updateFunction } = useFieldArray({ control: form.control, name: "availableFunctions" });
 
 
@@ -324,9 +360,9 @@ export default function MenuEditorPage() {
         if (docSnap.exists()) {
             const data = docSnap.data() as MenuSettingsFormValues;
             
-            if (!data.availableFunctions) {
-              data.availableFunctions = [];
-            }
+            if (!data.availableFunctions) data.availableFunctions = [];
+            if (!data.footerNavMenu) data.footerNavMenu = [];
+
             form.reset(data);
         }
         setIsLoading(false);
@@ -346,11 +382,12 @@ export default function MenuEditorPage() {
         return null;
     }
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = (event: DragEndEvent, menuName: 'navMenu' | 'footerNavMenu') => {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
-    const navMenu = form.getValues('navMenu');
+    const menu = form.getValues(menuName) || [];
+    const newMenu = JSON.parse(JSON.stringify(menu));
 
     const findItemContainer = (id: string, items: NavMenuItem[]): string | null => {
         for (const item of items) {
@@ -362,11 +399,7 @@ export default function MenuEditorPage() {
         return null;
     };
     
-    const activeContainer = findItemContainer(active.id as string, navMenu);
-    const overContainer = findItemContainer(over.id as string, navMenu);
-    const overIsGroup = navMenu.find(item => item.id === over.id)?.subItems !== undefined;
-
-    const newNavMenu = JSON.parse(JSON.stringify(navMenu));
+    const overIsGroup = newMenu.find((item: NavMenuItem) => item.id === over.id)?.subItems !== undefined;
 
     const findItemAndParent = (id: string, items: NavMenuItem[]): [NavMenuItem | null, NavMenuItem[] | null, number] => {
         for (const item of items) {
@@ -383,34 +416,29 @@ export default function MenuEditorPage() {
         return [null, null, -1];
     };
     
-    const [movedItem, sourceList, sourceIndex] = findItemAndParent(active.id as string, newNavMenu);
+    const [movedItem, sourceList, sourceIndex] = findItemAndParent(active.id as string, newMenu);
 
     if (!movedItem || !sourceList || sourceIndex === -1) return;
 
-    // 1. Remove o item de sua localização original
     sourceList.splice(sourceIndex, 1);
     
-    // 2. Adiciona o item na nova localização
-    if (overIsGroup && activeContainer !== over.id) {
-        // Cenário: Soltando um item DENTRO de um grupo
-        const destGroup = newNavMenu.find((item: NavMenuItem) => item.id === over.id);
+    if (overIsGroup) {
+        const destGroup = newMenu.find((item: NavMenuItem) => item.id === over.id);
         if (destGroup && destGroup.subItems) {
             destGroup.subItems.push(movedItem);
         }
     } else {
-        // Cenário: Reordenando na mesma lista (raiz ou dentro de um grupo) ou movendo para a raiz
-        const [, destList, destIndex] = findItemAndParent(over.id as string, newNavMenu);
+        const [, destList, destIndex] = findItemAndParent(over.id as string, newMenu);
         if (destList) {
              destList.splice(destIndex, 0, movedItem);
         } else {
-            // Se destList não for encontrado (ex: soltando no final da lista raiz), adiciona na raiz
-            newNavMenu.push(movedItem);
+            newMenu.push(movedItem);
         }
     }
     
-    form.setValue('navMenu', newNavMenu, { shouldDirty: true });
+    form.setValue(menuName, newMenu, { shouldDirty: true });
   };
-  
+
   const clearMenu = () => {
     form.setValue('navMenu', []);
     toast({
@@ -468,7 +496,10 @@ export default function MenuEditorPage() {
     }
   };
 
-  const filteredIcons = iconList.filter(name => name.toLowerCase().includes(iconSearchTerm.toLowerCase()));
+  const allIcons = iconCategories.flatMap(category => category.icons);
+  const filteredIcons = iconSearchTerm
+    ? allIcons.filter(name => name.toLowerCase().includes(iconSearchTerm.toLowerCase()))
+    : [];
 
   const onSubmit = async (data: MenuSettingsFormValues) => {
     setIsSaving(true);
@@ -489,7 +520,7 @@ export default function MenuEditorPage() {
     <>
       <FormProvider {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+          <DndContext onDragEnd={(e) => handleDragEnd(e, 'navMenu')}>
             <div className="flex flex-col gap-6">
               <div className='flex justify-between items-center'>
                 <h1 className="text-3xl font-bold tracking-tight">Editor do Menu Lateral</h1>
@@ -532,13 +563,11 @@ export default function MenuEditorPage() {
                           </AlertDialog>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-                          <SortableContext items={navMenuFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                            {navMenuFields.map((item, index) => (
-                              <SortableMenuItem key={item.id} item={item as any} control={form.control} path="navMenu" index={index} openIconModal={openIconModal} onRemove={() => removeNavMenu(index)} />
-                            ))}
-                          </SortableContext>
-                        </DndContext>
+                        <SortableContext items={navMenuFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                          {navMenuFields.map((item, index) => (
+                            <SortableMenuItem key={item.id} item={item as any} control={form.control} path="navMenu" index={index} openIconModal={openIconModal} onRemove={() => removeNavMenu(index)} />
+                          ))}
+                        </SortableContext>
                         <div className="flex items-center gap-2">
                            <Button type="button" variant="outline" size="sm" onClick={() => appendNavMenu({ id: nanoid(6), label: 'Novo Grupo', icon: 'Folder', enabled: true, subItems: [] })}>
                             <Plus className="mr-2 h-4 w-4" /> Adicionar Grupo
@@ -547,8 +576,31 @@ export default function MenuEditorPage() {
                         </div>
                       </CardContent>
                     </Card>
-                    </div>
-                </TabsContent>
+
+                   <Card>
+                    <CardHeader>
+                      <CardTitle>Menu do Rodapé</CardTitle>
+                      <CardDescription>Itens que aparecerão na parte inferior do menu, acima do botão "Sair".</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <DndContext onDragEnd={(e) => handleDragEnd(e, 'footerNavMenu')}>
+                        <SortableContext items={footerNavMenuFields.map(f => f.id)} strategy={verticalListSortingStrategy}>
+                          {footerNavMenuFields.map((item, index) => (
+                            <SortableMenuItem key={item.id} item={item as any} control={form.control} path="footerNavMenu" index={index} openIconModal={openIconModal} onRemove={() => removeFooterNavMenu(index)} />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                      <div className="flex items-center gap-2">
+                         <Button type="button" variant="outline" size="sm" onClick={() => appendFooterNavMenu({ id: nanoid(6), label: 'Novo Grupo', icon: 'Folder', enabled: true, subItems: [] })}>
+                          <Plus className="mr-2 h-4 w-4" /> Adicionar Grupo
+                        </Button>
+                        <AddFunctionToMenuButton path="footerNavMenu" append={appendFooterNavMenu} />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  </div>
+              </TabsContent>
                  <TabsContent value="functions">
                   <Card>
                     <CardHeader>
@@ -638,27 +690,53 @@ export default function MenuEditorPage() {
       <Dialog open={isIconModalOpen} onOpenChange={setIsIconModalOpen}>
         <DialogContent className="sm:max-w-4xl">
           <DialogHeader>
-            <DialogTitle>Selecione um Ícone</DialogTitle>
+            <DialogTitle>Biblioteca de Ícones</DialogTitle>
+            <DialogDescription>
+              Navegue pelas categorias ou use a busca para encontrar o ícone ideal para seu item de menu.
+            </DialogDescription>
              <div className="pt-4">
                 <Input
-                    placeholder="Pesquisar ícones..."
+                    placeholder="Pesquisar em todos os ícones..."
                     value={iconSearchTerm}
                     onChange={(e) => setIconSearchTerm(e.target.value)}
                 />
             </div>
           </DialogHeader>
           <ScrollArea className="h-[60vh]">
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4">
-              {filteredIcons.map(iconName => {
-                const Icon = icons[iconName];
-                return (
-                  <button key={iconName} type="button" onClick={() => handleSelectIcon(iconName)} className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-accent aspect-square">
-                    <Icon className="h-6 w-6 mb-1" />
-                    <span className="text-xs text-center truncate w-full">{iconName}</span>
-                  </button>
-                );
-              })}
-            </div>
+            {iconSearchTerm ? (
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 p-4">
+                  {filteredIcons.map(iconName => {
+                    const Icon = icons[iconName];
+                    if (!Icon) return null; // Adiciona a verificação de segurança
+                    return (
+                      <button key={iconName} type="button" onClick={() => handleSelectIcon(iconName)} className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-accent aspect-square">
+                        <Icon className="h-6 w-6 mb-1" />
+                        <span className="text-xs text-center truncate w-full">{iconName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="space-y-8 p-4">
+                  {iconCategories.map(category => (
+                    <div key={category.title}>
+                        <h3 className="font-medium text-lg mb-4">{category.title}</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
+                           {category.icons.map(iconName => {
+                                const Icon = icons[iconName];
+                                if (!Icon) return null; // Adiciona a verificação de segurança
+                                return (
+                                <button key={iconName} type="button" onClick={() => handleSelectIcon(iconName)} className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-accent aspect-square">
+                                    <Icon className="h-6 w-6 mb-1" />
+                                    <span className="text-xs text-center truncate w-full">{iconName}</span>
+                                </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+                  ))}
+                </div>
+            )}
           </ScrollArea>
         </DialogContent>
       </Dialog>

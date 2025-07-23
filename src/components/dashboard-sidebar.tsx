@@ -223,6 +223,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   const Icon = availableIcons[iconKey as keyof typeof availableIcons];
   const [navMenu, setNavMenu] = useState<any[]>([]);
   const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
+  const [footerNavMenu, setFooterNavMenu] = useState<NavMenuItem[]>([]);
   const [allowedFunctions, setAllowedFunctions] = useState<string[]>([]);
   const [availableFunctions, setAvailableFunctions] = useState<AppFunction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -246,6 +247,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         const data = docSnap.data();
         setNavMenu(data.navMenu || []);
         setSystemNavItems(data.systemNavItems || []);
+        setFooterNavMenu(data.footerNavMenu || []);
         setAvailableFunctions(data.availableFunctions || []);
       }
     }));
@@ -374,9 +376,9 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
           </div>
 
           {/* Bottom Navigation Items Wrapper */}
-          <div className="mt-auto space-y-1 border-t pt-4 -mx-2">
-              <div className='px-2'>
-                {renderNavItems(systemNavItems)}
+          <div className="mt-auto space-y-1">
+              <div className='pt-4 border-t -mx-2 px-2'>
+                {renderNavItems(footerNavMenu)}
                 
                 <NavActionButton
                   label="Sair"
