@@ -33,7 +33,8 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     const [loadingPlan, setLoadingPlan] = useState(true);
 
     useEffect(() => {
-      const settingsRef = doc(db, 'settings', 'global');
+      // CORREÇÃO: Aponta para o documento 'main' dentro da coleção 'siteConfig'
+      const settingsRef = doc(db, 'siteConfig', 'main');
       const unsubscribe = onSnapshot(settingsRef, (docSnap) => {
         if (docSnap.exists()) {
             const data = docSnap.data();
@@ -67,26 +68,13 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setLoadingUserSettings(true);
-        const userSettingsRef = doc(db, 'users', user.uid, 'settings', 'user');
-        const storageKey = `gestor-elite-settings-${user.uid}`;
-        
-        try {
-            const storedSettings = localStorage.getItem(storageKey);
-            if (storedSettings) {
-                setUserSettings(JSON.parse(storedSettings));
-            }
-        } catch (e) {
-            console.error("Could not read user settings from localStorage", e);
-        }
+        // CORREÇÃO: Aponta para a coleção raiz 'userSettings' com o ID do usuário
+        const userSettingsRef = doc(db, 'userSettings', user.uid);
 
         const unsubscribe = onSnapshot(userSettingsRef, (docSnap) => {
+            // A lógica aqui dentro permanece a mesma, pois já espera um documento.
             const newUserSettings = docSnap.exists() ? docSnap.data() : {};
             setUserSettings(newUserSettings);
-            try {
-                localStorage.setItem(storageKey, JSON.stringify(newUserSettings));
-            } catch (e) {
-                console.error("Could not write user settings to localStorage", e);
-            }
             setLoadingUserSettings(false);
         }, (error) => {
             console.error("Error fetching user settings:", error);
@@ -125,15 +113,30 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     useEffect(() => {
         if (loadingGlobal || loadingPlan || loadingUserSettings) return;
 
-        const finalFeatureFlags: FeatureFlags = { ...defaultSettings.featureFlags };
+        // Inicia a mesclagem com a ordem de precedência correta: Padrão -> Global -> Usuário
+        const merged: UserSettings = {
+            ...defaultSettings,
+            ...globalSettings,
+            ...userSettings,
+        };
 
+        // Trata as propriedades aninhadas separadamente para garantir a mesclagem profunda
+        merged.landingPageImages = {
+            ...defaultSettings.landingPageImages,
+            ...globalSettings.landingPageImages,
+            ...userSettings.landingPageImages,
+        };
+
+        // Lógica de Feature Flags mesclando plano e configurações globais
+        const finalFeatureFlags: FeatureFlags = { ...defaultSettings.featureFlags };
         const planFeatures: { [key: string]: boolean } = { ...finalFeatureFlags };
-        if (activePlan && activePlan.features) {
+
+        if (activePlan?.features) {
             for (const key in planFeatures) {
                 planFeatures[key] = !!activePlan.features[key as keyof typeof activePlan.features];
             }
-        } else if (systemUser) {
-            for (const key in planFeatures) {
+        } else if (systemUser) { // Se não há plano, mas há usuário, assume que tem acesso
+             for (const key in planFeatures) {
                 planFeatures[key] = true;
             }
         }
@@ -142,20 +145,11 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
         for (const key in finalFeatureFlags) {
             const featureKey = key as keyof FeatureFlags;
+            // A flag está ativa se não for explicitamente desativada no plano E não for explicitamente desativada globalmente
             finalFeatureFlags[featureKey] = (planFeatures[featureKey] !== false) && (globalFlags[featureKey] !== false);
         }
 
-        const merged: UserSettings = {
-            ...defaultSettings,
-            ...globalSettings,
-            ...userSettings,
-            landingPageImages: {
-                ...defaultSettings.landingPageImages,
-                ...globalSettings.landingPageImages,
-                ...userSettings.landingPageImages,
-            },
-            featureFlags: finalFeatureFlags,
-        };
+        merged.featureFlags = finalFeatureFlags;
 
         setMergedSettings(merged);
 
@@ -168,17 +162,15 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         const updatedSettings = { ...userSettings, ...newSettings };
         setUserSettings(updatedSettings);
 
-        const storageKey = `gestor-elite-settings-${user.uid}`;
+        // CORREÇÃO: Aponta para a coleção raiz 'userSettings' com o ID do usuário
+        const settingsRef = doc(db, 'userSettings', user.uid);
         try {
-            localStorage.setItem(storageKey, JSON.stringify(updatedSettings));
-        } catch(error) {
-            console.error("Failed to update user settings in localStorage", error);
-        }
-        
-        const settingsRef = doc(db, 'users', user.uid, 'settings', 'user');
-        try {
+            // A escrita usa set com merge para criar o doc se não existir, ou atualizar se existir.
             await setDoc(settingsRef, newSettings, { merge: true });
-        } catch(error) { console.error("Failed to update user settings in Firestore", error); }
+        } catch(error) { 
+            console.error("Failed to update user settings in Firestore", error);
+            setUserSettings(userSettings);
+        }
     }, [user, userSettings]);
 
     const loadingSettings = loadingGlobal || loadingPlan || loadingUserSettings;

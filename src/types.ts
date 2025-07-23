@@ -1,361 +1,199 @@
-
-import type { Timestamp } from 'firebase/firestore';
 import type { Stripe } from 'stripe';
+import { Timestamp } from "firebase/firestore";
 
-export interface Tag {
-  id: string;
-  name: string;
-  color: string; // Stores the Tailwind CSS class for the color
-}
-
-export interface CustomField {
-  id: string;
-  name: string;
-  type: 'text' | 'number' | 'date' | 'currency';
-  value?: string | number;
-}
-
-export interface ServiceStatus {
-  id: string;
-  name: string;
-  color: string; // HSL color string like "210 40% 96.1%"
-  isFinal?: boolean;
-}
-
-export interface UserSettings {
-  siteName: string;
-  iconName: string;
-  logoURL?: string;
-  primaryColorHsl?: { h: number; s: number; l: number; };
-  customerCustomFields?: CustomField[];
-  serviceOrderCustomFields?: CustomField[];
-  quoteCustomFields?: CustomField[];
-  serviceStatuses?: ServiceStatus[];
-  serviceTypes?: { id: string; name: string, color?: string }[];
-  featureFlags?: FeatureFlags;
-  landingPageImages?: {
-    heroImage?: string;
-    feature1Image?: string;
-    feature2Image?: string;
-    feature3Image?: string;
-    galleryImages?: string[];
-    testimonial1Image?: string;
-    testimonial2Image?: string;
-    testimonial3Image?: string;
-  };
-  whatsappNumber?: string;
-  whatsappMessage?: string;
-  smtpHost?: string;
-  smtpPort?: number;
-  smtpUser?: string;
-  smtpPassword?: string;
-  emailRecipients?: string[];
-  notifyOnNewSubscription?: boolean;
-  stripePublishableKey?: string;
-  stripeSecretKey?: string;
-  whatsAppBusinessAccountId?: string;
-  whatsAppAccessToken?: string;
-  ga4PropertyId?: string;
-  ga4CredentialsJson?: string;
-}
-
-export type PageBlockType = 'title' | 'subtitle' | 'text' | 'image';
-
-export interface PageBlock {
-  id: string;
-  type: PageBlockType;
-  content: {
-    text?: string;
-    src?: string;
-    alt?: string;
-  };
-}
-
-
-export interface CustomPage {
+export type Client = {
   id: string;
   userId: string;
-  title: string;
-  slug: string;
-  content: PageBlock[]; // Changed from string to structured content
-  isPublic: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
+  name: string;
+  email?: string;
+  phone?: string;
+  address?: string;
+  [key: string]: any;
+};
 
-export interface SystemUser {
-  uid: string;
+export type Collaborator = {
+  id: string;
   name: string;
   email: string;
-  role: 'admin' | 'user';
-  createdAt: Timestamp;
-  planId?: string;
-  stripeCustomerId?: string;
-  subscriptionStatus?: 'active' | 'incomplete' | 'canceled' | 'past_due' | 'incomplete_expired' | 'trialing';
-  subscriptionId?: string;
-  companyName?: string;
-  phone?: string;
-  trialStartedAt?: Timestamp;
-  trialEndsAt?: Timestamp;
+  role: 'admin' | 'collaborator';
+  companyId: string;
+};
+
+export type CustomField = {
+    id: string;
+    name: string;
+    type: 'text' | 'number' | 'date' | 'currency';
+    value?: string | number;
+};
+
+export interface ServiceStatus {
+    id: string;
+    name:string;
+    color: string;
+    isFinal?: boolean;
 }
 
-export interface Plan {
+export interface ServiceType {
   id: string;
   name: string;
-  description?: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  isPublic: boolean;
-  isTrial?: boolean;
-  allowedGroups?: Record<string, boolean>;
-  planItems?: { value: string }[];
-  createdAt: Timestamp;
-  stripeProductId?: string;
-  stripeMonthlyPriceId?: string;
-  stripeYearlyPriceId?: string;
-  features?: {
-    servicos?: boolean;
-    orcamentos?: boolean;
-    prazos?: boolean;
-    atividades?: boolean;
-    clientes?: boolean;
-    colaboradores?: boolean;
-    inventario?: boolean;
-    contratos?: boolean;
-  };
-}
-
-export interface SubscriptionDetails {
-    id: string;
-    status: Stripe.Subscription.Status;
-    currentPeriodEnd: number; // JS timestamp
-    cancelAtPeriodEnd: boolean;
-    price: number; // in cents
-    interval: 'month' | 'year' | 'day' | 'week' | null;
-    productName: string;
-}
-
-export interface Collaborator {
-  id: string;
-  userId: string;
-  name:string;
-  createdAt: Timestamp;
-  type: 'collaborator' | 'sector';
-  description?: string;
-  photoURL?: string;
-  activeTaskCount?: number;
-}
-
-export interface Customer {
-  id: string;
-  userId: string;
-  name: string;
-  phone: string;
-  email?: string;
-  address?: string;
-  cpfCnpj?: string;
-  birthDate?: Timestamp | null;
-  notes?: string;
-  createdAt: Timestamp;
-  customFields?: CustomFields;
-  tagIds?: string[];
-  activityLog?: ActivityLogEntry[];
-}
-
-type CustomFields = Record<string, any>;
-
-export interface ActivityLogEntry {
-  timestamp: Timestamp;
-  userEmail: string;
-  description: string;
-  entityName?: string; // e.g., customer name for context
-}
-
-export type ServiceOrderPriority = 'baixa' | 'media' | 'alta';
-
-export interface ServiceOrder {
-    id: string;
-    userId: string;
-    orderNumber: number;
-    client: { id: string; name: string; };
-    status: string;
-    serviceType: string;
-    assignedTo?: string;
-    collaboratorName?: string;
-    description: string;
-    creationDate: Timestamp;
-    lastUpdate: Timestamp;
-    conclusionDate?: Timestamp;
-    totalValue: number;
-    customFields?: CustomField[];
-    equipment: string;
-    serialNumber?: string;
-    brand?: string;
-    model?: string;
-    notes?: string;
-}
-
-export interface ServiceAgreement {
-    id: string;
-    userId: string;
-    clientId: string;
-    clientName: string;
-    title: string;
-    serviceOrderTemplateId: string;
-    serviceOrderTemplateName: string;
-    frequency: 'monthly' | 'quarterly' | 'semiannually' | 'annually';
-    nextDueDate: Timestamp;
-    startDate: Timestamp;
-    status: 'active' | 'paused' | 'finished';
-    createdAt: Timestamp;
-    notes?: string;
-    lastGeneratedAt?: Timestamp;
+  color?: string;
 }
 
 export interface Quote {
   id: string;
-  userId: string;
-  clientId: string;
-  clientName: string;
-  title: string;
-  description: string;
-  totalValue: number;
-  validUntil: Timestamp;
-  status: 'Pendente' | 'Aprovado' | 'Recusado' | 'Convertido';
-  createdAt: Timestamp;
-  customFields?: CustomFields;
-  isTemplate?: boolean;
-  templateName?: string;
-  originalQuoteId?: string;
-  version?: number;
-  activityLog?: ActivityLogEntry[];
-  convertedToServiceOrderId?: string;
+  // ... other fields
 }
 
-export interface RecentActivity {
+export interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  productName: string;
+}
+
+export interface Customer {
+  id: string;
+  stripeCustomerId: string;
+  // ... other fields
+}
+
+export type ServiceOrderPriority = 'baixa' | 'media' | 'alta';
+
+export type ServiceOrder = {
     id: string;
-    type: 'cliente' | 'serviço' | 'orçamento';
-    description: string;
-    timestamp: Date;
-    href: string;
-}
+    userId: string;
+    clientId: string;
+    clientName: string;
+    serviceType: string;
+    status: string;
+    creationDate: Timestamp;
+    lastUpdate: Timestamp;
+    collaboratorId?: string;
+    collaboratorName?: string;
+    conclusionDate?: Timestamp;
+    totalValue?: number;
+    isTemplate?: boolean;
+    equipment?: string;
+    solutionDescription?: string;
+    notes?: string;
+    customFields?: CustomField[];
+    attachments?: { name: string; url: string; }[];
+    signature?: string;
+    source?: { type: 'quote' | 'agreement'; id: string };
+    version?: number;
+    originalServiceOrderId?: string;
+    generatedByAgreementId?: string;
+    templateName?: string;
+    problemDescription?: string;
+    priority?: ServiceOrderPriority;
+    dueDate?: Timestamp;
+};
 
-export interface TimelineNote {
+export interface ServiceAgreement {
   id: string;
-  userId: string;
-  customerId: string;
-  note: string;
-  createdAt: Timestamp;
+  // ... other fields
 }
 
-export type TimelineItemType = 'creation' | 'serviceOrder' | 'quote' | 'note';
-
-export interface TimelineItem {
-  id: string;
-  type: TimelineItemType;
-  date: Date;
-  data: Customer | ServiceOrder | Quote | TimelineNote;
-}
-
-export interface InventoryItem {
+export type InventoryItem = {
     id: string;
     userId: string;
     name: string;
     description?: string;
-    photoURL?: string;
     quantity: number;
-    initialQuantity: number;
-    cost: number;
-    minStock?: number;
+    price?: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
-}
+};
 
 export interface InventoryMovement {
-    id: string;
-    userId: string;
-    itemId: string;
-    type: 'entrada' | 'saída';
-    quantity: number;
-    notes?: string;
-    attachments?: { name: string; url: string; }[];
-    createdAt: Timestamp;
-    serviceOrderId?: string;
-    serviceOrderCode?: string;
-    balance?: number; // This is a client-side calculated field
-}
-
-export interface QuickNote {
-    id: string;
-    userId: string;
-    content: string;
-    createdAt: Timestamp;
-}
-
-export type NotificationTarget = 'all' | 'specific';
-
-export interface AdminNotification {
   id: string;
-  title: string;
-  message: string;
-  target: NotificationTarget;
-  sentTo: string[]; // Array of UIDs if target is 'specific'
-  createdAt: Timestamp;
-  scheduledFor?: Timestamp | null;
-  status: 'draft' | 'sent' | 'scheduled';
-  actionUrl?: string; // Optional URL for the action button
-  actionText?: string; // Optional text for the action button
+  // ... other fields
 }
 
-export interface UserNotificationStatus {
-    id: string; // Corresponds to the AdminNotification ID
-    read: boolean;
-    readAt?: Timestamp | null;
+export type LandingPageImageSettings = {
+    heroImage?: string;
+    galleryImage1?: string;
+    galleryImage2?: string;
+    galleryImage3?: string;
+    testimonial1Image?: string;
+    testimonial2Image?: string;
+    testimonial3Image?: string;
+};
+
+export type FeatureFlags = {
+    enableQuotes?: boolean;
+    enableInventory?: boolean;
+    enableAgreements?: boolean;
+    enableTeams?: boolean;
+    enableScheduler?: boolean;
+    enableReports?: boolean;
+    enableApiAccess?: boolean;
+    enableWhatsapp?: boolean;
+    enableLandingPage?: boolean;
+};
+
+export type UserSettings = {
+    siteName: string;
+    iconName: string;
+    logoURL: string;
+    primaryColorHsl: { h: number; s: number; l: number };
+    serviceStatuses: ServiceStatus[];
+    serviceTypes: ServiceType[];
+    serviceOrderCustomFields: CustomField[];
+    quoteCustomFields: CustomField[];
+    landingPageImages: LandingPageImageSettings;
+    featureFlags: FeatureFlags;
+};
+
+export type Plan = {
+    id: string;
+    name: string;
+    price: number;
+    features: {
+        [key in keyof FeatureFlags]?: boolean;
+    };
+    stripePriceId?: string;
+    description?: string;
 }
 
-export interface FeatureFlags {
-    servicos?: boolean;
-    orcamentos?: boolean;
-    prazos?: boolean;
-    atividades?: boolean;
-    clientes?: boolean;
-    colaboradores?: boolean;
-    inventario?: boolean;
-    contratos?: boolean;
+export type SystemUser = {
+    uid: string;
+    email: string | null;
+    name: string | null;
+    photoURL: string | null;
+    companyId: string | null;
+    companyName: string | null;
+    planId: string | null;
+    subscriptionId: string | null;
+    subscriptionStatus: 'active' | 'canceled' | 'past_due' | 'unpaid' | null;
+    role: 'admin' | 'collaborator';
 }
 
 export const defaultSettings: UserSettings = {
-    siteName: 'Gestor Elite',
-    iconName: 'Wrench',
-    primaryColorHsl: { h: 210, s: 70, l: 40 },
-    customerCustomFields: [],
-    serviceOrderCustomFields: [],
-    quoteCustomFields: [],
+    siteName: "Seu App",
+    iconName: "LayoutGrid",
+    logoURL: "",
+    primaryColorHsl: { h: 221.2, s: 83.2, l: 53.3 },
     serviceStatuses: [
-        { id: 'pending', name: 'Pendente', color: '48 96% 58%', isFinal: false },
-        { id: 'in_progress', name: 'Em Andamento', color: '210 70% 60%', isFinal: false },
-        { id: 'completed', name: 'Concluída', color: '142 69% 51%', isFinal: true },
-        { id: 'canceled', name: 'Cancelada', color: '0 84% 60%', isFinal: true },
+      { id: 'pending', name: 'Pendente', color: '48 96% 58%', isFinal: false },
+      { id: 'in_progress', name: 'Em Andamento', color: '210 70% 60%', isFinal: false },
+      { id: 'completed', name: 'Concluído', color: '142 69% 51%', isFinal: true },
+      { id: 'canceled', name: 'Cancelado', color: '0 84% 60%', isFinal: true },
     ],
     serviceTypes: [],
+    serviceOrderCustomFields: [],
+    quoteCustomFields: [],
+    landingPageImages: {},
     featureFlags: {
-        servicos: true,
-        orcamentos: true,
-        prazos: true,
-        atividades: true,
-        clientes: true,
-        colaboradores: true,
-        inventario: true,
-        contratos: true,
-    },
-    landingPageImages: {
-        heroImage: 'https://placehold.co/600x550.png',
-        feature1Image: 'https://placehold.co/550x450.png',
-        feature2Image: 'https://placehold.co/550x450.png',
-        feature3Image: 'https://placehold.co/550x450.png',
-        galleryImages: Array(9).fill('https://placehold.co/600x400.png'),
-        testimonial1Image: 'https://placehold.co/100x100.png',
-        testimonial2Image: 'https://placehold.co/100x100.png',
-        testimonial3Image: 'https://placehold.co/100x100.png',
+        enableQuotes: true,
+        enableInventory: true,
+        enableAgreements: true,
+        enableTeams: true,
+        enableScheduler: false,
+        enableReports: true,
+        enableApiAccess: false,
+        enableWhatsapp: true,
+        enableLandingPage: true,
     },
 };

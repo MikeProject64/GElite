@@ -58,19 +58,18 @@ export default function ServicosEstatisticasPage() {
     }, [serviceOrders]);
 
     const stats = useMemo(() => {
-        if (!serviceOrders.length || !settings?.serviceStatuses) {
+        if (!serviceOrders.length) {
             return {
                 activeOrders: 0,
                 monthlyRevenue: 0,
-                avgCompletionTime: 0,
+                avgCompletionTime: '00d 00h 00m',
             };
         }
 
-        const serviceStatuses = settings.serviceStatuses || [];
-        const finalStatusNames = serviceStatuses
-            .filter(status => status.isFinal)
-            .map(status => status.name);
-        const activeOrders = serviceOrders.filter(order => !finalStatusNames.includes(order.status)).length;
+        // Ordens ativas são todas que não estão Concluídas ou Canceladas.
+        const activeOrders = serviceOrders.filter(
+            order => order.status !== 'Concluído' && order.status !== 'Cancelado'
+        ).length;
 
         const currentDate = new Date();
         const currentMonth = currentDate.getMonth();
@@ -78,40 +77,39 @@ export default function ServicosEstatisticasPage() {
 
         const monthlyRevenue = serviceOrders
             .filter(order => {
+                if (order.status !== 'Concluído') return false;
                 if (!order.conclusionDate) return false;
                 const conclusionDate = (order.conclusionDate as Timestamp).toDate();
-                if (conclusionDate.getMonth() !== currentMonth || conclusionDate.getFullYear() !== currentYear) {
-                    return false;
-                }
-                const finalStatus = serviceStatuses.find(s => s.name === order.status && s.isFinal);
-                // Only count revenue from final statuses that don't indicate cancellation
-                return finalStatus && !finalStatus.name.toLowerCase().includes('cancel');
+                return conclusionDate.getMonth() === currentMonth && conclusionDate.getFullYear() === currentYear;
             })
             .reduce((sum, order) => sum + (order.totalValue || 0), 0);
 
-        const completedOrders = serviceOrders.filter(o => o.creationDate && o.conclusionDate);
-        if (completedOrders.length === 0) {
-            return {
-                activeOrders,
-                monthlyRevenue,
-                avgCompletionTime: 0,
-            };
+        // Apenas ordens concluídas com sucesso entram no cálculo de tempo.
+        const completedOrders = serviceOrders.filter(o => o.status === 'Concluído' && o.creationDate && o.conclusionDate);
+        
+        let formattedAvgTime = '00d 00h 00m';
+        if (completedOrders.length > 0) {
+            const totalCompletionTime = completedOrders.reduce((sum, order) => {
+                const startTime = (order.creationDate as Timestamp).toDate().getTime();
+                const endTime = (order.conclusionDate as Timestamp).toDate().getTime();
+                return sum + (endTime - startTime);
+            }, 0);
+
+            const avgTimeInMillis = totalCompletionTime / completedOrders.length;
+            const totalSeconds = Math.floor(avgTimeInMillis / 1000);
+            const days = Math.floor(totalSeconds / 86400);
+            const hours = Math.floor((totalSeconds % 86400) / 3600);
+            const minutes = Math.floor(((totalSeconds % 86400) % 3600) / 60);
+            
+            formattedAvgTime = `${String(days).padStart(2, '0')}d ${String(hours).padStart(2, '0')}h ${String(minutes).padStart(2, '0')}m`;
         }
-
-        const totalCompletionTime = completedOrders.reduce((sum, order) => {
-            const startTime = (order.creationDate as Timestamp).toDate().getTime();
-            const endTime = (order.conclusionDate as Timestamp).toDate().getTime();
-            return sum + (endTime - startTime);
-        }, 0);
-
-        const avgTimeInDays = totalCompletionTime / completedOrders.length / (1000 * 60 * 60 * 24);
 
         return {
             activeOrders,
             monthlyRevenue,
-            avgCompletionTime: Math.round(avgTimeInDays),
+            avgCompletionTime: formattedAvgTime,
         };
-    }, [serviceOrders, settings]);
+    }, [serviceOrders]);
 
     if (loading || settingsLoading) {
         return (
@@ -134,7 +132,7 @@ export default function ServicosEstatisticasPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle className="text-sm font-medium">Receita no Mês</CardTitle>
+                        <CardTitle className="text-sm font-medium">Faturamento no Mês</CardTitle>
                     </CardHeader>
                     <CardContent>
                         <div className="text-2xl font-bold">
@@ -147,7 +145,7 @@ export default function ServicosEstatisticasPage() {
                         <CardTitle className="text-sm font-medium">Tempo Médio de Conclusão</CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold">{stats.avgCompletionTime} dias</div>
+                        <div className="text-2xl font-bold">{stats.avgCompletionTime}</div>
                         <p className="text-xs text-muted-foreground">
                             Das ordens concluídas
                         </p>

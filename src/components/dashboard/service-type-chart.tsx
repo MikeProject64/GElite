@@ -10,27 +10,37 @@ interface ServiceTypeChartProps {
 }
 
 const processDataForChart = (orders: ServiceOrder[], serviceTypes: { id: string; name: string; color?: string }[] = []) => {
+    // Se não há tipos de serviço definidos, não há o que mostrar.
+    if (!serviceTypes || serviceTypes.length === 0) {
+        return [];
+    }
+    
     const typeCounts: { [key: string]: number } = {};
+    // Inicializa a contagem para todos os tipos de serviço definidos.
+    serviceTypes.forEach(st => {
+        typeCounts[st.name] = 0;
+    });
 
+    // Conta as ordens para cada tipo de serviço definido.
     orders.forEach(order => {
-        if (order.serviceType) {
-            typeCounts[order.serviceType] = (typeCounts[order.serviceType] || 0) + 1;
+        if (order.serviceType && typeCounts.hasOwnProperty(order.serviceType)) {
+            typeCounts[order.serviceType]++;
         }
     });
 
     const typeColorMap = new Map(serviceTypes.map(st => [st.name, st.color]));
     
-    // Default colors for variety
     const defaultColors = [
         'hsl(210, 70%, 60%)', 'hsl(142, 69%, 51%)', 'hsl(48, 96%, 58%)',
         'hsl(262, 80%, 70%)', 'hsl(340, 82%, 58%)', 'hsl(24, 90%, 55%)'
     ];
 
-    return Object.entries(typeCounts)
-        .map(([name, value], index) => ({
-            name,
-            value,
-            fill: typeColorMap.get(name) ? `hsl(${typeColorMap.get(name)})` : defaultColors[index % defaultColors.length]
+    // Mapeia os dados para o formato do gráfico, usando a lista de tipos como base.
+    return serviceTypes
+        .map((st, index) => ({
+            name: st.name,
+            value: typeCounts[st.name] || 0,
+            fill: st.color ? `hsl(${st.color})` : defaultColors[index % defaultColors.length]
         }))
         .filter(item => item.value > 0)
         .sort((a, b) => b.value - a.value);

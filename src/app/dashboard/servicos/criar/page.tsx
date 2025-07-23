@@ -45,17 +45,21 @@ const statusColors = [
 
 // Schemas
 const serviceOrderSchema = z.object({
-  clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
-  serviceType: z.string().min(1, "O serviço é obrigatório."),
-  serviceCategory: z.string().optional(), // Novo campo
-  problemDescription: z.string().min(1, "A descrição do problema é obrigatória."),
-  collaboratorId: z.string({ required_error: "Por favor, selecione um colaborador." }).min(1, "Por favor, selecione um colaborador."),
-  totalValue: z.coerce.number().min(0, "O valor não pode ser negativo."),
-  status: z.string({ required_error: "O status é obrigatório." }),
-  priority: z.enum(['baixa', 'media', 'alta']).default('media'),
-  dueDate: z.date({ required_error: "A data de vencimento é obrigatória." }),
+  clientId: z.string().min(1, "Selecione um cliente."),
+  serviceType: z.string().min(1, "Selecione um tipo de serviço."),
+  collaboratorId: z.string().optional(),
+  status: z.string().min(1, "Selecione um status."),
+  priority: z.enum(['baixa', 'media', 'alta']),
+  equipment: z.string().optional(),
+  problemDescription: z.string().min(5, "Descreva o problema com mais detalhes."),
+  solutionDescription: z.string().optional(),
+  notes: z.string().optional(),
+  totalValue: z.preprocess(
+    (val) => (String(val).trim() === '' ? undefined : Number(String(val).replace(',', '.'))),
+    z.number({ invalid_type_error: "Valor inválido" }).positive("O valor deve ser positivo.").optional()
+  ),
+  dueDate: z.date({ required_error: "A data de vencimento é obrigatória."}),
   customFields: z.record(z.any()).optional(),
-  warrantyDays: z.coerce.number().int().min(1, 'Mínimo 1 dia').optional(),
 });
 
 const newCustomerSchema = z.object({
@@ -111,7 +115,6 @@ function CreateServiceOrderForm() {
       priority: 'media',
       dueDate: undefined,
       customFields: {},
-      warrantyDays: undefined,
     },
   });
 
@@ -159,7 +162,6 @@ function CreateServiceOrderForm() {
                     ...data,
                     dueDate: data.dueDate.toDate(),
                     customFields: customFieldsWithDate,
-                    warrantyDays: data.warrantyDays ? data.warrantyDays : undefined,
                 });
                 toast({ title: 'Criando Nova Versão', description: `Baseado na versão ${data.version || 1} da OS.` });
             } else {
@@ -181,7 +183,6 @@ function CreateServiceOrderForm() {
                     priority: templateData.priority || 'media',
                     dueDate: templateData.dueDate.toDate(),
                     customFields: templateData.customFields || {},
-                    warrantyDays: templateData.warrantyDays ? templateData.warrantyDays : undefined,
                 });
                 toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido.`});
             } else {
@@ -562,16 +563,6 @@ function CreateServiceOrderForm() {
                   <FormMessage />
                 </FormItem>
               )}/>
-              <FormField control={form.control} name="warrantyDays" render={({ field }) => (
-                <FormItem>
-                    <FormLabel>Prazo de Garantia (dias)</FormLabel>
-                    <FormControl>
-                    <Input type="number" min={1} placeholder="Ex: 90" {...field} />
-                    </FormControl>
-                    <FormDescription>Opcional. Informe o número de dias de garantia oferecida para este serviço.</FormDescription>
-                    <FormMessage />
-                </FormItem>
-                )}/>
               <div className="grid grid-cols-2 gap-4">
                 <FormField control={form.control} name="status" render={({ field }) => (
                     <FormItem>
