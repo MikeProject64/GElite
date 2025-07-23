@@ -608,7 +608,7 @@ export default function MenuEditorPage() {
                       <CardDescription>
                         Defina todas as páginas e funcionalidades disponíveis no seu sistema. Itens inativos não aparecerão em lugar nenhum.
                       </CardDescription>
-                      <div className="pt-4">
+                      <div className="flex items-center gap-2 pt-4">
                         <Button type="button" variant="outline" size="sm" onClick={handleSync} disabled={isSyncing}>
                           {isSyncing ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -617,6 +617,30 @@ export default function MenuEditorPage() {
                           )}
                           Sincronizar Funções do Projeto
                         </Button>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button type="button" variant="destructive" size="sm">
+                                    <Trash2 className="mr-2 h-4 w-4" />
+                                    Limpar Funções
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Confirmar Limpeza</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Isso excluirá permanentemente TODAS as funções do catálogo.
+                                        As funções também serão removidas de todos os menus e configurações de permissão.
+                                        Esta ação não pode ser desfeita. Deseja continuar?
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => form.setValue('availableFunctions', [])} className="bg-destructive hover:bg-destructive/90">
+                                        Sim, Limpar Tudo
+                                    </AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
