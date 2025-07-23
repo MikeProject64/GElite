@@ -1,73 +1,63 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartConfig, ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { Wrench } from 'lucide-react';
-import React from 'react';
-import { useSettings } from '../settings-provider';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ServiceOrder, ServiceStatus } from '@/types';
+import { useMemo } from 'react';
 
 interface OrderStatusChartProps {
-  data: {
-    status: string;
-    count: number;
-    fill: string;
-  }[];
+  orders: ServiceOrder[];
+  statuses: ServiceStatus[];
 }
 
-export function OrderStatusChart({ data }: OrderStatusChartProps) {
-  const { settings } = useSettings();
+const processDataForChart = (orders: ServiceOrder[], statuses: ServiceStatus[]) => {
+    const statusCounts: { [key: string]: number } = {};
 
-  const chartConfig = React.useMemo(() => {
-    const config: ChartConfig = {
-      count: { label: 'Ordens de Serviço' },
-    };
-    if (data && settings.serviceStatuses) {
-        data.forEach(item => {
-        const statusConfig = settings.serviceStatuses.find(s => s.name === item.status);
-        config[item.status] = {
-            label: item.status,
-            color: statusConfig ? `hsl(${statusConfig.color})` : item.fill,
-        };
-        });
-    }
-    return config;
-  }, [data, settings.serviceStatuses]);
+    statuses.forEach(status => {
+        statusCounts[status.name] = 0;
+    });
 
+    orders.forEach(order => {
+        if (order.status && statusCounts.hasOwnProperty(order.status)) {
+            statusCounts[order.status]++;
+        }
+    });
+
+    return statuses.map(status => ({
+        name: status.name,
+        value: statusCounts[status.name],
+        fill: `hsl(${status.color})`,
+    })).filter(item => item.value > 0);
+};
+
+export function OrderStatusChart({ orders, statuses }: OrderStatusChartProps) {
+  const chartData = useMemo(() => processDataForChart(orders, statuses), [orders, statuses]);
+
+  if (chartData.length === 0) {
+      return <div className="text-center text-muted-foreground mt-4">Nenhuma ordem de serviço para exibir.</div>;
+  }
+  
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Wrench /> Ordens por Status</CardTitle>
-        <CardDescription>Distribuição das ordens de serviço no período selecionado.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
-        >
-          <PieChart>
+    <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
             <Tooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="status" />}
+                formatter={(value) => [`${value} ordens`, 'Status']}
             />
+            <Legend />
             <Pie
-              data={data}
-              dataKey="count"
-              nameKey="status"
-              innerRadius={60}
-              strokeWidth={5}
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                nameKey="name"
             >
-              {data.map((entry) => (
-                <Cell key={`cell-${entry.status}`} fill={chartConfig[entry.status]?.color} />
-              ))}
+                {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
             </Pie>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="status" />}
-              className="-mt-4"
-            />
-          </PieChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+        </PieChart>
+    </ResponsiveContainer>
   );
 }

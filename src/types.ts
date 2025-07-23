@@ -12,34 +12,27 @@ export interface CustomField {
   id: string;
   name: string;
   type: 'text' | 'number' | 'date' | 'currency';
+  value?: string | number;
 }
 
 export interface ServiceStatus {
   id: string;
   name: string;
   color: string; // HSL color string like "210 40% 96.1%"
+  isFinal?: boolean;
 }
 
 export interface UserSettings {
   siteName: string;
   iconName: string;
   logoURL?: string;
-  primaryColorHsl?: { h: number, s: number, l: number };
+  primaryColorHsl?: { h: number; s: number; l: number; };
   customerCustomFields?: CustomField[];
   serviceOrderCustomFields?: CustomField[];
   quoteCustomFields?: CustomField[];
   serviceStatuses?: ServiceStatus[];
-  tags?: Tag[];
-  featureFlags?: {
-    servicos?: boolean;
-    orcamentos?: boolean;
-    prazos?: boolean;
-    atividades?: boolean;
-    clientes?: boolean;
-    colaboradores?: boolean;
-    inventario?: boolean;
-    contratos?: boolean;
-  };
+  serviceTypes?: { id: string; name: string, color?: string }[];
+  featureFlags?: FeatureFlags;
   landingPageImages?: {
     heroImage?: string;
     feature1Image?: string;
@@ -120,6 +113,16 @@ export interface Plan {
   stripeProductId?: string;
   stripeMonthlyPriceId?: string;
   stripeYearlyPriceId?: string;
+  features?: {
+    servicos?: boolean;
+    orcamentos?: boolean;
+    prazos?: boolean;
+    atividades?: boolean;
+    clientes?: boolean;
+    colaboradores?: boolean;
+    inventario?: boolean;
+    contratos?: boolean;
+  };
 }
 
 export interface SubscriptionDetails {
@@ -173,26 +176,23 @@ export type ServiceOrderPriority = 'baixa' | 'media' | 'alta';
 export interface ServiceOrder {
     id: string;
     userId: string;
-    clientId: string;
-    clientName: string;
-    serviceType: string;
-    problemDescription: string;
-    collaboratorId?: string;
-    collaboratorName?: string;
-    totalValue: number;
+    orderNumber: number;
+    client: { id: string; name: string; };
     status: string;
-    priority?: ServiceOrderPriority;
-    dueDate: Timestamp;
-    attachments?: { name: string; url: string; }[];
-    createdAt: Timestamp;
-    completedAt?: Timestamp | null;
-    customFields?: CustomFields;
-    activityLog?: ActivityLogEntry[];
-    isTemplate?: boolean;
-    templateName?: string;
-    originalServiceOrderId?: string;
-    warrantyDays?: number; // Dias de garantia
-    warrantyEndDate?: Timestamp; // Data de término da garantia
+    serviceType: string;
+    assignedTo?: string;
+    collaboratorName?: string;
+    description: string;
+    creationDate: Timestamp;
+    lastUpdate: Timestamp;
+    conclusionDate?: Timestamp;
+    totalValue: number;
+    customFields?: CustomField[];
+    equipment: string;
+    serialNumber?: string;
+    brand?: string;
+    model?: string;
+    notes?: string;
 }
 
 export interface ServiceAgreement {
@@ -312,3 +312,50 @@ export interface UserNotificationStatus {
     read: boolean;
     readAt?: Timestamp | null;
 }
+
+export interface FeatureFlags {
+    servicos?: boolean;
+    orcamentos?: boolean;
+    prazos?: boolean;
+    atividades?: boolean;
+    clientes?: boolean;
+    colaboradores?: boolean;
+    inventario?: boolean;
+    contratos?: boolean;
+}
+
+export const defaultSettings: UserSettings = {
+    siteName: 'Gestor Elite',
+    iconName: 'Wrench',
+    primaryColorHsl: { h: 210, s: 70, l: 40 },
+    customerCustomFields: [],
+    serviceOrderCustomFields: [],
+    quoteCustomFields: [],
+    serviceStatuses: [
+        { id: 'pending', name: 'Pendente', color: '48 96% 58%', isFinal: false },
+        { id: 'in_progress', name: 'Em Andamento', color: '210 70% 60%', isFinal: false },
+        { id: 'completed', name: 'Concluída', color: '142 69% 51%', isFinal: true },
+        { id: 'canceled', name: 'Cancelada', color: '0 84% 60%', isFinal: true },
+    ],
+    serviceTypes: [],
+    featureFlags: {
+        servicos: true,
+        orcamentos: true,
+        prazos: true,
+        atividades: true,
+        clientes: true,
+        colaboradores: true,
+        inventario: true,
+        contratos: true,
+    },
+    landingPageImages: {
+        heroImage: 'https://placehold.co/600x550.png',
+        feature1Image: 'https://placehold.co/550x450.png',
+        feature2Image: 'https://placehold.co/550x450.png',
+        feature3Image: 'https://placehold.co/550x450.png',
+        galleryImages: Array(9).fill('https://placehold.co/600x400.png'),
+        testimonial1Image: 'https://placehold.co/100x100.png',
+        testimonial2Image: 'https://placehold.co/100x100.png',
+        testimonial3Image: 'https://placehold.co/100x100.png',
+    },
+};

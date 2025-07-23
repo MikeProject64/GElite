@@ -401,42 +401,36 @@ function CreateQuoteForm() {
                 )}/>
               </div>
 
-               {settings.quoteCustomFields && settings.quoteCustomFields.length > 0 && (
-                    <>
-                        <Separator className="my-2" />
-                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
-                        {settings.quoteCustomFields.map((customField) => (
-                           <FormField
-                                key={customField.id}
-                                control={form.control}
-                                name={`customFields.${customField.id}`}
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>{customField.name}</FormLabel>
-                                        <FormControl>
-                                            {customField.type === 'date' ? (
-                                                <Popover>
-                                                    <PopoverTrigger asChild>
-                                                        <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                            <CalendarIcon className="mr-2 h-4 w-4" />
-                                                            {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
-                                                        </Button>
-                                                    </PopoverTrigger>
-                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                        <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
-                                                    </PopoverContent>
-                                                </Popover>
-                                            ) : (
-                                                <Input type={customField.type} {...field} value={field.value || ''} />
-                                            )}
-                                        </FormControl>
-                                        <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
-                    </>
-                )}
+               {settings.quoteCustomFields?.map((customField) => (
+                   <FormField
+                        key={customField.id}
+                        control={form.control}
+                        name={`customFields.${customField.id}`}
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>{customField.name}</FormLabel>
+                                <FormControl>
+                                    {customField.type === 'date' ? (
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-2 h-4 w-4" />
+                                                    {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-0" align="start">
+                                                <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
+                                            </PopoverContent>
+                                        </Popover>
+                                    ) : (
+                                        <Input type={customField.type} {...field} value={field.value || ''} />
+                                    )}
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                ))}
 
               <div className="flex justify-end gap-2 pt-4">
                   <Button type="button" variant="ghost" onClick={() => router.back()}>Cancelar</Button>
@@ -480,7 +474,7 @@ export default function CriarOrcamentoPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         }>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 max-w-4xl mx-auto w-full">
                 <div className="flex items-center gap-4">
                     <Button variant="outline" size="icon" className="h-7 w-7" asChild>
                     <Link href="/dashboard/orcamentos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>

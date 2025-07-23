@@ -5,27 +5,27 @@ import { ScrollReveal } from './scroll-reveal';
 
 const features = [
   {
-    icon: <ClipboardList />,
+    icon: <ClipboardList className="w-7 h-7" />,
     title: 'Gestão de Serviços',
   },
   {
-    icon: <Users />,
+    icon: <Users className="w-7 h-7" />,
     title: 'Base de Clientes (CRM)',
   },
   {
-    icon: <Package />,
+    icon: <Package className="w-7 h-7" />,
     title: 'Controle de Inventário',
   },
   {
-    icon: <FileText />,
+    icon: <FileText className="w-7 h-7" />,
     title: 'Criação de Orçamentos',
   },
   {
-    icon: <CalendarClock />,
+    icon: <CalendarClock className="w-7 h-7" />,
     title: 'Controle de Prazos',
   },
   {
-    icon: <Briefcase />,
+    icon: <Briefcase className="w-7 h-7" />,
     title: 'Equipes e Colaboradores',
   },
 ];
@@ -48,7 +48,7 @@ export function KeyFeatures() {
               <Card className="transition-transform transform hover:-translate-y-1 shadow-sm">
                 <CardContent className="p-6 flex items-center gap-4">
                   <div className="p-3 bg-primary/10 rounded-lg text-primary">
-                    {React.cloneElement(feature.icon, { className: 'w-7 h-7' })}
+                    {feature.icon}
                   </div>
                   <h3 className="text-lg font-semibold">{feature.title}</h3>
                 </CardContent>

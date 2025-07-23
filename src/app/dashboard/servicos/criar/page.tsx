@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -27,11 +27,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus } from 'lucide-react';
+import { Loader2, ArrowLeft, UserPlus, CalendarIcon, ChevronsUpDown, Check, FilePlus, PlusCircle } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { Customer, Collaborator, ServiceOrder, ServiceOrderPriority } from '@/types';
+import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
+import { v4 as uuidv4 } from 'uuid';
 
+const statusColors = [
+    { name: 'Amarelo', value: '48 96% 58%' },
+    { name: 'Laranja', value: '25 95% 53%' },
+    { name: 'Verde', value: '142 69% 51%' },
+    { name: 'Azul', value: '210 70% 60%' },
+    { name: 'Roxo', value: '262 83% 58%' },
+    { name: 'Cinza', value: '215 20% 65%' },
+];
 
 // Schemas
 const serviceOrderSchema = z.object({
@@ -55,8 +65,20 @@ const newCustomerSchema = z.object({
   }),
 });
 
+const newCollaboratorSchema = z.object({
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
+  type: z.enum(['collaborator', 'sector']),
+});
+
+const newServiceTypeSchema = z.object({
+  name: z.string().min(2, "O nome deve ter pelo menos 2 caracteres."),
+  color: z.string(),
+});
+
 type ServiceOrderValues = z.infer<typeof serviceOrderSchema>;
 type NewCustomerValues = z.infer<typeof newCustomerSchema>;
+type NewServiceTypeValues = z.infer<typeof newServiceTypeSchema>;
+type NewCollaboratorValues = z.infer<typeof newCollaboratorSchema>;
 
 function CreateServiceOrderForm() {
   const { user } = useAuth();
@@ -68,6 +90,8 @@ function CreateServiceOrderForm() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
+  const [isNewServiceTypeDialogOpen, setIsNewServiceTypeDialogOpen] = useState(false);
+  const [isNewCollaboratorDialogOpen, setIsNewCollaboratorDialogOpen] = useState(false);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isVersioning, setIsVersioning] = useState(false);
   const [baseOrder, setBaseOrder] = useState<ServiceOrder | null>(null);
@@ -85,7 +109,7 @@ function CreateServiceOrderForm() {
       totalValue: 0,
       status: settings.serviceStatuses?.[0]?.name || 'Pendente',
       priority: 'media',
-      dueDate: new Date(),
+      dueDate: undefined,
       customFields: {},
       warrantyDays: undefined,
     },
@@ -94,6 +118,16 @@ function CreateServiceOrderForm() {
   const newCustomerForm = useForm<NewCustomerValues>({
     resolver: zodResolver(newCustomerSchema),
     defaultValues: { name: '', phone: '' },
+  });
+
+  const newCollaboratorForm = useForm<NewCollaboratorValues>({
+    resolver: zodResolver(newCollaboratorSchema),
+    defaultValues: { name: '', type: 'collaborator' },
+  });
+
+  const newServiceTypeForm = useForm<NewServiceTypeValues>({
+    resolver: zodResolver(newServiceTypeSchema),
+    defaultValues: { name: '', color: statusColors[0].value },
   });
   
   useEffect(() => {
@@ -190,9 +224,15 @@ function CreateServiceOrderForm() {
     if(!isNewClientDialogOpen) {
       newCustomerForm.reset();
     }
-  }, [isNewClientDialogOpen, newCustomerForm]);
+    if(!isNewServiceTypeDialogOpen) {
+      newServiceTypeForm.reset();
+    }
+    if(!isNewCollaboratorDialogOpen) {
+      newCollaboratorForm.reset();
+    }
+  }, [isNewClientDialogOpen, newCustomerForm, isNewServiceTypeDialogOpen, newServiceTypeForm, isNewCollaboratorDialogOpen, newCollaboratorForm]);
 
-  const onNewClientSubmit = async (data: NewCustomerValues) => {
+  const onNewClientSubmit = async (data: CustomerFormValues) => {
     if (!user) return;
     try {
       const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
@@ -201,16 +241,78 @@ function CreateServiceOrderForm() {
         toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este telefone." });
         return;
       }
-      const docRef = await addDoc(collection(db, 'customers'), {
+
+      const customFieldsData = { ...data.customFields };
+       settings.customerCustomFields?.forEach(field => {
+            if (field.type === 'date' && customFieldsData[field.id]) {
+                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+            }
+       });
+
+      const payload = {
         ...data,
         userId: user.uid,
+          tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [],
+          birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
+          customFields: customFieldsData,
         createdAt: Timestamp.now(),
-      });
+          activityLog: [{
+              timestamp: Timestamp.now(),
+              userEmail: user.email || 'Sistema',
+              description: 'Cliente cadastrado.',
+              entityName: data.name,
+          }],
+      };
+      delete (payload as any).tagId;
+
+      const docRef = await addDoc(collection(db, 'customers'), payload);
       toast({ title: "Sucesso!", description: "Cliente cadastrado." });
       form.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
       setIsNewClientDialogOpen(false);
     } catch (error) {
-      toast({ variant: "destructive", title: "Erro", description: "Falha ao cadastrar o cliente." });
+      toast({ variant: "destructive", title: "Erro", description: `Falha ao cadastrar o cliente. ${error instanceof Error ? error.message : ''}` });
+    }
+  };
+
+  const onNewServiceTypeSubmit = async (data: NewServiceTypeValues) => {
+    const currentTypes = settings.serviceTypes || [];
+    const normalizedName = data.name.trim().toLowerCase();
+    
+    if (currentTypes.some(t => t.name.trim().toLowerCase() === normalizedName)) {
+      toast({ variant: "destructive", title: "Erro", description: "Já existe um tipo de serviço com esse nome." });
+      return;
+    }
+
+    try {
+      const newId = uuidv4();
+      const newType = { id: newId, name: data.name.trim(), color: data.color };
+      const newServiceTypes = [...currentTypes, newType];
+      
+      // Update directly in Firestore
+      const userSettingsRef = doc(db, 'userSettings', user.uid);
+      await setDoc(userSettingsRef, { serviceTypes: newServiceTypes }, { merge: true });
+
+      toast({ title: "Sucesso!", description: "Novo tipo de serviço adicionado." });
+      form.setValue('serviceCategory', newType.name, { shouldValidate: true });
+      setIsNewServiceTypeDialogOpen(false);
+    } catch (error) {
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao adicionar o novo tipo." });
+    }
+  };
+
+  const onNewCollaboratorSubmit = async (data: NewCollaboratorValues) => {
+    if (!user) return;
+    try {
+        const docRef = await addDoc(collection(db, 'collaborators'), {
+            ...data,
+            userId: user.uid,
+            createdAt: Timestamp.now(),
+        });
+        toast({ title: "Sucesso!", description: "Novo responsável adicionado." });
+        form.setValue('collaboratorId', docRef.id, { shouldValidate: true });
+        setIsNewCollaboratorDialogOpen(false);
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao adicionar novo responsável." });
     }
   };
   
@@ -312,13 +414,9 @@ function CreateServiceOrderForm() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onServiceOrderSubmit)} className="space-y-6">
                <FormField control={form.control} name="clientId" render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <div className="flex items-center justify-between">
+                <FormItem>
                     <FormLabel>Cliente *</FormLabel>
-                    <Button type="button" variant="outline" size="sm" className="h-7" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning || !!clientIdFromUrl}>
-                      <UserPlus className="mr-2 h-3.5 w-3.5" /> Novo Cliente
-                    </Button>
-                  </div>
+                    <div className="flex w-full items-center gap-2">
                   <Popover open={isCustomerDropdownOpen} onOpenChange={setIsCustomerDropdownOpen}>
                     <PopoverTrigger asChild>
                       <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={isVersioning || !!clientIdFromUrl}>
@@ -337,7 +435,7 @@ function CreateServiceOrderForm() {
                              <ScrollArea className="h-48">
                                 {filteredCustomers.map((customer) => (
                                 <CommandItem key={customer.id} value={customer.id} onSelect={(currentValue) => {
-                                  field.onChange(currentValue);
+                                                form.setValue('clientId', currentValue === field.value ? '' : currentValue, { shouldValidate: true });
                                   setIsCustomerDropdownOpen(false);
                                 }}>
                                   <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
@@ -353,6 +451,11 @@ function CreateServiceOrderForm() {
                       </Command>
                     </PopoverContent>
                   </Popover>
+                        <Button type="button" variant="secondary" size="icon" onClick={() => setIsNewClientDialogOpen(true)} disabled={isVersioning || !!clientIdFromUrl}>
+                            <PlusCircle className="h-4 w-4" />
+                            <span className="sr-only">Adicionar Novo Cliente</span>
+                        </Button>
+                    </div>
                   <FormMessage />
                 </FormItem>
               )}/>
@@ -362,22 +465,40 @@ function CreateServiceOrderForm() {
               <FormField control={form.control} name="serviceCategory" render={({ field }) => (
                 <FormItem>
                     <FormLabel>Tipo de Serviço</FormLabel>
+                     <div className="flex w-full items-center gap-2">
                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                     <FormControl>
                         <SelectTrigger>
+                                    {field.value ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${settings.serviceTypes?.find(s => s.name === field.value)?.color || statusColors[0].value})` }}></div>
+                                            <span>{field.value}</span>
+                                        </div>
+                                    ) : (
                         <SelectValue placeholder="Selecione o tipo (opcional)" />
+                                    )}
                         </SelectTrigger>
                     </FormControl>
                     <SelectContent>
                         {settings.serviceTypes && settings.serviceTypes.length > 0 ? (
                         settings.serviceTypes.map((cat: any) => (
-                            <SelectItem key={cat.id} value={cat.name}>{cat.name}</SelectItem>
+                                    <SelectItem key={cat.id} value={cat.name}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${cat.color || statusColors[0].value})` }}></div>
+                                            <span>{cat.name}</span>
+                                        </div>
+                                    </SelectItem>
                         ))
                         ) : (
                         <div className="p-2 text-muted-foreground">Nenhum tipo cadastrado</div>
                         )}
                     </SelectContent>
                     </Select>
+                        <Button type="button" variant="secondary" size="icon" onClick={() => setIsNewServiceTypeDialogOpen(true)}>
+                            <PlusCircle className="h-4 w-4" />
+                            <span className="sr-only">Adicionar Novo Tipo</span>
+                        </Button>
+                    </div>
                     <FormMessage />
                 </FormItem>
                 )}/>
@@ -386,7 +507,8 @@ function CreateServiceOrderForm() {
               )}/>
                <FormField control={form.control} name="collaboratorId" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Colaborador / Setor *</FormLabel>
+                    <FormLabel>Responsável da equipe *</FormLabel>
+                    <div className="flex w-full items-center gap-2">
                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
@@ -399,6 +521,11 @@ function CreateServiceOrderForm() {
                         ))}
                       </SelectContent>
                     </Select>
+                      <Button type="button" variant="secondary" size="icon" onClick={() => setIsNewCollaboratorDialogOpen(true)}>
+                          <PlusCircle className="h-4 w-4" />
+                          <span className="sr-only">Adicionar Novo Responsável</span>
+                      </Button>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}/>
@@ -450,10 +577,26 @@ function CreateServiceOrderForm() {
                     <FormItem>
                     <FormLabel>Status *</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                        <FormControl><SelectTrigger><SelectValue placeholder="Selecione o status inicial" /></SelectTrigger></FormControl>
+                        <FormControl>
+                            <SelectTrigger>
+                                {field.value ? (
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${settings.serviceStatuses?.find(s => s.name === field.value)?.color})` }}></div>
+                                        <span>{field.value}</span>
+                                    </div>
+                                ) : (
+                                    <SelectValue placeholder="Selecione o status inicial" />
+                                )}
+                            </SelectTrigger>
+                        </FormControl>
                         <SelectContent>
                         {settings.serviceStatuses?.map(status => (
-                            <SelectItem key={status.id} value={status.name}>{status.name}</SelectItem>
+                            <SelectItem key={status.id} value={status.name}>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `hsl(${status.color})` }}></div>
+                                    <span>{status.name}</span>
+                                </div>
+                            </SelectItem>
                         ))}
                         </SelectContent>
                     </Select>
@@ -476,11 +619,7 @@ function CreateServiceOrderForm() {
                 )}/>
               </div>
 
-                {settings.serviceOrderCustomFields && settings.serviceOrderCustomFields.length > 0 && (
-                    <>
-                        <Separator className="my-2" />
-                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
-                        {settings.serviceOrderCustomFields.map((customField) => (
+                {settings.serviceOrderCustomFields?.map((customField) => (
                            <FormField
                                 key={customField.id}
                                 control={form.control}
@@ -510,8 +649,6 @@ function CreateServiceOrderForm() {
                                 )}
                             />
                         ))}
-                    </>
-                )}
 
 
               <div className="flex justify-end gap-2 pt-4">
@@ -527,17 +664,121 @@ function CreateServiceOrderForm() {
       </Card>
 
       <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
             <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para um cadastro rápido.</DialogDescription></DialogHeader>
-            <Form {...newCustomerForm}>
-              <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4">
-                <FormField control={newCustomerForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome Completo *</FormLabel><FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <FormField control={newCustomerForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Telefone *</FormLabel><FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                <DialogFooter className="pt-4">
-                  <Button type="button" variant="ghost" onClick={() => setIsNewClientDialogOpen(false)}>Cancelar</Button>
-                  <Button type="submit" disabled={newCustomerForm.formState.isSubmitting}>
-                      {newCustomerForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                      Salvar Cliente
+            <div className="max-h-[70vh] overflow-y-auto p-1">
+                <CustomerForm onSubmit={onNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
+            </div>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog open={isNewServiceTypeDialogOpen} onOpenChange={setIsNewServiceTypeDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Adicionar Novo Tipo de Serviço</DialogTitle>
+            </DialogHeader>
+            <Form {...newServiceTypeForm}>
+                <form onSubmit={newServiceTypeForm.handleSubmit(onNewServiceTypeSubmit)} className="space-y-4">
+                    <FormField
+                        control={newServiceTypeForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nome do Tipo</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ex: Limpeza, Instalação..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={newServiceTypeForm.control}
+                        name="color"
+                        render={({ field }) => (
+                           <FormItem>
+                               <FormLabel>Cor</FormLabel>
+                               <Select onValueChange={field.onChange} value={field.value}>
+                                   <FormControl>
+                                       <SelectTrigger className="w-[80px]">
+                                           <SelectValue>
+                                               <div className="w-4 h-4 rounded-full" style={{backgroundColor: `hsl(${field.value})`}}></div>
+                                           </SelectValue>
+                                       </SelectTrigger>
+                                   </FormControl>
+                                   <SelectContent>
+                                       {statusColors.map(color => (
+                                           <SelectItem key={color.value} value={color.value}>
+                                               <div className='flex items-center gap-2'>
+                                                   <div className="w-4 h-4 rounded-full" style={{backgroundColor: `hsl(${color.value})`}}></div>
+                                                   {color.name}
+                                               </div>
+                                           </SelectItem>
+                                       ))}
+                                   </SelectContent>
+                               </Select>
+                               <FormMessage />
+                           </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsNewServiceTypeDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={newServiceTypeForm.formState.isSubmitting}>
+                            {newServiceTypeForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Adicionar
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
+        </DialogContent>
+    </Dialog>
+
+    <Dialog open={isNewCollaboratorDialogOpen} onOpenChange={setIsNewCollaboratorDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+                <DialogTitle>Adicionar Novo Responsável</DialogTitle>
+            </DialogHeader>
+            <Form {...newCollaboratorForm}>
+                <form onSubmit={newCollaboratorForm.handleSubmit(onNewCollaboratorSubmit)} className="space-y-4">
+                    <FormField
+                        control={newCollaboratorForm.control}
+                        name="name"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Nome</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="Ex: João Silva, Setor de Limpeza..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <FormField
+                        control={newCollaboratorForm.control}
+                        name="type"
+                        render={({ field }) => (
+                            <FormItem>
+                                <FormLabel>Tipo</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormControl>
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                    </FormControl>
+                                    <SelectContent>
+                                        <SelectItem value="collaborator">Colaborador</SelectItem>
+                                        <SelectItem value="sector">Setor</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                                <FormMessage />
+                            </FormItem>
+                        )}
+                    />
+                    <DialogFooter>
+                        <Button type="button" variant="ghost" onClick={() => setIsNewCollaboratorDialogOpen(false)}>Cancelar</Button>
+                        <Button type="submit" disabled={newCollaboratorForm.formState.isSubmitting}>
+                            {newCollaboratorForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                            Adicionar
                   </Button>
                 </DialogFooter>
               </form>
@@ -556,7 +797,7 @@ export default function CriarServicoPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
         }>
-            <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-4 max-w-4xl mx-auto w-full">
                 <div className="flex items-center gap-4">
                     <Button variant="outline" size="icon" className="h-7 w-7" asChild>
                     <Link href="/dashboard/servicos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>

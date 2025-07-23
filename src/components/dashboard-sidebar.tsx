@@ -227,8 +227,17 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
     unsubscribes.push(onSnapshot(menuConfigRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
-        setNavMenu(data.navMenu || []);
-        setSystemNavItems(data.systemNavItems || []);
+        // Filtra o item "Conta e Segurança" do menu principal
+        const filteredNavMenu = (data.navMenu || []).filter(
+          (item: { label: string; }) => item.label !== 'Conta e Segurança'
+        );
+        setNavMenu(filteredNavMenu);
+        
+        // Também filtra dos itens de sistema para garantir
+        const filteredSystemNavItems = (data.systemNavItems || []).filter(
+            (item: { label: string; }) => item.label !== 'Conta e Segurança'
+        );
+        setSystemNavItems(filteredSystemNavItems);
       }
     }));
 

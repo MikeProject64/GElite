@@ -76,23 +76,6 @@ export default function ServicoModelosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className='flex items-center gap-4'>
-            <Button variant="outline" size="icon" className="h-7 w-7" asChild>
-                <Link href="/dashboard/servicos"><ArrowLeft className="h-4 w-4" /><span className="sr-only">Voltar</span></Link>
-            </Button>
-            <h1 className="text-lg font-semibold md:text-2xl">Modelos de Serviço</h1>
-        </div>
-        <Button size="sm" className="h-8 gap-1" asChild>
-            <Link href="/dashboard/servicos/criar">
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Nova O.S.
-                </span>
-            </Link>
-        </Button>
-      </div>
-
        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><LayoutTemplate className="h-5 w-5"/> Gerenciar Modelos</CardTitle>

@@ -228,28 +228,9 @@ export default function ServicosPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl">Serviços</h1>
-        <div className='flex gap-2'>
-             <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
-                <Link href="/dashboard/servicos/modelos">
-                    <LayoutTemplate className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Modelos</span>
-                </Link>
-            </Button>
-            <Button size="sm" className="h-8 gap-1" asChild>
-                <Link href="/dashboard/servicos/criar">
-                    <PlusCircle className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Nova Ordem de Serviço</span>
-                </Link>
-            </Button>
-        </div>
-      </div>
-
        <Card>
           <CardHeader>
-            <CardTitle><span className="flex items-center gap-2"><Filter className="h-5 w-5"/>Filtros de Acompanhamento</span></CardTitle>
-             <CardDescription>Use os filtros abaixo para refinar a visualização das suas ordens de serviço.</CardDescription>
+            <CardTitle><span className="flex items-center gap-2"><Filter className="h-5 w-5"/>Filtro de serviços</span></CardTitle>
           </CardHeader>
           <CardContent className="grid sm:grid-cols-2 md:grid-cols-4 gap-4">
               <div className="grid gap-2"><Label htmlFor="client-filter">Filtrar por Cliente</Label><Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} /></div>
@@ -281,11 +262,7 @@ export default function ServicosPage() {
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Controle e Acompanhamento de Serviços</CardTitle>
-              <CardDescription>Visualize e gerencie todas as ordens de serviço em um único lugar.</CardDescription>
-            </div>
-             {numSelected > 0 && (
+            {numSelected > 0 && (
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                         <Button variant="outline">Ações ({numSelected}) <MoreHorizontal className="ml-2 h-4 w-4" /></Button>

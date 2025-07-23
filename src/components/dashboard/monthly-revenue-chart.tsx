@@ -1,61 +1,73 @@
 
 'use client';
 
-import { TrendingUp } from 'lucide-react';
-import { Bar, BarChart, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartContainer, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ServiceOrder } from '@/types';
+import { Timestamp } from 'firebase/firestore';
+import { useMemo } from 'react';
 
 interface MonthlyRevenueChartProps {
-  data: { month: string; total: number }[];
-  period: '30d' | 'this_month' | '6m';
+  orders: ServiceOrder[];
 }
 
-const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL',
-    }).format(value);
+const processDataForChart = (orders: ServiceOrder[]) => {
+    const monthlyData: { [key: string]: { name: string; Receita: number } } = {};
+    const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
+    // Initialize last 12 months
+    const today = new Date();
+    for (let i = 11; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const year = d.getFullYear();
+        const month = d.getMonth();
+        const key = `${year}-${month}`;
+        monthlyData[key] = {
+            name: `${monthNames[month]}/${String(year).slice(-2)}`,
+            Receita: 0,
+        };
+    }
+    
+    orders.forEach(order => {
+        if (order.conclusionDate && order.totalValue) {
+            const conclusionDate = (order.conclusionDate as Timestamp).toDate();
+            const year = conclusionDate.getFullYear();
+            const month = conclusionDate.getMonth();
+            const key = `${year}-${month}`;
+
+            if (key in monthlyData) {
+                monthlyData[key].Receita += order.totalValue;
+            }
+        }
+    });
+
+    return Object.values(monthlyData);
 };
 
-export function MonthlyRevenueChart({ data, period }: MonthlyRevenueChartProps) {
-  const chartConfig = {
-    total: {
-      label: 'Faturamento',
-      color: 'hsl(var(--chart-2))',
-    },
-  } satisfies ChartConfig;
-  
-  const yAxisFormatter = (value: number) => {
-    if (value >= 1000 && period === '6m') {
-        return `R$${(value / 1000).toFixed(0)}k`;
-    }
-    return formatCurrency(value);
-  }
+export function MonthlyRevenueChart({ orders }: MonthlyRevenueChartProps) {
+  const chartData = useMemo(() => processDataForChart(orders), [orders]);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className='flex items-center gap-2'><TrendingUp /> Faturamento</CardTitle>
-        <CardDescription>Receita de ordens de serviço concluídas no período.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[250px] w-full">
-          <BarChart accessibilityLayer data={data} margin={{ top: 20, right: 20, left: 0, bottom: 5 }}>
-            <CartesianGrid vertical={false} />
-            <XAxis dataKey="month" tickLine={false} tickMargin={10} axisLine={false} />
-            <YAxis tickFormatter={yAxisFormatter} width={80} />
-            <Tooltip
-              cursor={false}
-              content={<ChartTooltipContent
-                formatter={(value) => formatCurrency(value as number)}
-                indicator='dot'
-              />}
-            />
-            <Bar dataKey="total" fill="var(--color-total)" radius={4} />
-          </BarChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={chartData}>
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="name" />
+        <YAxis 
+            tickFormatter={(value) =>
+                new Intl.NumberFormat('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL',
+                    notation: 'compact',
+                }).format(value as number)
+            }
+        />
+        <Tooltip
+            formatter={(value) => 
+                new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value as number)
+            } 
+        />
+        <Legend />
+        <Bar dataKey="Receita" fill="hsl(var(--primary))" />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }

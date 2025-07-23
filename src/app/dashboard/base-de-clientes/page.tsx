@@ -2,16 +2,13 @@
 
 'use client';
 
-import { useState, useEffect, useMemo, ChangeEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
-import { useSettings, CustomField } from '@/components/settings-provider';
-import { format, parse, isValid } from 'date-fns';
+import { useSettings } from '@/components/settings-provider';
+import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
@@ -28,31 +25,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter, DollarSign } from 'lucide-react';
+import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter, DollarSign, Wrench } from 'lucide-react';
 import { Customer } from '@/types';
 import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const customerFormSchema = z.object({
-  name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
-  phone: z.string().refine(val => {
-    const digits = val.replace(/\D/g, '');
-    return digits.length >= 10 && digits.length <= 11;
-  }, {
-    message: 'O telefone deve conter entre 10 e 11 dígitos numéricos.'
-  }),
-  email: z.string().email({ message: "Por favor, insira um e-mail válido." }).optional().or(z.literal('')),
-  address: z.string().optional(),
-  cpfCnpj: z.string().optional(),
-  birthDate: z.date().optional().nullable(),
-  notes: z.string().optional(),
-  customFields: z.record(z.any()).optional(),
-  tagId: z.string().optional(),
-});
-
-type CustomerFormValues = z.infer<typeof customerFormSchema>;
+import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
 
 export default function BaseDeClientesPage() {
   const { user } = useAuth();
@@ -69,23 +48,6 @@ export default function BaseDeClientesPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   
-  const [birthDateString, setBirthDateString] = useState('');
-
-  const form = useForm<CustomerFormValues>({
-    resolver: zodResolver(customerFormSchema),
-    defaultValues: {
-      name: '',
-      phone: '',
-      email: '',
-      address: '',
-      cpfCnpj: '',
-      birthDate: null,
-      notes: '',
-      customFields: {},
-      tagId: '',
-    },
-  });
-
   useEffect(() => {
     if (!user) return;
     setIsLoading(true);
@@ -110,28 +72,6 @@ export default function BaseDeClientesPage() {
 
     return () => unsubscribe();
   }, [user, toast]);
-  
-  useEffect(() => {
-    if (isDialogOpen) {
-      if (editingCustomer) {
-        const birthDate = editingCustomer.birthDate ? editingCustomer.birthDate.toDate() : null;
-        const defaultValues = {
-            ...editingCustomer,
-            birthDate: birthDate,
-            customFields: editingCustomer.customFields || {},
-            tagId: Array.isArray(editingCustomer.tagIds) ? editingCustomer.tagIds[0] : '', // Handle old array and new string
-        };
-        form.reset(defaultValues as any);
-        setBirthDateString(birthDate ? format(birthDate, 'dd/MM/yyyy') : '');
-      } else {
-        form.reset({
-          name: '', phone: '', email: '', address: '',
-          cpfCnpj: '', birthDate: null, notes: '', customFields: {}, tagId: ''
-        });
-        setBirthDateString('');
-      }
-    }
-  }, [isDialogOpen, editingCustomer, form]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(customer => {
@@ -148,11 +88,6 @@ export default function BaseDeClientesPage() {
         return searchMatch && tagsMatch;
     });
   }, [customers, searchTerm, tagFilter]);
-
-  const handleAddNew = () => {
-    setEditingCustomer(null);
-    setIsDialogOpen(true);
-  };
   
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
@@ -181,9 +116,9 @@ export default function BaseDeClientesPage() {
     }
   };
 
-  const onSubmit = async (data: CustomerFormValues) => {
-    if (!user) {
-        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para gerenciar clientes." });
+  const handleUpdateCustomer = async (data: CustomerFormValues) => {
+    if (!user || !editingCustomer) {
+        toast({ variant: "destructive", title: "Erro", description: "Nenhum cliente selecionado para edição." });
         return;
     }
     
@@ -197,266 +132,72 @@ export default function BaseDeClientesPage() {
 
       const payload = {
           ...data,
-          tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [], // Save as an array for consistency
+          tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [],
           birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
           customFields: customFieldsData,
       };
       delete (payload as any).tagId;
 
-      if (editingCustomer) {
-        const customerRef = doc(db, 'customers', editingCustomer.id);
-        const logEntry = {
-            timestamp: Timestamp.now(),
-            userEmail: user?.email || 'Sistema',
-            description: 'Dados do cliente atualizados.',
-        };
-        await updateDoc(customerRef, { ...payload, activityLog: arrayUnion(logEntry) });
-        toast({ title: "Sucesso!", description: "Cliente atualizado." });
-      } else {
-        const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
-        const querySnapshot = await getDocs(q);
-
-        if (!querySnapshot.empty) {
-          toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este número de telefone." });
-          return;
-        }
-
-        const logEntry = {
-            timestamp: Timestamp.now(),
-            userEmail: user?.email || 'Sistema',
-            description: 'Cliente cadastrado.',
-            entityName: payload.name, // Store name for easy lookup in activity log
-        };
-
-        await addDoc(collection(db, 'customers'), {
-          ...payload,
-          userId: user.uid,
-          createdAt: Timestamp.now(),
-          activityLog: [logEntry],
-        });
-        toast({ title: "Sucesso!", description: "Cliente cadastrado." });
-      }
+      const customerRef = doc(db, 'customers', editingCustomer.id);
+      const logEntry = {
+          timestamp: Timestamp.now(),
+          userEmail: user?.email || 'Sistema',
+          description: 'Dados do cliente atualizados.',
+      };
+      await updateDoc(customerRef, { ...payload, activityLog: arrayUnion(logEntry) });
+      toast({ title: "Sucesso!", description: "Cliente atualizado." });
+      
       setIsDialogOpen(false);
       setEditingCustomer(null);
     } catch (error) {
-      console.error("Error adding/updating document: ", error);
+      console.error("Error updating document: ", error);
       toast({
         variant: "destructive",
         title: "Erro ao salvar",
-        description: `Falha ao salvar o cliente. ${error instanceof Error ? error.message : ''}`
+        description: `Falha ao salvar as alterações. ${error instanceof Error ? error.message : ''}`
       });
     }
   };
   
   const getTagById = (id: string) => settings.tags?.find(t => t.id === id);
 
-  const handleBirthDateChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    const digitsOnly = value.replace(/\D/g, '');
-    let formatted = digitsOnly;
-    if (digitsOnly.length > 2) {
-      formatted = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2)}`;
-    }
-    if (digitsOnly.length > 4) {
-      formatted = `${digitsOnly.slice(0, 2)}/${digitsOnly.slice(2, 4)}/${digitsOnly.slice(4, 8)}`;
-    }
-    setBirthDateString(formatted);
-
-    if (formatted.length === 10) {
-      const parsedDate = parse(formatted, 'dd/MM/yyyy', new Date());
-      if (isValid(parsedDate)) {
-        form.setValue('birthDate', parsedDate, { shouldValidate: true });
-      } else {
-        form.setValue('birthDate', null);
-      }
-    } else {
-      form.setValue('birthDate', null);
-    }
-  };
-
-
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-semibold md:text-2xl">Base de Clientes</h1>
-        <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
-            <UserPlus className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            Novo Cliente
-            </span>
-        </Button>
+        <div className="flex items-center gap-2">
+            <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/base-de-clientes/personalizar">
+                    <Wrench className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Personalizar</span>
+                </Link>
+            </Button>
+            <Button size="sm" className="h-8 gap-1" asChild>
+                <Link href="/dashboard/base-de-clientes/criar">
+                    <UserPlus className="h-3.5 w-3.5" />
+                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
+                    Novo Cliente
+                    </span>
+                </Link>
+            </Button>
+        </div>
       </div>
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>{editingCustomer ? "Editar Cliente" : "Cadastrar Novo Cliente"}</DialogTitle>
+              <DialogTitle>Editar Cliente</DialogTitle>
               <DialogDescription>
-                {editingCustomer ? "Atualize os detalhes do cliente abaixo." : "Preencha os detalhes para adicionar um novo cliente à sua base."}
+                Atualize os detalhes do cliente abaixo.
               </DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome Completo *</FormLabel>
-                    <FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="phone" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Telefone *</FormLabel>
-                    <FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="email" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>E-mail</FormLabel>
-                    <FormControl><Input type="email" placeholder="Ex: maria.oliveira@email.com" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                
-                 <FormField
-                    control={form.control}
-                    name="tagId"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Etiqueta</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Selecione uma etiqueta" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                             <SelectItem value="none">Nenhuma</SelectItem>
-                             {settings.tags?.map(tag => (
-                                <SelectItem key={tag.id} value={tag.id}>
-                                  <div className="flex items-center gap-2">
-                                    <div className={cn("w-3 h-3 rounded-full border", tag.color)}></div>
-                                    {tag.name}
-                                  </div>
-                                </SelectItem>
-                              ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                <FormField control={form.control} name="address" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Endereço</FormLabel>
-                    <FormControl><Textarea placeholder="Rua das Flores, 123, Bairro, Cidade - Estado" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="cpfCnpj" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>CPF/CNPJ</FormLabel>
-                    <FormControl><Input placeholder="Opcional" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField
-                    control={form.control}
-                    name="birthDate"
-                    render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Data de Nascimento</FormLabel>
-                        <FormControl>
-                        <Input
-                            placeholder="DD/MM/AAAA"
-                            value={birthDateString}
-                            onChange={handleBirthDateChange}
-                        />
-                        </FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}
+            <div className="max-h-[70vh] overflow-y-auto p-1">
+                <CustomerForm 
+                    customer={editingCustomer} 
+                    onSubmit={handleUpdateCustomer}
+                    onCancel={() => setIsDialogOpen(false)}
                 />
-                 <FormField control={form.control} name="notes" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Observações</FormLabel>
-                    <FormControl><Textarea placeholder="Informações adicionais sobre o cliente..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-
-                {settings.customerCustomFields && settings.customerCustomFields.length > 0 && (
-                    <>
-                        <Separator className="my-2" />
-                        <h3 className="text-sm font-medium text-muted-foreground">Informações Adicionais</h3>
-                        {settings.customerCustomFields.map((customField) => {
-                            if (customField.type === 'currency') {
-                                return (
-                                    <FormField
-                                        key={customField.id}
-                                        control={form.control}
-                                        name={`customFields.${customField.id}`}
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>{customField.name}</FormLabel>
-                                                <FormControl>
-                                                    <div className="relative">
-                                                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                                        <Input type="number" step="0.01" className="pl-8" {...field} onChange={event => field.onChange(+event.target.value)} />
-                                                    </div>
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                );
-                            }
-                            return (
-                               <FormField
-                                    key={customField.id}
-                                    control={form.control}
-                                    name={`customFields.${customField.id}`}
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>{customField.name}</FormLabel>
-                                            <FormControl>
-                                                {customField.type === 'date' ? (
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button variant={"outline"} className={cn("w-full justify-start text-left font-normal", !field.value && "text-muted-foreground")}>
-                                                                <CalendarIcon className="mr-2 h-4 w-4" />
-                                                                {field.value ? format(new Date(field.value), "PPP", { locale: ptBR }) : <span>Selecione a data</span>}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                ) : (
-                                                    <Input type={customField.type} {...field} />
-                                                )}
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-                            )
-                        })}
-                    </>
-                )}
-
-
-                <DialogFooter className='pt-4'>
-                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        {editingCustomer ? "Salvar Alterações" : "Salvar Cliente"}
-                    </Button>
-                </DialogFooter>
-              </form>
-            </Form>
+            </div>
           </DialogContent>
         </Dialog>
 

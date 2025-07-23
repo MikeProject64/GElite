@@ -1,70 +1,72 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip } from 'recharts';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChartConfig, ChartContainer, ChartTooltipContent, ChartLegend, ChartLegendContent } from '@/components/ui/chart';
-import { SlidersHorizontal } from 'lucide-react';
-import React from 'react';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { ServiceOrder } from '@/types';
+import { useMemo } from 'react';
+import { useSettings } from '@/components/settings-provider';
 
 interface ServiceTypeChartProps {
-  data: {
-    type: string;
-    count: number;
-    fill: string;
-  }[];
+  orders: ServiceOrder[];
 }
 
-export function ServiceTypeChart({ data }: ServiceTypeChartProps) {
-  const chartConfig = React.useMemo(() => {
-    const config: ChartConfig = {
-      count: { label: 'Ordens de Serviço' },
-    };
-    if (data) {
-        data.forEach(item => {
-        config[item.type] = {
-            label: item.type,
-            color: item.fill,
-        };
-        });
-    }
-    return config;
-  }, [data]);
+const processDataForChart = (orders: ServiceOrder[], serviceTypes: { id: string; name: string; color?: string }[] = []) => {
+    const typeCounts: { [key: string]: number } = {};
+
+    orders.forEach(order => {
+        if (order.serviceType) {
+            typeCounts[order.serviceType] = (typeCounts[order.serviceType] || 0) + 1;
+        }
+    });
+
+    const typeColorMap = new Map(serviceTypes.map(st => [st.name, st.color]));
+    
+    // Default colors for variety
+    const defaultColors = [
+        'hsl(210, 70%, 60%)', 'hsl(142, 69%, 51%)', 'hsl(48, 96%, 58%)',
+        'hsl(262, 80%, 70%)', 'hsl(340, 82%, 58%)', 'hsl(24, 90%, 55%)'
+    ];
+
+    return Object.entries(typeCounts)
+        .map(([name, value], index) => ({
+            name,
+            value,
+            fill: typeColorMap.get(name) ? `hsl(${typeColorMap.get(name)})` : defaultColors[index % defaultColors.length]
+        }))
+        .filter(item => item.value > 0)
+        .sort((a, b) => b.value - a.value);
+};
+
+export function ServiceTypeChart({ orders }: ServiceTypeChartProps) {
+  const { settings } = useSettings();
+  const chartData = useMemo(() => processDataForChart(orders, settings?.serviceTypes), [orders, settings?.serviceTypes]);
+
+  if (chartData.length === 0) {
+      return <div className="text-center text-muted-foreground mt-4">Nenhum tipo de serviço para exibir.</div>;
+  }
 
   return (
-    <Card className="flex flex-col h-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><SlidersHorizontal /> Serviços por Tipo</CardTitle>
-        <CardDescription>Distribuição dos tipos de serviço mais comuns.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="mx-auto aspect-square max-h-[250px]"
-        >
-          <PieChart>
+    <ResponsiveContainer width="100%" height={300}>
+        <PieChart>
             <Tooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel nameKey="type" />}
+                formatter={(value) => [`${value} ordens`, 'Quantidade']}
             />
+            <Legend />
             <Pie
-              data={data}
-              dataKey="count"
-              nameKey="type"
-              innerRadius={60}
-              strokeWidth={5}
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+                nameKey="name"
             >
-              {data.map((entry) => (
-                <Cell key={`cell-${entry.type}`} fill={entry.fill} />
-              ))}
+                {chartData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
             </Pie>
-            <ChartLegend
-              content={<ChartLegendContent nameKey="type" />}
-              className="-mt-4"
-            />
-          </PieChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+        </PieChart>
+    </ResponsiveContainer>
   );
 }
 
