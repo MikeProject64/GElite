@@ -21,7 +21,7 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export const SettingsProvider = ({ children }: { children: ReactNode }) => {
-    const { user, systemUser } = useAuth();
+    const { user, systemUser, activeAccountId } = useAuth();
     
     const [globalSettings, setGlobalSettings] = useState<UserSettings>(defaultSettings);
     const [userSettings, setUserSettings] = useState<Partial<UserSettings>>({});
@@ -61,18 +61,16 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
     }, []);
     
     useEffect(() => {
-        if (!user) {
+        if (!activeAccountId) {
             setUserSettings({});
             setLoadingUserSettings(false);
             return;
         }
 
         setLoadingUserSettings(true);
-        // CORREÇÃO: Aponta para a coleção raiz 'userSettings' com o ID do usuário
-        const userSettingsRef = doc(db, 'userSettings', user.uid);
+        const userSettingsRef = doc(db, 'userSettings', activeAccountId);
 
         const unsubscribe = onSnapshot(userSettingsRef, (docSnap) => {
-            // A lógica aqui dentro permanece a mesma, pois já espera um documento.
             const newUserSettings = docSnap.exists() ? docSnap.data() : {};
             setUserSettings(newUserSettings);
             setLoadingUserSettings(false);
@@ -83,7 +81,7 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
         });
 
         return () => unsubscribe();
-    }, [user]);
+    }, [activeAccountId]);
 
     useEffect(() => {
         if (!systemUser?.planId) {
@@ -157,21 +155,19 @@ export const SettingsProvider = ({ children }: { children: ReactNode }) => {
 
 
     const updateSettings = useCallback(async (newSettings: Partial<UserSettings>) => {
-        if (!user) throw new Error("User not authenticated to update settings.");
+        if (!activeAccountId) throw new Error("User not authenticated to update settings.");
         
         const updatedSettings = { ...userSettings, ...newSettings };
         setUserSettings(updatedSettings);
 
-        // CORREÇÃO: Aponta para a coleção raiz 'userSettings' com o ID do usuário
-        const settingsRef = doc(db, 'userSettings', user.uid);
+        const settingsRef = doc(db, 'userSettings', activeAccountId);
         try {
-            // A escrita usa set com merge para criar o doc se não existir, ou atualizar se existir.
             await setDoc(settingsRef, newSettings, { merge: true });
         } catch(error) { 
             console.error("Failed to update user settings in Firestore", error);
             setUserSettings(userSettings);
         }
-    }, [user, userSettings]);
+    }, [activeAccountId, userSettings]);
 
     const loadingSettings = loadingGlobal || loadingPlan || loadingUserSettings;
     const value = { settings: mergedSettings, updateSettings, loading: loadingSettings };

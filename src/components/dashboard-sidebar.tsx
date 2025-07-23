@@ -38,14 +38,14 @@ import {
   MessageSquare,
   ChevronDown,
 } from 'lucide-react';
-import { useAuth } from './auth-provider';
+import { useAuth, AppFunction } from './auth-provider'; // Importa AppFunction do provider
 import { useTheme } from 'next-themes';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, query, collection, where, limit } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { icons } from 'lucide-react';
 import { useSettings } from '@/components/settings-provider';
@@ -58,12 +58,15 @@ const ICON_SIZE = 'h-5 w-5'; // Aumentado de h-4 w-4
 // Mapeia nomes de ícones (string) para componentes React
 const IconMap = icons;
 
+/*
+// REMOVIDO: AppFunction agora é importado do auth-provider
 type AppFunction = {
   id: string;
   name: string;
   href: string;
   isActive: boolean;
 };
+*/
 
 type NavMenuItem = {
   label: string;
@@ -216,7 +219,7 @@ const NavActionButton: React.FC<{
 function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolean, onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { systemUser, loading: authLoading } = useAuth();
+  const { systemUser, loading: authLoading, userPlan, availableFunctions } = useAuth();
   const { setTheme } = useTheme();
   const { settings } = useSettings();
   const iconKey = (settings.iconName && settings.iconName in availableIcons) ? settings.iconName : 'Wrench';
@@ -224,18 +227,14 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   const [navMenu, setNavMenu] = useState<any[]>([]);
   const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
   const [footerNavMenu, setFooterNavMenu] = useState<NavMenuItem[]>([]);
-  const [allowedFunctions, setAllowedFunctions] = useState<string[]>([]);
-  const [availableFunctions, setAvailableFunctions] = useState<AppFunction[]>([]);
+  const [effectiveAllowedFunctions, setEffectiveAllowedFunctions] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) {
-      return; // Aguarda a autenticação terminar
-    }
-    if (!systemUser || !systemUser.planId) {
-      setIsLoading(false);
-      // Opcional: Redirecionar se não houver plano, ou mostrar menu limitado
-      return;
+    if (authLoading) return; // Aguarda a autenticação e o carregamento dos dados base
+    if (!systemUser) {
+        setIsLoading(false);
+        return;
     }
 
     const unsubscribes: (() => void)[] = [];
@@ -248,22 +247,35 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         setNavMenu(data.navMenu || []);
         setSystemNavItems(data.systemNavItems || []);
         setFooterNavMenu(data.footerNavMenu || []);
-        setAvailableFunctions(data.availableFunctions || []);
       }
     }));
 
-    // 2. Carregar o plano do usuário para saber as funções permitidas
-    const planRef = doc(db, 'plans', systemUser.planId);
-    unsubscribes.push(onSnapshot(planRef, (docSnap) => {
-        if (docSnap.exists()) {
-            const planData = docSnap.data();
-            setAllowedFunctions(planData.allowedFunctions || []);
-        }
-        setIsLoading(false); // Termina o loading aqui
-    }));
+    // 2. Determinar as funções permitidas
+    // Se for membro da equipe, busca as permissões do seu próprio documento de colaborador
+    if (systemUser.role === 'team_member' && systemUser.mainAccountId) {
+        // A lógica de encontrar o 'collaboratorId' correto pode variar.
+        // A forma mais robusta é buscar na coleção 'collaborators' pelo teamMemberUid.
+        const collaboratorsQuery = query(collection(db, 'collaborators'), where('teamMemberUid', '==', systemUser.uid), limit(1));
+        
+        unsubscribes.push(onSnapshot(collaboratorsQuery, (snapshot) => {
+            if (!snapshot.empty) {
+                const collaboratorDoc = snapshot.docs[0];
+                const collaboratorData = collaboratorDoc.data();
+                setEffectiveAllowedFunctions(collaboratorData.allowedFunctions || []);
+            } else {
+                 setEffectiveAllowedFunctions([]); // Nenhuma permissão se não encontrar o colaborador
+            }
+             setIsLoading(false);
+        }));
+
+    } else {
+        // Se for o dono (ou admin), usa as permissões do plano
+        setEffectiveAllowedFunctions(userPlan?.allowedFunctions || []);
+        setIsLoading(false);
+    }
 
     return () => unsubscribes.forEach(unsub => unsub());
-  }, [systemUser, authLoading]);
+  }, [systemUser, authLoading, userPlan]);
 
 
   const handleLogout = async () => {
@@ -297,13 +309,13 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         if (isGroup) {
           return item.subItems!.some(subItem => {
             if (subItem.enabled === false || !subItem.functionId) return false;
-            return allowedFunctions.includes(subItem.functionId);
+            return effectiveAllowedFunctions.includes(subItem.functionId);
           });
         }
         
         // Regra 3: Se for um item individual, verifica se ele tem uma função e se essa função é permitida
         if (item.functionId) {
-          return allowedFunctions.includes(item.functionId);
+          return effectiveAllowedFunctions.includes(item.functionId);
         }
         
         // Regra 4: Itens sem functionId (ex: links estáticos que podem existir no futuro) são permitidos por padrão
@@ -317,7 +329,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
         if (isGroup) {
           // Filtra sub-itens que não são permitidos ou estão desabilitados antes de passar para o CollapsibleNavItem
           const visibleSubItems = item.subItems!.filter(subItem => 
-            subItem.enabled !== false && subItem.functionId && allowedFunctions.includes(subItem.functionId)
+            subItem.enabled !== false && subItem.functionId && effectiveAllowedFunctions.includes(subItem.functionId)
           );
           
           if (visibleSubItems.length === 0) return null; // Segurança extra, embora o filtro pai já deva ter cuidado disso
@@ -347,7 +359,7 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
 
         return null;
       });
-  }, [isCollapsed, pathname, onLinkClick, allowedFunctions, availableFunctions]);
+  }, [isCollapsed, pathname, onLinkClick, effectiveAllowedFunctions, availableFunctions]);
 
   if (isLoading || authLoading) {
     // Pode adicionar um skeleton loader aqui se desejar

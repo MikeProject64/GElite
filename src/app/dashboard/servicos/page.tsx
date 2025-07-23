@@ -36,7 +36,7 @@ const priorityMap: Record<ServiceOrderPriority, { label: string; icon: React.FC<
 const priorityOrder: Record<ServiceOrderPriority, number> = { alta: 3, media: 2, baixa: 1 };
 
 export default function ServicosPage() {
-  const { user } = useAuth();
+  const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const { settings } = useSettings();
@@ -66,12 +66,12 @@ export default function ServicosPage() {
   };
 
   useEffect(() => {
-    if (!user) return;
+    if (!activeAccountId) return;
     setIsLoading(true);
 
     const q = query(
         collection(db, 'serviceOrders'),
-        where('userId', '==', user.uid)
+        where('userId', '==', activeAccountId)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -92,27 +92,27 @@ export default function ServicosPage() {
     });
 
     return () => unsubscribe();
-  }, [user, toast]);
+  }, [activeAccountId, toast]);
 
   // Fetch clients
   useEffect(() => {
-    if (!user) return;
-    const clientsQuery = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('name'));
+    if (!activeAccountId) return;
+    const clientsQuery = query(collection(db, 'customers'), where('userId', '==', activeAccountId), orderBy('name'));
     const unsubscribe = onSnapshot(clientsQuery, snapshot => {
         setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
     });
     return unsubscribe;
-  }, [user]);
+  }, [activeAccountId]);
 
   // Fetch collaborators
   useEffect(() => {
-      if (!user) return;
-      const collaboratorsQuery = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+      if (!activeAccountId) return;
+      const collaboratorsQuery = query(collection(db, 'collaborators'), where('userId', '==', activeAccountId), orderBy('name', 'asc'));
       const unsubscribe = onSnapshot(collaboratorsQuery, snapshot => {
           setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
       });
       return unsubscribe;
-  }, [user]);
+  }, [activeAccountId]);
 
 
   const handleBulkStatusChange = async (newStatus: string) => {

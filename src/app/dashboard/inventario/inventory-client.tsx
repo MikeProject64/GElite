@@ -42,7 +42,7 @@ const formatCurrency = (value: number) => {
 };
 
 export function InventoryClient() {
-  const { user } = useAuth();
+  const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -59,9 +59,9 @@ export function InventoryClient() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!activeAccountId) return;
     setIsLoading(true);
-    const q = query(collection(db, 'inventory'), where('userId', '==', user.uid), orderBy('name', 'asc'));
+    const q = query(collection(db, 'inventory'), where('userId', '==', activeAccountId), orderBy('name', 'asc'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const itemList = querySnapshot.docs.map(doc => ({
@@ -81,7 +81,7 @@ export function InventoryClient() {
     });
 
     return () => unsubscribe();
-  }, [user, toast]);
+  }, [activeAccountId, toast]);
   
   useEffect(() => {
     if (isDialogOpen) {
@@ -121,7 +121,7 @@ export function InventoryClient() {
   };
 
   const onSubmit = async (data: ItemFormValues) => {
-    if (!user) {
+    if (!activeAccountId) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
         return;
     }
@@ -134,7 +134,7 @@ export function InventoryClient() {
         initialQuantity: data.quantity,
         cost: data.cost,
         minStock: data.minStock || 0,
-        userId: user.uid,
+        userId: activeAccountId,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
         photoURL: '',
@@ -144,7 +144,7 @@ export function InventoryClient() {
       if (data.quantity > 0) {
           await addDoc(collection(db, 'inventoryMovements'), {
               itemId: itemRef.id,
-              userId: user.uid,
+              userId: activeAccountId,
               type: 'entrada',
               quantity: data.quantity,
               notes: 'Estoque inicial',

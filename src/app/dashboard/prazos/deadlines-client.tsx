@@ -116,7 +116,7 @@ const priorityMap: Record<ServiceOrderPriority, { label: string; icon: React.FC<
 };
 
 export function DeadlinesClient() {
-    const { user } = useAuth();
+    const { user, activeAccountId } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -143,12 +143,12 @@ export function DeadlinesClient() {
     }, [isMobile]);
 
     useEffect(() => {
-        if (!user) return;
+        if (!activeAccountId) return;
         setIsLoading(true);
         
         const q = query(
             collection(db, "serviceOrders"), 
-            where("userId", "==", user.uid)
+            where("userId", "==", activeAccountId)
         );
 
         const unsubscribe = onSnapshot(q, (querySnapshot) => {
@@ -169,7 +169,7 @@ export function DeadlinesClient() {
         });
 
         return () => unsubscribe();
-    }, [user, toast]);
+    }, [activeAccountId, toast]);
 
     const overdueCount = useMemo(() => {
         if (isLoading) return 0;

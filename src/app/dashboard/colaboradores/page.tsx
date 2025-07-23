@@ -35,7 +35,7 @@ const collaboratorFormSchema = z.object({
 type CollaboratorFormValues = z.infer<typeof collaboratorFormSchema>;
 
 export default function ColaboradoresPage() {
-  const { user } = useAuth();
+  const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
   const { settings } = useSettings();
   const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
@@ -54,16 +54,16 @@ export default function ColaboradoresPage() {
   });
 
   useEffect(() => {
-    if (!user) return;
+    if (!activeAccountId) return;
     setIsLoading(true);
 
-    const qCollab = query(collection(db, 'collaborators'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const qCollab = query(collection(db, 'collaborators'), where('userId', '==', activeAccountId), orderBy('createdAt', 'desc'));
     const unsubCollab = onSnapshot(qCollab, (snapshot) => {
       setCollaborators(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator)));
     });
 
     const activeStatuses = settings.serviceStatuses?.filter(s => s.name !== 'Concluída' && s.name !== 'Cancelada').map(s => s.name) || ['Pendente', 'Em Andamento'];
-    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid), where('status', 'in', activeStatuses.length > 0 ? activeStatuses : ['non-existent-status']));
+    const qOrders = query(collection(db, 'serviceOrders'), where('userId', '==', activeAccountId), where('status', 'in', activeStatuses.length > 0 ? activeStatuses : ['non-existent-status']));
     const unsubOrders = onSnapshot(qOrders, (snapshot) => {
       setServiceOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
     });
@@ -77,7 +77,7 @@ export default function ColaboradoresPage() {
       unsubCollab();
       unsubOrders();
     };
-  }, [user, settings.serviceStatuses]);
+  }, [activeAccountId, settings.serviceStatuses]);
   
   const activeOrderCounts = useMemo(() => {
     const counts: { [key: string]: number } = {};
@@ -137,7 +137,7 @@ export default function ColaboradoresPage() {
   };
 
   const onSubmit = async (data: CollaboratorFormValues) => {
-    if (!user) {
+    if (!user || !activeAccountId) {
         toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
         return;
     }
@@ -151,7 +151,7 @@ export default function ColaboradoresPage() {
       } else {
         await addDoc(collection(db, 'collaborators'), {
           ...payload,
-          userId: user.uid,
+          userId: activeAccountId,
           createdAt: Timestamp.now(),
         });
         toast({ title: "Sucesso!", description: "Colaborador adicionado." });

@@ -16,12 +16,17 @@ import { SettingsProvider, useSettings } from '@/components/settings-provider';
 
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
-  const { systemUser, isAdmin } = useAuth();
+  const { systemUser, isAdmin, isTeamMember } = useAuth();
   const { settings } = useSettings();
   const pathname = usePathname();
   const router = useRouter();
   
   useEffect(() => {
+     // Se for membro da equipe, não fazemos nenhuma verificação de plano/assinatura aqui.
+     if (isTeamMember) {
+       return;
+     }
+
      if (!isAdmin && systemUser) {
       const isOnTrial = systemUser.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
 
@@ -42,9 +47,10 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         }
       }
     }
-  }, [systemUser, isAdmin, router, pathname]);
+  }, [systemUser, isAdmin, isTeamMember, router, pathname]);
 
-  if (!isAdmin && systemUser) {
+  // A tela de "Verificando assinatura..." também precisa ignorar os membros da equipe.
+  if (!isAdmin && !isTeamMember && systemUser) {
     const isOnTrial = systemUser.subscriptionStatus === 'trialing' && systemUser.trialEndsAt && systemUser.trialEndsAt.toDate() > new Date();
     const hasActivePlan = systemUser.planId && systemUser.subscriptionStatus === 'active';
     const isSubscriptionPage = pathname === '/dashboard/plans';

@@ -46,9 +46,18 @@ service cloud.firestore {
     // --- User-Owned Data (The pattern for most collections) ---
     // A user can CRUD their own documents, and admins can CRUD any document.
     // Listing requires authentication, security is enforced by queries + read rules.
+
     match /customers/{docId} {
       allow create: if isOwner(request.resource.data.userId);
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow list: if isAuthenticated();
+    }
+    match /collaborators/{docId} {
+      // Allow create if the user is the owner
+      allow create: if isOwner(request.resource.data.userId);
+      // Allow read, update, delete for the owner or an admin
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      // Allow list for any authenticated user (queries will filter by userId)
       allow list: if isAuthenticated();
     }
     match /serviceOrders/{docId} {
@@ -60,11 +69,6 @@ service cloud.firestore {
       allow list: if isAuthenticated();
     }
     match /quotes/{docId} {
-      allow create: if isOwner(request.resource.data.userId);
-      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
-      allow list: if isAuthenticated();
-    }
-    match /collaborators/{docId} {
       allow create: if isOwner(request.resource.data.userId);
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow list: if isAuthenticated();

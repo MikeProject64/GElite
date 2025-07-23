@@ -4,7 +4,7 @@
 
 import { useAuth } from '@/components/auth-provider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Wrench, Users, FileText, CalendarClock, Briefcase, Package, FileSignature, Activity, Layout, BellRing, Search, Settings } from 'lucide-react';
+import { Wrench, Users, FileText, CalendarClock, Briefcase, Package, FileSignature, Activity, Layout, BellRing, Search, Settings, Lock } from 'lucide-react';
 import { collection, query, where, getDocs, Timestamp, onSnapshot, addDoc, deleteDoc, orderBy, limit, doc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
@@ -36,6 +36,30 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } 
 import { NotificationsPanel } from '@/components/dashboard/notifications-panel';
 
 
+function WaitingForPermissions() {
+  return (
+    <div className="flex items-center justify-center h-full">
+        <Card className="w-full max-w-lg text-center">
+            <CardHeader>
+                <div className="mx-auto bg-primary/10 p-4 rounded-full w-fit mb-4">
+                    <Lock className="h-10 w-10 text-primary" />
+                </div>
+                <CardTitle className="text-2xl">Aguardando Permissões</CardTitle>
+                <CardDescription>
+                    Sua conta está ativa, mas você ainda não tem permissão para acessar nenhuma área.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <p className="text-muted-foreground">
+                    Por favor, peça ao administrador ou dono da sua conta para ir em <span className="font-semibold text-foreground">"Acessos da Equipe"</span> e atribuir as permissões necessárias para você começar a trabalhar.
+                </p>
+            </CardContent>
+        </Card>
+    </div>
+  );
+}
+
+
 // --- ESTRUTURA DE DADOS E MAPEAMENTO DE COMPONENTES ---
 
 interface SearchResult {
@@ -46,7 +70,18 @@ interface SearchResult {
   href: string;
 }
 
-const panelComponents: Record<string, React.FC<{ user: SystemUser | null }>> = {
+const SearchResult: React.FC<SearchResult> = ({ type, title, description, href }) => (
+  <Link href={href} className="block p-3 hover:bg-muted/50 rounded-lg">
+    <div className="flex justify-between items-center">
+      <p className="font-semibold">{title}</p>
+      <Badge variant="outline">{type}</Badge>
+    </div>
+    <p className="text-sm text-muted-foreground">{description}</p>
+  </Link>
+);
+
+
+const panelComponents: Record<string, React.FC<{ accountId: string | null }>> = {
   servicos: ServicosPanel,
   orcamentos: OrcamentosPanel,
   prazos: PrazosPanel,
@@ -126,17 +161,17 @@ const STATUS_COLORS = {
   'Aguardando Peças': '#FB923C', // laranja
 };
 
-function useServiceOrdersData(user: SystemUser | null) {
+function useServiceOrdersData(accountId: string | null) {
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const q = query(collection(db, 'serviceOrders'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'serviceOrders'), where('userId', '==', accountId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setOrders(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceOrder)));
       setLoading(false);
@@ -145,7 +180,7 @@ function useServiceOrdersData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   // Métricas
   const now = new Date();
@@ -178,17 +213,17 @@ function useServiceOrdersData(user: SystemUser | null) {
   };
 }
 
-function useCustomersData(user: SystemUser | null) {
+function useCustomersData(accountId: string | null) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const q = query(collection(db, 'customers'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'customers'), where('userId', '==', accountId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setCustomers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
       setLoading(false);
@@ -197,7 +232,7 @@ function useCustomersData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   // Métricas
   const thirtyDaysAgo = subMonths(new Date(), 1);
@@ -211,17 +246,17 @@ function useCustomersData(user: SystemUser | null) {
   };
 }
 
-function useQuotesData(user: SystemUser | null) {
+function useQuotesData(accountId: string | null) {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const q = query(collection(db, 'quotes'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'quotes'), where('userId', '==', accountId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setQuotes(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quote)));
       setLoading(false);
@@ -230,7 +265,7 @@ function useQuotesData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   // Métricas
   const thirtyDaysAgo = subMonths(new Date(), 1);
@@ -256,12 +291,12 @@ function useQuotesData(user: SystemUser | null) {
   };
 }
 
-function useDeadlinesData(user: SystemUser | null) {
+function useDeadlinesData(accountId: string | null) {
   const [deadlines, setDeadlines] = useState<ServiceOrder[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
@@ -270,7 +305,7 @@ function useDeadlinesData(user: SystemUser | null) {
     // e filtrar no lado do cliente, assim como a página principal de Prazos faz.
     const q = query(
       collection(db, 'serviceOrders'), 
-      where('userId', '==', user.uid),
+      where('userId', '==', accountId),
       orderBy('dueDate', 'asc')
     );
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -284,10 +319,14 @@ function useDeadlinesData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   const sortedDeadlines = deadlines
-    .sort((a, b) => a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime());
+    .sort((a, b) => {
+      if (!a.dueDate) return 1;
+      if (!b.dueDate) return -1;
+      return a.dueDate.toDate().getTime() - b.dueDate.toDate().getTime()
+    });
 
   return {
     loading,
@@ -307,12 +346,12 @@ interface ActivityLogEntry {
   details?: any;
 }
 
-function useRecentActivitiesData(user: SystemUser | null) {
+function useRecentActivitiesData(accountId: string | null) {
   const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
@@ -324,7 +363,7 @@ function useRecentActivitiesData(user: SystemUser | null) {
         let allLogs: ActivityLogEntry[] = [];
 
         for (const collectionName of collectionsToQuery) {
-          const q = query(collection(db, collectionName), where('userId', '==', user.uid));
+          const q = query(collection(db, collectionName), where('userId', '==', accountId));
           const querySnapshot = await getDocs(q);
           querySnapshot.forEach(doc => {
             const data = doc.data();
@@ -354,7 +393,7 @@ function useRecentActivitiesData(user: SystemUser | null) {
     };
 
     fetchActivities();
-  }, [user]);
+  }, [accountId]);
 
   return {
     loading,
@@ -362,12 +401,12 @@ function useRecentActivitiesData(user: SystemUser | null) {
   };
 }
 
-function useCollaboratorsData(user: SystemUser | null) {
+function useCollaboratorsData(accountId: string | null) {
   const [collaboratorsWithTasks, setCollaboratorsWithTasks] = useState<Collaborator[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
@@ -376,14 +415,14 @@ function useCollaboratorsData(user: SystemUser | null) {
       setLoading(true);
       try {
         // 1. Buscar todos os colaboradores
-        const collaboratorsQuery = query(collection(db, 'collaborators'), where('userId', '==', user.uid));
+        const collaboratorsQuery = query(collection(db, 'collaborators'), where('userId', '==', accountId));
         const collaboratorsSnapshot = await getDocs(collaboratorsQuery);
         const collaborators = collaboratorsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Collaborator));
 
         // 2. Buscar todas as tarefas ativas
         const tasksQuery = query(
           collection(db, 'serviceOrders'), 
-          where('userId', '==', user.uid),
+          where('userId', '==', accountId),
           where('status', 'in', ['Pendente', 'Em Andamento', 'Aguardando Peças'])
         );
         const tasksSnapshot = await getDocs(tasksQuery);
@@ -404,7 +443,7 @@ function useCollaboratorsData(user: SystemUser | null) {
     };
 
     fetchCollaboratorData();
-  }, [user]);
+  }, [accountId]);
 
   return {
     loading,
@@ -412,17 +451,17 @@ function useCollaboratorsData(user: SystemUser | null) {
   };
 }
 
-function useInventoryData(user: SystemUser | null) {
+function useInventoryData(accountId: string | null) {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const q = query(collection(db, 'inventory'), where('userId', '==', user.uid));
+    const q = query(collection(db, 'inventory'), where('userId', '==', accountId));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setItems(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryItem)));
       setLoading(false);
@@ -431,7 +470,7 @@ function useInventoryData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   // Métricas
   const ninetyDaysAgo = subDays(new Date(), 90);
@@ -447,17 +486,17 @@ function useInventoryData(user: SystemUser | null) {
   };
 }
 
-function useAgreementsData(user: SystemUser | null) {
+function useAgreementsData(accountId: string | null) {
   const [agreements, setAgreements] = useState<ServiceAgreement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) {
+    if (!accountId) {
       setLoading(false);
       return;
     }
     setLoading(true);
-    const q = query(collection(db, 'serviceAgreements'), where('userId', '==', user.uid), where('status', '==', 'active'));
+    const q = query(collection(db, 'serviceAgreements'), where('userId', '==', accountId), where('status', '==', 'active'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setAgreements(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ServiceAgreement)));
       setLoading(false);
@@ -466,7 +505,7 @@ function useAgreementsData(user: SystemUser | null) {
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [accountId]);
 
   // Métricas
   const now = new Date();
@@ -486,7 +525,7 @@ function useAgreementsData(user: SystemUser | null) {
 
 // --- COMPONENTES DOS PAINÉIS (WIDGETS) ---
 
-function ServicosPanel({ user }: { user: SystemUser | null }) {
+function ServicosPanel({ accountId }: { accountId: string | null }) {
   const {
     loading,
     emAndamento,
@@ -496,7 +535,7 @@ function ServicosPanel({ user }: { user: SystemUser | null }) {
     aguardandoPecas,
     chartData,
     total,
-  } = useServiceOrdersData(user);
+  } = useServiceOrdersData(accountId);
 
   const MetricRow = ({ label, value, status }: { label: string; value: number; status: string }) => (
     <Link href={`/dashboard/servicos?status=${encodeURIComponent(status)}`} className="flex items-center justify-between group py-1">
@@ -573,8 +612,8 @@ function ServicosPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function OrcamentosPanel({ user }: { user: SystemUser | null }) {
-  const { loading, aguardandoAprovacaoCount, aprovadosNoMesCount, totalAguardandoAprovacao, approvalRate } = useQuotesData(user);
+function OrcamentosPanel({ accountId }: { accountId: string | null }) {
+  const { loading, aguardandoAprovacaoCount, aprovadosNoMesCount, totalAguardandoAprovacao, approvalRate } = useQuotesData(accountId);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -628,10 +667,11 @@ function OrcamentosPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function PrazosPanel({ user }: { user: SystemUser | null }) {
-  const { loading, sortedDeadlines } = useDeadlinesData(user);
+function PrazosPanel({ accountId }: { accountId: string | null }) {
+  const { loading, sortedDeadlines } = useDeadlinesData(accountId);
 
   const DeadlineItem = ({ deadline }: { deadline: ServiceOrder }) => {
+    if (!deadline.dueDate) return null; // Adiciona verificação
     const dueDate = deadline.dueDate.toDate();
     const isOverdue = isPast(dueDate) && !isToday(dueDate);
     const isDueToday = isToday(dueDate);
@@ -691,8 +731,8 @@ function PrazosPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function AtividadesPanel({ user }: { user: SystemUser | null }) {
-  const { loading, activities } = useRecentActivitiesData(user);
+function AtividadesPanel({ accountId }: { accountId: string | null }) {
+  const { loading, activities } = useRecentActivitiesData(accountId);
 
   return (
     <Card className="h-[350px] flex flex-col">
@@ -738,8 +778,8 @@ function AtividadesPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function ClientesPanel({ user }: { user: SystemUser | null }) {
-  const { loading, newCustomersLast30Days, totalCustomers } = useCustomersData(user);
+function ClientesPanel({ accountId }: { accountId: string | null }) {
+  const { loading, newCustomersLast30Days, totalCustomers } = useCustomersData(accountId);
 
   return (
     <Card className="h-[350px] flex flex-col">
@@ -780,8 +820,8 @@ function ClientesPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function ColaboradoresPanel({ user }: { user: SystemUser | null }) {
-  const { loading, collaborators } = useCollaboratorsData(user);
+function ColaboradoresPanel({ accountId }: { accountId: string | null }) {
+  const { loading, collaborators } = useCollaboratorsData(accountId);
 
   return (
     <Card className="h-[350px] flex flex-col">
@@ -824,8 +864,8 @@ function ColaboradoresPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function InventarioPanel({ user }: { user: SystemUser | null }) {
-  const { loading, lowStockItemsCount, totalStockValue, staleItemsCount } = useInventoryData(user);
+function InventarioPanel({ accountId }: { accountId: string | null }) {
+  const { loading, lowStockItemsCount, totalStockValue, staleItemsCount } = useInventoryData(accountId);
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -871,8 +911,8 @@ function InventarioPanel({ user }: { user: SystemUser | null }) {
   );
 }
 
-function ContratosPanel({ user }: { user: SystemUser | null }) {
-  const { loading, expiringSoonCount } = useAgreementsData(user);
+function ContratosPanel({ accountId }: { accountId: string | null }) {
+  const { loading, expiringSoonCount } = useAgreementsData(accountId);
 
   return (
     <Card className="h-[350px] flex flex-col">
@@ -908,10 +948,36 @@ function ContratosPanel({ user }: { user: SystemUser | null }) {
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 
 export default function DashboardPage() {
-  const { user, systemUser } = useAuth();
+  const { user, systemUser, activeAccountId, isTeamMember } = useAuth();
   const { settings } = useSettings();
   const [isMounted, setIsMounted] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>({});
+  const [memberPermissions, setMemberPermissions] = useState<string[] | null>(null);
+  const [permissionsLoading, setPermissionsLoading] = useState(true);
+
+  // Efeito para buscar as permissões APENAS se for um membro da equipe
+  useEffect(() => {
+    if (isTeamMember && systemUser?.uid) {
+      const collaboratorsQuery = query(
+        collection(db, 'collaborators'),
+        where('teamMemberUid', '==', systemUser.uid),
+        limit(1)
+      );
+
+      const unsubscribe = onSnapshot(collaboratorsQuery, (snapshot) => {
+        if (!snapshot.empty) {
+          const collaboratorData = snapshot.docs[0].data();
+          setMemberPermissions(collaboratorData.allowedFunctions || []);
+        } else {
+          setMemberPermissions([]);
+        }
+        setPermissionsLoading(false);
+      });
+      return () => unsubscribe();
+    } else {
+      setPermissionsLoading(false);
+    }
+  }, [isTeamMember, systemUser?.uid]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -940,12 +1006,17 @@ export default function DashboardPage() {
     settings.featureFlags[panel.key as keyof typeof settings.featureFlags]
   ), [settings.featureFlags]);
 
-  if (!isMounted) {
+  if (!isMounted || (isTeamMember && permissionsLoading)) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[350px]" />)}
       </div>
     );
+  }
+
+  // Se for membro da equipe e não tiver nenhuma permissão, mostra a tela de espera.
+  if (isTeamMember && memberPermissions?.length === 0) {
+    return <WaitingForPermissions />;
   }
 
   return (
@@ -988,10 +1059,15 @@ export default function DashboardPage() {
         {enabledPanels.map(panel => {
           if (visiblePanels[panel.key] === false) return null;
 
+          // Adicionado: Oculta o painel de atividades para membros da equipe para evitar erros de permissão.
+          if (panel.key === 'atividades' && systemUser?.role === 'team_member') {
+            return null;
+          }
+
           const PanelComponent = panelComponents[panel.key];
 
           if (PanelComponent) {
-            return <PanelComponent key={panel.key} user={systemUser} />;
+            return <PanelComponent key={panel.key} accountId={activeAccountId} />;
           }
 
           // Renderiza o card genérico para painéis ainda não implementados
@@ -1114,7 +1190,8 @@ function SettingsDialog({ enabledPanels, setEnabledPanels }: { enabledPanels: st
 }
 
 function RecentActivities() {
-  const { loading, activities } = useRecentActivitiesData(null); // Pass null for user
+  const { activeAccountId } = useAuth();
+  const { loading, activities } = useRecentActivitiesData(activeAccountId);
 
   return (
     <Card className="h-[350px] flex flex-col">
@@ -1161,16 +1238,18 @@ function RecentActivities() {
 }
 
 function QuickNotes() {
+  const { activeAccountId } = useAuth();
   const [notes, setNotes] = useState<QuickNote[]>([]);
   const [loading, setLoading] = useState(true);
   const [newNote, setNewNote] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!activeAccountId) return;
     const fetchNotes = async () => {
       setLoading(true);
       try {
-        const q = query(collection(db, 'quickNotes'), where('userId', '==', user?.uid));
+        const q = query(collection(db, 'quickNotes'), where('userId', '==', activeAccountId));
         const querySnapshot = await getDocs(q);
         setNotes(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as QuickNote)));
       } catch (err) {
@@ -1181,13 +1260,13 @@ function QuickNotes() {
     };
 
     fetchNotes();
-  }, [user]);
+  }, [activeAccountId]);
 
   const handleAddNote = async () => {
-    if (!newNote.trim() || !user) return;
+    if (!newNote.trim() || !activeAccountId) return;
     try {
       await addDoc(collection(db, 'quickNotes'), {
-        userId: user.uid,
+        userId: activeAccountId,
         text: newNote,
         createdAt: Timestamp.now(),
       });

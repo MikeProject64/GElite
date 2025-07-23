@@ -23,10 +23,10 @@ import Image from 'next/image';
 
 const perfilSchema = z.object({
   name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
-  companyName: z.string().min(2, { message: 'O nome da empresa é obrigatório.' }),
-  phone: z.string().refine(val => val.replace(/\D/g, '').length >= 10, { message: 'Telefone inválido.' }),
-  cpfCnpj: z.string().optional(),
-  endereco: z.string().optional(),
+  companyName: z.string().optional(),
+  phone: z.string().min(10, { message: 'O telefone deve ter pelo menos 10 dígitos.' }).refine(val => val.replace(/\D/g, '').length >= 10, { message: 'Telefone inválido.' }),
+  cpfCnpj: z.string().min(11, { message: 'O CPF/CNPJ deve ter pelo menos 11 dígitos.' }),
+  endereco: z.string().min(5, { message: 'O endereço deve ter pelo menos 5 caracteres.' }),
 });
 
 type PerfilFormValues = z.infer<typeof perfilSchema>;
@@ -65,8 +65,8 @@ export default function PerfilPage() {
         name: systemUser.name || '',
         companyName: systemUser.companyName || '',
         phone: systemUser.phone || '',
-        cpfCnpj: '',
-        endereco: '',
+        cpfCnpj: systemUser.cpfCnpj || '',
+        endereco: systemUser.endereco || '',
       });
     }
   }, [systemUser, form]);
@@ -185,8 +185,10 @@ export default function PerfilPage() {
         name: values.name,
         companyName: values.companyName,
         phone: values.phone,
+        cpfCnpj: values.cpfCnpj,
+        endereco: values.endereco,
       });
-      setSavedFields(['name', 'companyName', 'phone']);
+      setSavedFields(['name', 'companyName', 'phone', 'cpfCnpj', 'endereco']);
       toast({ title: 'Perfil atualizado', description: 'Suas informações foram salvas com sucesso.' });
       setTimeout(() => setSavedFields([]), 1500);
     } catch (err: any) {
@@ -238,20 +240,10 @@ export default function PerfilPage() {
   }, [user?.emailVerified]);
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 relative">
-      {bloqueado && (
-        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-lg shadow-lg">
-          <div className="bg-white dark:bg-card rounded-xl shadow-xl p-8 flex flex-col items-center max-w-md w-full border border-gray-200 dark:border-gray-800">
-            <h2 className="text-xl font-bold mb-2 text-center text-primary">Ative seu e-mail para editar o perfil</h2>
-            <p className="mb-4 text-center text-gray-700 dark:text-gray-200">Você precisa ativar seu e-mail para alterar suas informações ou senha.</p>
-            <Button onClick={handleSendActivationEmail} disabled={sendingVerification} size="lg" className="w-full max-w-xs">
-              {sendingVerification ? 'Enviando...' : 'Reenviar e-mail de ativação'}
-            </Button>
-          </div>
-        </div>
-      )}
+    <div className="max-w-7xl mx-auto py-8 px-4">
       <h1 className="text-3xl font-bold mb-8">Meu Perfil</h1>
       <div className="grid md:grid-cols-2 gap-8 w-full h-full">
+        {/* Card de Informações do Perfil - SEMPRE VISÍVEL */}
         <div className="bg-white dark:bg-card rounded-lg shadow p-6 flex flex-col h-full w-full grow">
           <div className="absolute top-4 right-4">
             <DropdownMenu>
@@ -340,8 +332,21 @@ export default function PerfilPage() {
           </Form>
         </div>
 
-        {/* Card de Segurança da Conta */}
-        <div className="bg-white dark:bg-card rounded-lg shadow p-6">
+        {/* Card de Segurança da Conta - AQUI VAI O BLOQUEIO */}
+        <div className="bg-white dark:bg-card rounded-lg shadow p-6 relative">
+          {bloqueado && (
+            <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-white/80 dark:bg-black/80 backdrop-blur-sm rounded-lg">
+              <div className="text-center p-4">
+                <h2 className="text-xl font-bold mb-2 text-primary">Ative seu e-mail</h2>
+                <p className="mb-4 text-muted-foreground">
+                  Você precisa verificar seu e-mail para acessar as opções de segurança.
+                </p>
+                <Button onClick={handleSendActivationEmail} disabled={sendingVerification}>
+                  {sendingVerification ? 'Enviando...' : 'Reenviar e-mail de ativação'}
+                </Button>
+              </div>
+            </div>
+          )}
           <h2 className="text-xl font-semibold mb-6">Segurança da Conta</h2>
           <div className="space-y-6">
 

@@ -11,12 +11,23 @@ export type Client = {
   [key: string]: any;
 };
 
+// Este tipo representa o registro de um Colaborador ou Setor dentro da conta de um usuário.
+// É o que é gerenciado na tela /dashboard/colaboradores.
 export type Collaborator = {
   id: string;
+  userId: string; // ID do dono da conta
   name: string;
-  email: string;
-  role: 'admin' | 'collaborator';
-  companyId: string;
+  description?: string;
+  type: 'collaborator' | 'sector';
+  createdAt: Timestamp;
+  photoURL?: string;
+  // Novos campos para o sistema de convites
+  teamMemberUid?: string | null; // ID do SystemUser vinculado após o cadastro
+  accessStatus?: 'active' | 'paused'; // Novo campo para o status do acesso
+  allowedFunctions?: string[]; // Novo campo para as permissões do membro
+  inviteToken?: string | null;   // Token para o link de convite
+  inviteExpiresAt?: Timestamp | null; // Data de expiração do convite
+  activeTaskCount?: number; // Campo para contagem de tarefas no dashboard
 };
 
 export type CustomField = {
@@ -41,7 +52,22 @@ export interface ServiceType {
 
 export interface Quote {
   id: string;
-  // ... other fields
+  userId: string;
+  clientId: string;
+  clientName: string;
+  title: string;
+  description: string;
+  status: 'Pendente' | 'Aprovado' | 'Recusado' | 'Convertido';
+  totalValue: number;
+  createdAt: Timestamp;
+  validUntil: Timestamp;
+  isTemplate?: boolean;
+  templateName?: string;
+  version?: number;
+  originalQuoteId?: string;
+  convertedToServiceOrderId?: string;
+  customFields?: { [key: string]: any };
+  activityLog?: { timestamp: Timestamp; userEmail: string; description: string }[];
 }
 
 export interface Product {
@@ -55,6 +81,7 @@ export interface Product {
 export interface Customer {
   id: string;
   stripeCustomerId: string;
+  createdAt: Timestamp; // Adicionando este campo
   // ... other fields
 }
 
@@ -88,10 +115,12 @@ export type ServiceOrder = {
     problemDescription?: string;
     priority?: ServiceOrderPriority;
     dueDate?: Timestamp;
+    completedAt?: Timestamp | null; // Adicionando este campo
 };
 
 export interface ServiceAgreement {
   id: string;
+  nextDueDate?: Timestamp;
   // ... other fields
 }
 
@@ -102,6 +131,8 @@ export type InventoryItem = {
     description?: string;
     quantity: number;
     price?: number;
+    cost: number;
+    minStock?: number;
     createdAt: Timestamp;
     updatedAt: Timestamp;
 };
@@ -109,6 +140,25 @@ export type InventoryItem = {
 export interface InventoryMovement {
   id: string;
   // ... other fields
+}
+
+export type RecentActivity = {
+  id: string;
+  userId: string;
+  userEmail: string;
+  collectionName: string;
+  activityType: 'create' | 'update' | 'delete' | 'statusChange';
+  documentId: string;
+  timestamp: Timestamp;
+  description: string;
+  details?: any;
+}
+
+export type QuickNote = {
+  id: string;
+  userId: string;
+  text: string;
+  createdAt: Timestamp;
 }
 
 export type LandingPageImageSettings = {
@@ -156,6 +206,7 @@ export type Plan = {
   isTrial: boolean;
   allowedFunctions: string[];
   planItems: { value: string }[];
+  features?: Partial<FeatureFlags>; // Adicionando este campo
   stripeProductId?: string;
   stripeMonthlyPriceId?: string;
   stripeYearlyPriceId?: string;
@@ -169,10 +220,28 @@ export type SystemUser = {
     photoURL: string | null;
     companyId: string | null;
     companyName: string | null;
+    phone?: string | null;
+    cpfCnpj?: string | null;
+    endereco?: string | null;
     planId: string | null;
     subscriptionId: string | null;
-    subscriptionStatus: 'active' | 'canceled' | 'past_due' | 'unpaid' | null;
-    role: 'admin' | 'collaborator';
+    subscriptionStatus: 'active' | 'trialing' | 'canceled' | 'past_due' | 'unpaid' | null;
+    stripeCustomerId?: string | null; 
+    trialStartedAt?: Timestamp | null;
+    trialEndsAt?: Timestamp | null;
+
+    // Campos para o sistema de equipes
+    role: 'admin' | 'owner' | 'team_member'; // admin: superuser, owner: dono da conta, team_member: membro da equipe
+    mainAccountId?: string | null; // Se for team_member, aqui fica o UID do 'owner'
+}
+
+export type RegistrationInvite = {
+  id: string;
+  mainAccountId: string;
+  collaboratorId: string;
+  token: string;
+  expiresAt: Timestamp;
+  usedAt?: Timestamp | null;
 }
 
 export const defaultSettings: UserSettings = {

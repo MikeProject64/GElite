@@ -34,7 +34,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
 
 export default function BaseDeClientesPage() {
-  const { user } = useAuth();
+  const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const { settings } = useSettings();
@@ -49,9 +49,9 @@ export default function BaseDeClientesPage() {
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   
   useEffect(() => {
-    if (!user) return;
+    if (!activeAccountId) return;
     setIsLoading(true);
-    const q = query(collection(db, 'customers'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'customers'), where('userId', '==', activeAccountId), orderBy('createdAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const customerList = querySnapshot.docs.map(doc => ({
@@ -71,7 +71,7 @@ export default function BaseDeClientesPage() {
     });
 
     return () => unsubscribe();
-  }, [user, toast]);
+  }, [activeAccountId, toast]);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(customer => {

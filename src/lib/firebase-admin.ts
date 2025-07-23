@@ -108,5 +108,6 @@ export async function getFirebaseAdmin() {
       adminAuth = getAuth(adminApp);
       dbAdmin = getAdminFirestore(adminApp);
   }
-  return { adminAuth, dbAdmin, adminApp };
+  // Corrigido para retornar os nomes esperados pelas actions
+  return { authAdmin: adminAuth, dbAdmin, adminApp };
 } 

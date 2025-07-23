@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -47,7 +45,7 @@ const formatCurrency = (value: number) => {
 };
 
 function OrcamentosPageComponent() {
-  const { user } = useAuth();
+  const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -73,10 +71,10 @@ function OrcamentosPageComponent() {
   }, [searchParams]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!activeAccountId) return;
     setIsLoading(true);
     
-    const q = query(collection(db, 'quotes'), where('userId', '==', user.uid), orderBy('createdAt', 'desc'));
+    const q = query(collection(db, 'quotes'), where('userId', '==', activeAccountId), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (querySnapshot) => {
       const quoteList = querySnapshot.docs.map(doc => ({
         id: doc.id,
@@ -95,7 +93,7 @@ function OrcamentosPageComponent() {
     });
 
     return () => unsubscribe();
-  }, [user, toast]);
+  }, [activeAccountId, toast]);
   
   const handleStatusChange = async (quoteId: string, currentStatus: Quote['status'], newStatus: Quote['status']) => {
     if (currentStatus === newStatus) return;
@@ -109,7 +107,7 @@ function OrcamentosPageComponent() {
   };
 
   const handleConvert = async () => {
-    if (!conversionAlertData || !user || !user.email) return;
+    if (!conversionAlertData || !user || !user.email || !activeAccountId) return;
 
     const quote = conversionAlertData;
     setIsConverting(quote.id);
@@ -128,7 +126,7 @@ function OrcamentosPageComponent() {
 
         const newServiceOrderRef = doc(collection(db, 'serviceOrders'));
         const serviceOrderData: Omit<ServiceOrder, 'id'> = {
-          userId: user.uid,
+          userId: activeAccountId,
           clientId: quote.clientId,
           clientName: quote.clientName,
           serviceType: quote.title,
