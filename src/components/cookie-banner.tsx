@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import * as gtag from '@/lib/utils';
+import { Cookie } from 'lucide-react';
 
 
 export function CookieBanner() {
@@ -39,18 +40,24 @@ export function CookieBanner() {
   return (
     <div
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-[100] bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 border-t p-4 transition-transform duration-500',
-        isVisible ? 'translate-y-0' : 'translate-y-full'
+        'fixed bottom-4 right-4 z-[100] w-full max-w-sm rounded-lg border bg-card p-6 shadow-lg transition-all duration-300 animate-in slide-in-from-bottom-5',
+        !isVisible && 'animate-out slide-out-to-bottom-5'
       )}
     >
-      <div className="container mx-auto flex flex-col sm:flex-row items-center justify-center gap-4">
-        <p className="text-sm text-muted-foreground text-center">
-          Utilizamos cookies para lhe proporcionar a melhor experiência no nosso site.
-        </p>
-        <Button onClick={handleAccept} size="sm" className='shrink-0'>
-          Aceito
-        </Button>
-      </div>
+        <div className="flex items-start gap-4">
+            <Cookie className="h-8 w-8 text-primary flex-shrink-0 mt-1" />
+            <div className='flex-grow'>
+                <h4 className="font-semibold text-card-foreground">Nós usamos cookies</h4>
+                <p className="text-sm text-muted-foreground mt-1">
+                Utilizamos cookies para analisar o tráfego e melhorar sua experiência em nosso site.
+                </p>
+                <div className="mt-4 flex gap-2">
+                    <Button onClick={handleAccept} size="sm" className='w-full'>
+                    Aceitar
+                    </Button>
+                </div>
+            </div>
+        </div>
     </div>
   );
 }
