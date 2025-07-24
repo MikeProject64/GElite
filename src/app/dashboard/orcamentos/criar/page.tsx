@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Suspense, useEffect, useRef, useMemo } from 'react';
@@ -12,6 +13,7 @@ import { useSettings } from '@/components/settings-provider';
 import { format, addDays } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,16 +24,19 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus } from 'lucide-react';
+import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus, DollarSign, ArrowLeft, FilePlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Customer, Quote } from '@/types';
 import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   description: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres."),
-  totalValue: z.coerce.number().min(0.01, "O valor total deve ser maior que zero."),
+  totalValue: z.coerce.number({
+    errorMap: () => ({ message: "O valor total é obrigatório." })
+  }).min(0.01, "O valor total deve ser maior que zero."),
   validUntil: z.date({ required_error: "A data de validade é obrigatória." }),
   customFields: z.record(z.any()).optional(),
 });
@@ -40,12 +45,13 @@ type QuoteFormValues = z.infer<typeof quoteSchema>;
 
 interface QuoteFormProps {
   onSuccess?: (quoteId: string) => void;
-  baseQuoteId?: string; // Para versionamento
-  template?: Quote | null; // Para carregar a partir de um modelo
-  clientId?: string; // Para pré-selecionar um cliente
+  onCancel?: () => void;
+  baseQuoteId?: string; 
+  template?: Quote | null; 
+  clientId?: string; 
 }
 
-export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteFormProps) {
+export function QuoteForm({ onSuccess, onCancel, baseQuoteId, template, clientId }: QuoteFormProps) {
     const { user, activeAccountId } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -55,7 +61,6 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
     const [isNewClientDialogOpen, setIsNewClientDialogOpen] = useState(false);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const dropdownRef = useRef<HTMLDivElement>(null);
     const [isInitializing, setIsInitializing] = useState(true);
     const [baseQuote, setBaseQuote] = useState<Quote | null>(null);
   
@@ -64,12 +69,8 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
     const form = useForm<QuoteFormValues>({
       resolver: zodResolver(quoteSchema),
       defaultValues: {
-        title: '',
-        clientId: '',
-        description: '',
-        totalValue: 0,
-        validUntil: addDays(new Date(), 7),
-        customFields: {},
+        title: '', clientId: '', description: '', totalValue: 0,
+        validUntil: addDays(new Date(), 7), customFields: {},
       },
     });
   
@@ -136,7 +137,7 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
     
                 form.reset({
                     ...data,
-                    validUntil: addDays(new Date(), 7), // Always set new validity
+                    validUntil: addDays(new Date(), 7),
                     customFields: customFieldsWithDate,
                 });
             } else {
@@ -162,16 +163,6 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
         });
         return () => unsubscribe();
       }, [user, toast]);
-    
-      useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-          if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-            setIsDropdownOpen(false);
-          }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => document.removeEventListener("mousedown", handleClickOutside);
-      }, [dropdownRef]);
       
       const handleNewClientSubmit = async (data: CustomerFormValues) => {
         if (!user || !activeAccountId) return;
@@ -323,8 +314,8 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                           <FormLabel>Valor Total *</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">R$</span>
-                              <Input type="number" step="0.01" placeholder="250,00" className="pl-9" {...field} />
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input type="number" step="0.01" placeholder="250,00" className="pl-8" {...field} />
                             </div>
                           </FormControl>
                           <FormMessage />
@@ -383,6 +374,11 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                                                     <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
                                                 </PopoverContent>
                                             </Popover>
+                                        ) : customField.type === 'currency' ? (
+                                             <div className="relative">
+                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input type="number" step="0.01" className="pl-8" {...field} onChange={e => field.onChange(Number(e.target.value))} value={field.value ?? ''} />
+                                            </div>
                                         ) : (
                                             <Input type={customField.type} {...field} value={field.value || ''} />
                                         )}
@@ -394,7 +390,7 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                     ))}
     
                   <div className="flex justify-end gap-2 pt-4">
-                      <Button type="button" variant="ghost" onClick={() => router.back()}>Cancelar</Button>
+                      <Button type="button" variant="ghost" onClick={onCancel ? onCancel : () => router.back()}>Cancelar</Button>
                       <Button type="submit" disabled={form.formState.isSubmitting}>
                           {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                           Salvar Orçamento
@@ -416,4 +412,51 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
           </Dialog>
         </>
       );
+}
+
+function CreateQuotePageContent() {
+    const searchParams = useSearchParams();
+    const isVersioning = !!searchParams.get('versionOf');
+    return (
+        <Card>
+            <CardHeader>
+                <div className="flex items-center gap-4">
+                     <Button variant="outline" size="icon" className="h-7 w-7" asChild>
+                        <Link href="/dashboard/orcamentos">
+                            <ArrowLeft className="h-4 w-4" />
+                            <span className="sr-only">Voltar</span>
+                        </Link>
+                    </Button>
+                    <div className='flex items-center gap-2'>
+                       <FilePlus className="h-5 w-5" />
+                       <h1 className="text-xl font-semibold tracking-tight">
+                           {isVersioning ? 'Criar Nova Versão do Orçamento' : 'Criar Novo Orçamento'}
+                       </h1>
+                    </div>
+                </div>
+                <CardDescription>
+                    {isVersioning 
+                        ? 'Crie uma nova versão do orçamento. A versão anterior será mantida no histórico.'
+                        : 'Preencha os detalhes abaixo para criar uma nova proposta comercial.'
+                    }
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                <QuoteForm
+                    baseQuoteId={searchParams.get('versionOf') || undefined}
+                    clientId={searchParams.get('clientId') || undefined}
+                />
+            </CardContent>
+        </Card>
+    )
+}
+
+export default function CriarOrcamentoPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-64"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
+            <div className="max-w-4xl mx-auto">
+                <CreateQuotePageContent />
+            </div>
+        </Suspense>
+    );
 }
