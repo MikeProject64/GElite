@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, onSnapshot, query, collection, where, limit } from 'firebase/firestore';
@@ -155,6 +155,24 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (unsubscribeUserDoc) unsubscribeUserDoc();
       if (unsubscribePlanDoc) unsubscribePlanDoc();
       if (unsubscribeMemberPermissions) unsubscribeMemberPermissions(); // <-- ADICIONADO
+    };
+  }, []);
+  
+  // EFEITO PARA RECARREGAR O ESTADO DE VERIFICAÇÃO DO USUÁRIO
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible' && auth.currentUser) {
+        await auth.currentUser.reload();
+        // Força uma re-renderização ao criar um novo objeto de usuário
+        // Isso fará com que os componentes que dependem de `user` (como o banner) atualizem
+        setUser({ ...auth.currentUser });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
