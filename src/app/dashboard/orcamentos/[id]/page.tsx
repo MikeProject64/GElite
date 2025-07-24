@@ -209,7 +209,7 @@ export default function OrcamentoDetailPage() {
           isTemplate: false,
           originalServiceOrderId: newServiceOrderRef.id,
           version: 1,
-          generatedByAgreementId: quote.id,
+          source: { type: 'quote', id: quote.id },
         };
         transaction.set(newServiceOrderRef, serviceOrderData);
 
@@ -542,11 +542,14 @@ export default function OrcamentoDetailPage() {
         </Dialog>
         
         <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
-            <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
                 <DialogHeader>
                     <DialogTitle>Visualização do Orçamento</DialogTitle>
+                    <DialogDescription>
+                      Prévia de como o orçamento será impresso.
+                    </DialogDescription>
                 </DialogHeader>
-                <div className="flex-grow rounded-lg border overflow-hidden">
+                <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
                     <iframe src={`/print/orcamento/${quote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />
                 </div>
             </DialogContent>

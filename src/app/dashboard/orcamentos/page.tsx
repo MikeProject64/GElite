@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, runTransaction, addDoc } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, runTransaction, addDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -457,13 +457,16 @@ function OrcamentosPageComponent() {
       </AlertDialog>
 
       <Dialog open={!!previewQuote} onOpenChange={(isOpen) => !isOpen && setPreviewQuote(null)}>
-        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle>Visualização do Orçamento</DialogTitle>
-          </DialogHeader>
-          <div className="flex-grow rounded-lg border overflow-hidden">
-            {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
-          </div>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
+            <DialogHeader>
+                <DialogTitle>Visualização do Orçamento</DialogTitle>
+                <DialogDescription>
+                  Prévia de como o orçamento será impresso.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
+              {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
+            </div>
         </DialogContent>
       </Dialog>
     </>

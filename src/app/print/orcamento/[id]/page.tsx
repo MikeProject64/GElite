@@ -8,9 +8,8 @@ import { db } from '@/lib/firebase';
 import { Quote, UserSettings, SystemUser } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Wrench, Loader2 } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { PrintTrigger } from '@/components/print-trigger';
-import { availableIcons } from '@/components/icon-map';
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -80,19 +79,15 @@ export default function PrintOrcamentoPage() {
         return null;
     }
     
-    const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
     const siteName = accountOwner?.companyName || accountOwner?.name || settings.siteName || 'Gestor Elite';
 
 
     return (
         <div className="max-w-4xl mx-auto p-8 font-body text-gray-800 bg-white">
             <header className="flex justify-between items-start pb-4 border-b-2 border-gray-200">
-                <div className="flex items-center gap-3">
-                    <Icon className="h-10 w-10 text-primary" />
-                    <div>
-                        <h1 className="text-3xl font-headline font-bold text-gray-900">{siteName}</h1>
-                        <p className="text-sm text-gray-500">Proposta de Serviço</p>
-                    </div>
+                <div>
+                    <h1 className="text-3xl font-headline font-bold text-gray-900">{siteName}</h1>
+                    <p className="text-sm text-gray-500">Proposta de Serviço</p>
                 </div>
                 <div className="text-right">
                     <h2 className="text-xl font-headline font-semibold">Orçamento #{quote.id.substring(0, 6).toUpperCase()}</h2>
