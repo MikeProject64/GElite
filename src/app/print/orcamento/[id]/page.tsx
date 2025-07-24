@@ -126,7 +126,6 @@ export default function PrintOrcamentoPage() {
                 </div>
             </footer>
             
-            <PrintTrigger />
         </div>
     );
 }

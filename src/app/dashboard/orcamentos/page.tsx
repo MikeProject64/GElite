@@ -465,7 +465,7 @@ function OrcamentosPageComponent() {
                 </DialogDescription>
             </DialogHeader>
             <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
-              {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
+              {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
             </div>
         </DialogContent>
       </Dialog>

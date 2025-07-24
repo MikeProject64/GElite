@@ -550,7 +550,7 @@ export default function OrcamentoDetailPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
-                    <iframe src={`/print/orcamento/${quote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />
+                    <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />
                 </div>
             </DialogContent>
         </Dialog>
