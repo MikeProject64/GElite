@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -100,11 +99,21 @@ function CreateQuoteForm() {
         const templateSnap = await getDoc(templateRef);
         if(templateSnap.exists()) {
             const templateData = templateSnap.data() as Quote;
+            const customFieldsWithDate = Object.entries(templateData.customFields || {}).reduce((acc, [key, value]) => {
+                const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+                if (value && fieldType === 'date' && value.toDate) {
+                    (acc as any)[key] = value.toDate();
+                } else {
+                    (acc as any)[key] = value;
+                }
+                return acc;
+            }, {});
+
              form.reset({
                 title: templateData.title,
                 description: templateData.description,
                 totalValue: templateData.totalValue,
-                customFields: templateData.customFields || {},
+                customFields: customFieldsWithDate,
                 validUntil: addDays(new Date(), 7),
                 clientId: '',
             });
@@ -114,7 +123,6 @@ function CreateQuoteForm() {
         }
     }
 
-    // Initialize form based on URL params
     if (templateId) {
         fetchTemplate(templateId).finally(() => setIsInitializing(false));
     } else if (clientIdParam) {
@@ -124,9 +132,8 @@ function CreateQuoteForm() {
         setIsInitializing(false);
     }
     
-  }, [searchParams, user, form, toast]);
+  }, [searchParams, user, form, toast, settings.quoteCustomFields]);
 
-  // Effect specifically for handling versioning, depends on versionOfId
   useEffect(() => {
     const fetchBaseQuote = async () => {
         if (!user || !versionOfId) {
@@ -495,3 +502,5 @@ function CreateQuoteTitle() {
     const isVersioning = !!searchParams.get('versionOf');
     return <>{isVersioning ? 'Criar Nova Versão do Orçamento' : 'Criar Novo Orçamento'}</>;
 }
+
+    
