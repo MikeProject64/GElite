@@ -2,37 +2,18 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
-import { collection, addDoc, query, where, onSnapshot, orderBy, doc, deleteDoc, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, doc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, Package, Search, Trash2, DollarSign, AlertTriangle } from 'lucide-react';
+import { Loader2, Package, Search, DollarSign, AlertTriangle } from 'lucide-react';
 import { InventoryItem } from '@/types';
 import { Badge } from '@/components/ui/badge';
-
-const itemFormSchema = z.object({
-  name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
-  description: z.string().optional(),
-  quantity: z.coerce.number().min(0, { message: 'A quantidade inicial não pode ser negativa.' }),
-  cost: z.coerce.number().min(0, { message: 'O custo não pode ser negativo.' }),
-  minStock: z.coerce.number().min(0, { message: 'O estoque mínimo não pode ser negativo.' }).optional(),
-});
-
-type ItemFormValues = z.infer<typeof itemFormSchema>;
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -42,21 +23,15 @@ const formatCurrency = (value: number) => {
 };
 
 export function InventoryClient() {
-  const { user, activeAccountId } = useAuth();
+  const { activeAccountId } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
 
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingItemId, setDeletingItemId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-
-  const form = useForm<ItemFormValues>({
-    resolver: zodResolver(itemFormSchema),
-    defaultValues: { name: '', description: '', quantity: 0, cost: 0, minStock: 0 },
-  });
 
   useEffect(() => {
     if (!activeAccountId) return;
@@ -82,12 +57,6 @@ export function InventoryClient() {
 
     return () => unsubscribe();
   }, [activeAccountId, toast]);
-  
-  useEffect(() => {
-    if (isDialogOpen) {
-      form.reset({ name: '', description: '', quantity: 0, cost: 0, minStock: 0 });
-    }
-  }, [isDialogOpen, form]);
 
   const filteredItems = useMemo(() => {
     if (!searchTerm) {
@@ -120,53 +89,8 @@ export function InventoryClient() {
     }
   };
 
-  const onSubmit = async (data: ItemFormValues) => {
-    if (!activeAccountId) {
-        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado." });
-        return;
-    }
-    
-    try {
-      const itemPayload = {
-        name: data.name,
-        description: data.description || '',
-        quantity: data.quantity,
-        initialQuantity: data.quantity,
-        cost: data.cost,
-        minStock: data.minStock || 0,
-        userId: activeAccountId,
-        createdAt: Timestamp.now(),
-        updatedAt: Timestamp.now(),
-        photoURL: '',
-      };
-      const itemRef = await addDoc(collection(db, 'inventory'), itemPayload);
-
-      if (data.quantity > 0) {
-          await addDoc(collection(db, 'inventoryMovements'), {
-              itemId: itemRef.id,
-              userId: activeAccountId,
-              type: 'entrada',
-              quantity: data.quantity,
-              notes: 'Estoque inicial',
-              createdAt: Timestamp.now(),
-              attachments: []
-          });
-      }
-      
-      toast({ title: "Sucesso!", description: "Item adicionado ao inventário." });
-      setIsDialogOpen(false);
-    } catch (error) {
-      console.error("Error adding document: ", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao salvar",
-        description: `Falha ao salvar o item.`
-      });
-    }
-  };
-
   return (
-    <>
+    <div className="flex flex-col gap-6">
       <div className="grid md:grid-cols-3 gap-6">
           <Card className="md:col-span-3">
               <CardHeader>
@@ -178,65 +102,6 @@ export function InventoryClient() {
               </CardContent>
           </Card>
       </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Adicionar Novo Item</DialogTitle>
-              <DialogDescription>
-                Preencha os detalhes para adicionar um novo item ao seu inventário.
-              </DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField control={form.control} name="name" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Nome do Item *</FormLabel>
-                    <FormControl><Input placeholder="Ex: Filtro de Ar" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <FormField control={form.control} name="description" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Descrição</FormLabel>
-                    <FormControl><Textarea placeholder="Ex: Filtro de Ar Condicionado automotivo..." {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <div className="grid grid-cols-2 gap-4">
-                    <FormField control={form.control} name="quantity" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Qtd. Inicial *</FormLabel>
-                        <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}/>
-                    <FormField control={form.control} name="minStock" render={({ field }) => (
-                    <FormItem>
-                        <FormLabel>Qtd. Mínima</FormLabel>
-                        <FormControl><Input type="number" placeholder="0" {...field} /></FormControl>
-                        <FormMessage />
-                    </FormItem>
-                    )}/>
-                </div>
-                <FormField control={form.control} name="cost" render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Custo por Unidade (R$) *</FormLabel>
-                    <FormControl><Input type="number" step="0.01" placeholder="0.00" {...field} /></FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}/>
-                <DialogFooter className='pt-4'>
-                    <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
-                    <Button type="submit" disabled={form.formState.isSubmitting}>
-                        {form.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                        Salvar Item
-                    </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
 
       <Card>
         <CardHeader>
@@ -255,12 +120,6 @@ export function InventoryClient() {
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-             <Button size="sm" className="h-10 gap-1" onClick={() => setIsDialogOpen(true)}>
-                <PlusCircle className="h-3.5 w-3.5" />
-                <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                Adicionar Item
-                </span>
-            </Button>
           </div>
           {isLoading ? (
             <div className="flex justify-center items-center h-40">
@@ -275,26 +134,26 @@ export function InventoryClient() {
                 </p>
             </div>
           ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {filteredItems.map((item) => {
               const isLowStock = item.minStock !== undefined && item.quantity <= item.minStock;
               return (
-                <Card key={item.id} className="flex flex-col cursor-pointer overflow-hidden" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
-                    <div className="relative aspect-video bg-muted flex items-center justify-center">
+                <Card key={item.id} className="flex flex-col cursor-pointer overflow-hidden group" onClick={() => router.push(`/dashboard/inventario/${item.id}`)}>
+                    <div className="relative aspect-square bg-muted flex items-center justify-center overflow-hidden">
                         {item.photoURL ? (
-                            <Image src={item.photoURL} alt={item.name} fill className="object-cover" />
+                            <Image src={item.photoURL} alt={item.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                         ) : (
-                            <Package className="h-12 w-12 text-muted-foreground" />
+                            <Package className="h-10 w-10 text-muted-foreground" />
                         )}
                         {isLowStock && <Badge variant="destructive" className="absolute top-2 right-2 gap-1.5"><AlertTriangle className="h-3 w-3" />Estoque Baixo</Badge>}
                     </div>
-                    <CardHeader>
-                        <CardTitle className='truncate'>{item.name}</CardTitle>
+                    <CardHeader className="p-4">
+                        <CardTitle className='truncate text-base'>{item.name}</CardTitle>
                     </CardHeader>
-                    <CardContent className="flex-grow flex justify-between items-end">
+                    <CardContent className="p-4 pt-0 flex-grow flex justify-between items-end">
                         <div>
-                            <p className="text-2xl font-bold">{item.quantity}</p>
-                            <p className="text-sm text-muted-foreground">unidades</p>
+                            <p className="text-xl font-bold">{item.quantity}</p>
+                            <p className="text-xs text-muted-foreground">unidades</p>
                         </div>
                         <div>
                             <p className="text-sm font-semibold">{formatCurrency(item.cost)}</p>
@@ -330,6 +189,6 @@ export function InventoryClient() {
                 </AlertDialogFooter>
             </AlertDialogContent>
         </AlertDialog>
-    </>
+    </div>
   );
 }

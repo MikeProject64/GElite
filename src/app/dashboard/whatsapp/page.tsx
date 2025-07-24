@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import Image from 'next/image';
+import { PagePermissionGuard } from '@/components/security/page-permission-guard';
 
 
 interface Message {
@@ -308,170 +309,172 @@ const WhatsAppPage = () => {
     
 
     return (
-        <div className="h-full w-full flex flex-col">
-            {/* Barra de Status */}
-            <div className="p-2 bg-blue-500 text-white text-center text-sm flex justify-center items-center">
-                <span className="flex-1">Status: {status}</span>
-                {status === 'Conectado ao WhatsApp!' && (
-                    <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-none ml-4">
-                        <LogOut className="h-4 w-4 mr-2" />
-                        Encerrar Sessão
-                    </Button>
-                )}
-            </div>
-            
-            <div className="flex flex-1 overflow-hidden">
-                {/* Lista de Chats */}
-                <aside className="w-1/3 border-r overflow-y-auto">
-                    {/* Header da Lista de Chats */}
-                    <div className="p-4 border-b flex justify-between items-center">
-                        <h2 className="text-xl font-semibold">Conversas</h2>
-                        <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
-                            <PlusCircle className="h-6 w-6" />
+        <PagePermissionGuard functionId="whatsapp">
+            <div className="h-full w-full flex flex-col">
+                {/* Barra de Status */}
+                <div className="p-2 bg-blue-500 text-white text-center text-sm flex justify-center items-center">
+                    <span className="flex-1">Status: {status}</span>
+                    {status === 'Conectado ao WhatsApp!' && (
+                        <Button variant="ghost" size="sm" onClick={handleLogout} className="flex-none ml-4">
+                            <LogOut className="h-4 w-4 mr-2" />
+                            Encerrar Sessão
                         </Button>
-                    </div>
+                    )}
+                </div>
+                
+                <div className="flex flex-1 overflow-hidden">
+                    {/* Lista de Chats */}
+                    <aside className="w-1/3 border-r overflow-y-auto">
+                        {/* Header da Lista de Chats */}
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h2 className="text-xl font-semibold">Conversas</h2>
+                            <Button variant="ghost" size="icon" onClick={() => setIsNewChatDialogOpen(true)}>
+                                <PlusCircle className="h-6 w-6" />
+                            </Button>
+                        </div>
 
-                    {isLoading ? (
-                        <div className="p-4">Carregando conversas...</div>
-                    ) : (
-                        <Tabs defaultValue="all">
-                            <TabsList className="w-full">
-                                <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
-                                <TabsTrigger value="unread" className="flex-1">Não Lidas</TabsTrigger>
-                            </TabsList>
+                        {isLoading ? (
+                            <div className="p-4">Carregando conversas...</div>
+                        ) : (
+                            <Tabs defaultValue="all">
+                                <TabsList className="w-full">
+                                    <TabsTrigger value="all" className="flex-1">Todas</TabsTrigger>
+                                    <TabsTrigger value="unread" className="flex-1">Não Lidas</TabsTrigger>
+                                </TabsList>
 
-                            <TabsContent value="all">
-                                {Object.values(chats).map((chat) => (
-                                    <div key={chat.id} 
-                                         onClick={() => handleChatClick(chat.id)}
-                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                                        <div className="flex items-center">
-                                            <Avatar className="mr-4">
-                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
-                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <div className="flex justify-between">
-                                                    <h3 className="font-semibold">{chat.name}</h3>
-                                                    {chat.unreadCount > 0 && (
+                                <TabsContent value="all">
+                                    {Object.values(chats).map((chat) => (
+                                        <div key={chat.id} 
+                                            onClick={() => handleChatClick(chat.id)}
+                                            className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
+                                            <div className="flex items-center">
+                                                <Avatar className="mr-4">
+                                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
+                                                    <AvatarFallback>{chat.name[0]}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between">
+                                                        <h3 className="font-semibold">{chat.name}</h3>
+                                                        {chat.unreadCount > 0 && (
+                                                            <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                                                                {chat.unreadCount}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </TabsContent>
+                                <TabsContent value="unread">
+                                    {Object.values(chats).filter(c => c.unreadCount > 0).map((chat) => (
+                                        <div key={chat.id} 
+                                            onClick={() => handleChatClick(chat.id)}
+                                            className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
+                                            <div className="flex items-center">
+                                                <Avatar className="mr-4">
+                                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
+                                                    <AvatarFallback>{chat.name[0]}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="flex-1">
+                                                    <div className="flex justify-between">
+                                                        <h3 className="font-semibold">{chat.name}</h3>
                                                         <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
                                                             {chat.unreadCount}
                                                         </span>
-                                                    )}
+                                                    </div>
+                                                    <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
                                                 </div>
-                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                            <TabsContent value="unread">
-                                {Object.values(chats).filter(c => c.unreadCount > 0).map((chat) => (
-                                    <div key={chat.id} 
-                                         onClick={() => handleChatClick(chat.id)}
-                                         className={`p-4 cursor-pointer hover:bg-gray-100 ${activeChatId === chat.id ? 'bg-gray-200' : ''}`}>
-                                        <div className="flex items-center">
-                                            <Avatar className="mr-4">
-                                                <AvatarImage src={`https://ui-avatars.com/api/?name=${chat.name}&background=random`} />
-                                                <AvatarFallback>{chat.name[0]}</AvatarFallback>
-                                            </Avatar>
-                                            <div className="flex-1">
-                                                <div className="flex justify-between">
-                                                    <h3 className="font-semibold">{chat.name}</h3>
-                                                    <span className="bg-green-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                                                        {chat.unreadCount}
-                                                    </span>
-                                                </div>
-                                                <p className="text-sm text-gray-500 truncate">{chat.lastMessage}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </TabsContent>
-                        </Tabs>
-                    )}
-                </aside>
-                
-                {/* Janela de Chat Ativa */}
-                <main className="flex-1 flex flex-col">
-                    {activeChat ? (
-                        <>
-                            {/* Header do Chat */}
-                            <header className="p-4 border-b flex items-center">
-                                <Avatar className="mr-4">
-                                    <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name}&background=random`} />
-                                    <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
-                                </Avatar>
-                                <h2 className="text-xl font-semibold">{activeChat.name}</h2>
-                            </header>
-
-                            {/* Mensagens */}
-                            <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
-                                {activeChat.messages.map((msg, index) => (
-                                    <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
-                                        <div className={`rounded-lg px-4 py-2 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
-                                            <p>{msg.text}</p>
-                                            <span className="text-xs text-right opacity-70 block mt-1">
-                                                {new Date(msg.timestamp).toLocaleTimeString()}
-                                            </span>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-
-                            {/* Input de Mensagem */}
-                            <footer className="p-4 border-t">
-                                <div className="flex items-center">
-                                    <Input
-                                        value={messageInput}
-                                        onChange={(e) => setMessageInput(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                                        placeholder="Digite sua mensagem..."
-                                        className="flex-1 mr-4"
-                                    />
-                                    <Button onClick={handleSendMessage}>
-                                        <Send className="h-5 w-5" />
-                                    </Button>
-                                </div>
-                            </footer>
-                        </>
-                    ) : (
-                        <div className="flex items-center justify-center h-full">
-                            <div className="text-center">
-                                <h2 className="text-2xl font-semibold">Selecione uma conversa</h2>
-                                <p className="text-gray-500">Ou inicie uma nova para começar a conversar.</p>
-                            </div>
-                        </div>
-                    )}
-                </main>
-            </div>
-
-            {/* Dialog para Novo Chat */}
-            <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Iniciar Nova Conversa</DialogTitle>
-                        <DialogDescription>
-                            Digite o número de telefone do WhatsApp (incluindo o código do país).
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <Input
-                            id="phoneNumber"
-                            value={newChatNumber}
-                            onChange={(e) => setNewChatNumber(e.target.value)}
-                            placeholder="Ex: 5511999998888"
-                        />
-                        {newChatError && (
-                            <p className="text-sm text-red-500">{newChatError}</p>
+                                    ))}
+                                </TabsContent>
+                            </Tabs>
                         )}
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" onClick={handleNewChat}>Verificar e Iniciar</Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-        </div>
+                    </aside>
+                    
+                    {/* Janela de Chat Ativa */}
+                    <main className="flex-1 flex flex-col">
+                        {activeChat ? (
+                            <>
+                                {/* Header do Chat */}
+                                <header className="p-4 border-b flex items-center">
+                                    <Avatar className="mr-4">
+                                        <AvatarImage src={`https://ui-avatars.com/api/?name=${activeChat.name}&background=random`} />
+                                        <AvatarFallback>{activeChat.name[0]}</AvatarFallback>
+                                    </Avatar>
+                                    <h2 className="text-xl font-semibold">{activeChat.name}</h2>
+                                </header>
+
+                                {/* Mensagens */}
+                                <div className="flex-1 p-4 overflow-y-auto bg-gray-50">
+                                    {activeChat.messages.map((msg, index) => (
+                                        <div key={index} className={`flex ${msg.fromMe ? 'justify-end' : 'justify-start'} mb-4`}>
+                                            <div className={`rounded-lg px-4 py-2 max-w-lg ${msg.fromMe ? 'bg-blue-500 text-white' : 'bg-gray-200'}`}>
+                                                <p>{msg.text}</p>
+                                                <span className="text-xs text-right opacity-70 block mt-1">
+                                                    {new Date(msg.timestamp).toLocaleTimeString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+
+                                {/* Input de Mensagem */}
+                                <footer className="p-4 border-t">
+                                    <div className="flex items-center">
+                                        <Input
+                                            value={messageInput}
+                                            onChange={(e) => setMessageInput(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                            placeholder="Digite sua mensagem..."
+                                            className="flex-1 mr-4"
+                                        />
+                                        <Button onClick={handleSendMessage}>
+                                            <Send className="h-5 w-5" />
+                                        </Button>
+                                    </div>
+                                </footer>
+                            </>
+                        ) : (
+                            <div className="flex items-center justify-center h-full">
+                                <div className="text-center">
+                                    <h2 className="text-2xl font-semibold">Selecione uma conversa</h2>
+                                    <p className="text-gray-500">Ou inicie uma nova para começar a conversar.</p>
+                                </div>
+                            </div>
+                        )}
+                    </main>
+                </div>
+
+                {/* Dialog para Novo Chat */}
+                <Dialog open={isNewChatDialogOpen} onOpenChange={setIsNewChatDialogOpen}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Iniciar Nova Conversa</DialogTitle>
+                            <DialogDescription>
+                                Digite o número de telefone do WhatsApp (incluindo o código do país).
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <Input
+                                id="phoneNumber"
+                                value={newChatNumber}
+                                onChange={(e) => setNewChatNumber(e.target.value)}
+                                placeholder="Ex: 5511999998888"
+                            />
+                            {newChatError && (
+                                <p className="text-sm text-red-500">{newChatError}</p>
+                            )}
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" onClick={handleNewChat}>Verificar e Iniciar</Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
+        </PagePermissionGuard>
     );
 };
 

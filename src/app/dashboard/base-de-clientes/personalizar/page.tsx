@@ -31,6 +31,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { PagePermissionGuard } from '@/components/security/page-permission-guard';
 
 function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const {
@@ -281,10 +282,6 @@ export default function ClientesPersonalizarPage() {
     if (loadingSettings) {
        return (
             <div className="flex flex-col gap-4">
-                <div className="flex items-center justify-between">
-                    <Skeleton className="h-8 w-1/3" />
-                    <Skeleton className="h-10 w-32" />
-                </div>
                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
                     <Card>
                         <CardHeader><Skeleton className="h-6 w-1/2" /></CardHeader>
@@ -300,15 +297,8 @@ export default function ClientesPersonalizarPage() {
     }
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between">
-                <h1 className="text-lg font-semibold md:text-2xl">Personalizar Opções de Clientes</h1>
-                <Button variant="outline" asChild>
-                    <Link href="/dashboard/base-de-clientes">Voltar para Clientes</Link>
-                </Button>
-            </div>
-            
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <PagePermissionGuard functionId="clientes_personalizar">
+            <div className="grid md:grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                 <CustomTagManager
                     tags={settings.tags || []}
                     onUpdateTags={handleUpdateTags}
@@ -320,6 +310,6 @@ export default function ClientesPersonalizarPage() {
                     onUpdateFields={handleUpdateCustomerFields}
                 />
             </div>
-        </div>
+        </PagePermissionGuard>
     )
 } 

@@ -40,11 +40,11 @@ export default function BaseDeClientesPage() {
   const { settings } = useSettings();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
-  
+  const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
   
@@ -65,7 +65,7 @@ export default function BaseDeClientesPage() {
         toast({
             variant: "destructive",
             title: "Erro ao buscar dados",
-            description: "Não foi possível carregar os clientes. Verifique as regras de segurança do Firestore.",
+            description: "Não foi possível carregar os clientes.",
         });
         setIsLoading(false);
     });
@@ -91,7 +91,7 @@ export default function BaseDeClientesPage() {
   
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
-    setIsDialogOpen(true);
+    setIsEditModalOpen(true);
   };
 
   const handleDelete = (customerId: string) => {
@@ -116,74 +116,16 @@ export default function BaseDeClientesPage() {
     }
   };
 
-  const handleUpdateCustomer = async (data: CustomerFormValues) => {
-    if (!user || !editingCustomer) {
-        toast({ variant: "destructive", title: "Erro", description: "Nenhum cliente selecionado para edição." });
-        return;
-    }
-    
-    try {
-       const customFieldsData = { ...data.customFields };
-       settings.customerCustomFields?.forEach(field => {
-            if (field.type === 'date' && customFieldsData[field.id]) {
-                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
-            }
-       });
-
-      const payload = {
-          ...data,
-          tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [],
-          birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
-          customFields: customFieldsData,
-      };
-      delete (payload as any).tagId;
-
-      const customerRef = doc(db, 'customers', editingCustomer.id);
-      const logEntry = {
-          timestamp: Timestamp.now(),
-          userEmail: user?.email || 'Sistema',
-          description: 'Dados do cliente atualizados.',
-      };
-      await updateDoc(customerRef, { ...payload, activityLog: arrayUnion(logEntry) });
-      toast({ title: "Sucesso!", description: "Cliente atualizado." });
-      
-      setIsDialogOpen(false);
-      setEditingCustomer(null);
-    } catch (error) {
-      console.error("Error updating document: ", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao salvar",
-        description: `Falha ao salvar as alterações. ${error instanceof Error ? error.message : ''}`
-      });
-    }
-  };
+  const handleUpdateSuccess = () => {
+    setIsEditModalOpen(false);
+    setEditingCustomer(null);
+  }
   
   const getTagById = (id: string) => settings.tags?.find(t => t.id === id);
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl">Base de Clientes</h1>
-        <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
-                <Link href="/dashboard/base-de-clientes/personalizar">
-                    <Wrench className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Personalizar</span>
-                </Link>
-            </Button>
-            <Button size="sm" className="h-8 gap-1" asChild>
-                <Link href="/dashboard/base-de-clientes/criar">
-                    <UserPlus className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                    Novo Cliente
-                    </span>
-                </Link>
-            </Button>
-        </div>
-      </div>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Editar Cliente</DialogTitle>
@@ -194,13 +136,12 @@ export default function BaseDeClientesPage() {
             <div className="max-h-[70vh] overflow-y-auto p-1">
                 <CustomerForm 
                     customer={editingCustomer} 
-                    onSubmit={handleUpdateCustomer}
-                    onCancel={() => setIsDialogOpen(false)}
+                    onSuccess={handleUpdateSuccess}
+                    onCancel={() => setIsEditModalOpen(false)}
                 />
             </div>
           </DialogContent>
         </Dialog>
-
 
       <Card>
         <CardHeader>
@@ -252,16 +193,19 @@ export default function BaseDeClientesPage() {
                                         </CommandItem>
                                     ))}
                                 </CommandGroup>
-                                <CommandSeparator />
+                                {settings.tags && settings.tags.length > 0 && <CommandSeparator />}
                                 <CommandGroup>
                                     <CommandItem onSelect={() => router.push('/dashboard/configuracoes')} className="cursor-pointer">
                                         <TagIcon className="mr-2 h-4 w-4" />
                                         <span>Gerenciar Etiquetas</span>
                                     </CommandItem>
                                     {tagFilter.length > 0 && (
-                                        <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center cursor-pointer">
-                                            Limpar filtros
-                                        </CommandItem>
+                                        <>
+                                            <CommandSeparator />
+                                            <CommandItem onSelect={() => setTagFilter([])} className="justify-center text-center cursor-pointer text-red-500">
+                                                Limpar filtros
+                                            </CommandItem>
+                                        </>
                                     )}
                                 </CommandGroup>
                             </CommandList>
@@ -313,7 +257,7 @@ export default function BaseDeClientesPage() {
                         <div>{customer.phone}</div>
                         <div className="text-xs text-muted-foreground">{customer.email}</div>
                     </TableCell>
-                    <TableCell className="hidden md:table-cell">{customer.createdAt? format(customer.createdAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</TableCell>
+                    <TableCell className="hidden md:table-cell">{customer.createdAt? format(customer.createdAt.toDate(), 'dd/MM/yyyy', { locale: ptBR }) : 'N/A'}</TableCell>
                     <TableCell>
                         <DropdownMenu>
                         <DropdownMenuTrigger asChild>
