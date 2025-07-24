@@ -72,7 +72,7 @@ export default function OrcamentoDetailPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isRecusarAlertOpen, setIsRecusarAlertOpen] = useState(false);
-  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [previewQuote, setPreviewQuote] = useState<Quote | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
 
@@ -400,7 +400,7 @@ export default function OrcamentoDetailPage() {
                   <Save className="mr-2 h-4 w-4" />
                   Salvar como Modelo
                 </Button>
-                 <Button variant="secondary" size="sm" onClick={() => setIsPreviewModalOpen(true)}>
+                 <Button variant="secondary" size="sm" onClick={() => setPreviewQuote(quote)}>
                   <Eye className="mr-2 h-4 w-4"/>
                   Visualizar
                 </Button>
@@ -542,7 +542,7 @@ export default function OrcamentoDetailPage() {
             </DialogContent>
         </Dialog>
         
-        <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
+        <Dialog open={!!previewQuote} onOpenChange={(isOpen) => !isOpen && setPreviewQuote(null)}>
             <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
                 <DialogHeader>
                     <DialogTitle>Visualização do Orçamento</DialogTitle>
@@ -551,7 +551,7 @@ export default function OrcamentoDetailPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
-                    {previewQuote && <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
+                    {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
                 </div>
             </DialogContent>
         </Dialog>
