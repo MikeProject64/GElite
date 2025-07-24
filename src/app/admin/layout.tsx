@@ -6,6 +6,7 @@ import { Loader2 } from 'lucide-react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { AdminSidebar } from '@/components/admin-sidebar';
+import { SettingsProvider } from '@/components/settings-provider';
 
 export default function AdminLayout({
   children,
@@ -18,9 +19,7 @@ export default function AdminLayout({
   const [isReady, setIsReady] = useState(false);
 
   useEffect(() => {
-    if (loading) {
-      return; 
-    }
+    if (loading) return; 
 
     if (!user || !isAdmin) {
       if (pathname !== '/admin/login') {
@@ -31,12 +30,9 @@ export default function AdminLayout({
         router.replace('/admin/dashboard');
       }
     }
-    // Set ready after checks are done
     setIsReady(true);
-
   }, [user, isAdmin, loading, router, pathname]);
 
-  // Show a loading screen until authentication status is resolved and navigation is decided.
   if (loading || !isReady) {
     return (
       <div className="flex items-center justify-center h-screen bg-background">
@@ -45,21 +41,20 @@ export default function AdminLayout({
     );
   }
   
-  // For the login page, render children directly without the sidebar layout.
   if (pathname === '/admin/login') {
     return <>{children}</>;
   }
 
-  // For all other admin pages, render the main dashboard layout with the sidebar.
-  // The useEffect above already handles redirecting non-admins away.
   return (
-    <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-      <AdminSidebar />
-      <div className="flex flex-col">
-        <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50">
-          {children}
-        </main>
+    <SettingsProvider>
+      <div className="grid h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
+        <AdminSidebar />
+        <div className="flex flex-col">
+          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6 bg-secondary/50">
+            {children}
+          </main>
+        </div>
       </div>
-    </div>
+    </SettingsProvider>
   );
 }

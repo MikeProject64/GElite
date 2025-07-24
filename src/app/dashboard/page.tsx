@@ -34,6 +34,7 @@ import * as z from 'zod';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip } from 'recharts';
 import { NotificationsPanel } from '@/components/dashboard/notifications-panel';
+import { ProtectedComponent } from '@/components/security/protected-component';
 
 
 function WaitingForPermissions() {
@@ -98,56 +99,64 @@ const FEATURE_PANELS = [
     label: 'Serviços',
     icon: <Wrench className="h-8 w-8 text-primary" />,
     href: '/dashboard/servicos',
-    description: 'Gerencie ordens de serviço, acompanhe o andamento e otimize sua operação.'
+    description: 'Gerencie ordens de serviço, acompanhe o andamento e otimize sua operação.',
+    functionId: 'servicos' // Adicionando a functionId correspondente
   },
   {
     key: 'orcamentos',
     label: 'Orçamentos',
     icon: <FileText className="h-8 w-8 text-primary" />,
     href: '/dashboard/orcamentos',
-    description: 'Crie, envie e acompanhe orçamentos para seus clientes.'
+    description: 'Crie, envie e acompanhe orçamentos para seus clientes.',
+    functionId: 'orcamentos' // Adicionando a functionId correspondente
   },
   {
     key: 'prazos',
     label: 'Prazos',
     icon: <CalendarClock className="h-8 w-8 text-primary" />,
     href: '/dashboard/prazos',
-    description: 'Controle prazos e deadlines importantes para não perder nenhum compromisso.'
+    description: 'Controle prazos e deadlines importantes para não perder nenhum compromisso.',
+    functionId: 'prazos' // Adicionando a functionId correspondente
   },
   {
     key: 'atividades',
     label: 'Atividades',
     icon: <Activity className="h-8 w-8 text-primary" />,
     href: '/dashboard/atividades',
-    description: 'Organize e acompanhe as atividades da sua equipe.'
+    description: 'Organize e acompanhe as atividades da sua equipe.',
+    functionId: 'atividades' // Adicionando a functionId correspondente
   },
   {
     key: 'clientes',
     label: 'Clientes',
     icon: <Users className="h-8 w-8 text-primary" />,
     href: '/dashboard/base-de-clientes',
-    description: 'Gerencie sua base de clientes e histórico de atendimentos.'
+    description: 'Gerencie sua base de clientes e histórico de atendimentos.',
+    functionId: 'clientes' // Adicionando a functionId correspondente
   },
   {
     key: 'colaboradores',
     label: 'Colaboradores',
     icon: <Briefcase className="h-8 w-8 text-primary" />,
     href: '/dashboard/colaboradores',
-    description: 'Controle sua equipe e distribua tarefas de forma eficiente.'
+    description: 'Controle sua equipe e distribua tarefas de forma eficiente.',
+    functionId: 'colaboradores' // Adicionando a functionId correspondente
   },
   {
     key: 'inventario',
     label: 'Inventário',
     icon: <Package className="h-8 w-8 text-primary" />,
     href: '/dashboard/inventario',
-    description: 'Gerencie o estoque de produtos e materiais utilizados nos serviços.'
+    description: 'Gerencie o estoque de produtos e materiais utilizados nos serviços.',
+    functionId: 'inventario' // Adicionando a functionId correspondente
   },
   {
     key: 'contratos',
     label: 'Contratos',
     icon: <FileSignature className="h-8 w-8 text-primary" />,
     href: '/dashboard/contratos',
-    description: 'Administre contratos de manutenção e acordos com clientes.'
+    description: 'Administre contratos de manutenção e acordos com clientes.',
+    functionId: 'contratos' // Adicionando a functionId correspondente
   },
 ];
 
@@ -1059,32 +1068,33 @@ export default function DashboardPage() {
         {enabledPanels.map(panel => {
           if (visiblePanels[panel.key] === false) return null;
 
-          // Adicionado: Oculta o painel de atividades para membros da equipe para evitar erros de permissão.
-          if (panel.key === 'atividades' && systemUser?.role === 'team_member') {
-            return null;
-          }
-
           const PanelComponent = panelComponents[panel.key];
 
           if (PanelComponent) {
-            return <PanelComponent key={panel.key} accountId={activeAccountId} />;
+            return (
+              <ProtectedComponent key={panel.key} functionId={panel.functionId}>
+                <PanelComponent accountId={activeAccountId} />
+              </ProtectedComponent>
+            );
           }
 
           // Renderiza o card genérico para painéis ainda não implementados
           return (
-            <Link key={panel.key} href={panel.href} className="group">
-              <Card className="h-[350px] transition-shadow group-hover:shadow-lg cursor-pointer flex flex-col justify-between">
-                <CardHeader className="flex flex-row items-center gap-4 pb-2">
-                  <div className="p-3 bg-primary/10 rounded-full">
-                    {panel.icon}
-                  </div>
-                  <CardTitle className="font-headline text-lg">{panel.label}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground text-sm">{panel.description}</p>
-                </CardContent>
-              </Card>
-            </Link>
+            <ProtectedComponent key={panel.key} functionId={panel.functionId}>
+              <Link href={panel.href} className="group">
+                <Card className="h-[350px] transition-shadow group-hover:shadow-lg cursor-pointer flex flex-col justify-between">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                    <div className="p-3 bg-primary/10 rounded-full">
+                      {panel.icon}
+                    </div>
+                    <CardTitle className="font-headline text-lg">{panel.label}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground text-sm">{panel.description}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            </ProtectedComponent>
           );
         })}
       </div>

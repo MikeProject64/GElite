@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils';
 import { addDays, startOfDay, isAfter, isBefore } from 'date-fns';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardFooter, CardDescription } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -249,6 +249,17 @@ export default function ServicosPage() {
 
   return (
     <div className="flex flex-col gap-4">
+        <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    Ordens de Serviço
+                </CardTitle>
+                <CardDescription>
+                    Visualize e gerencie todas as ordens de serviço em um único lugar.
+                </CardDescription>
+            </CardHeader>
+        </Card>
        <Card>
           <CardHeader>
             <CardTitle><span className="flex items-center gap-2"><Filter className="h-5 w-5"/>Filtro de serviços</span></CardTitle>

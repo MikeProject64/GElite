@@ -4,7 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, query, collection, where, limit } from 'firebase/firestore';
 import type { SystemUser, Plan } from '@/types';
 
 // Definição da Função (para ser usada globalmente)
@@ -21,6 +21,7 @@ interface AuthContextType {
   systemUser: SystemUser | null;
   userPlan: Plan | null; // Adicionado para dados do plano
   availableFunctions: AppFunction[]; // Lista de todas as funções disponíveis
+  effectiveAllowedFunctions: string[]; // <-- ADICIONADO: A lista final de permissões
   loading: boolean; // Agora representa o carregamento combinado
   isAdmin: boolean;
   isOwner: boolean;
@@ -33,6 +34,7 @@ const AuthContext = createContext<AuthContextType>({
   systemUser: null,
   userPlan: null,
   availableFunctions: [],
+  effectiveAllowedFunctions: [], // <-- ADICIONADO
   loading: true,
   isAdmin: false,
   isOwner: false,
@@ -45,9 +47,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [systemUser, setSystemUser] = useState<SystemUser | null>(null);
   const [userPlan, setUserPlan] = useState<Plan | null>(null);
   const [availableFunctions, setAvailableFunctions] = useState<AppFunction[]>([]);
+  const [effectiveAllowedFunctions, setEffectiveAllowedFunctions] = useState<string[]>([]); // <-- ADICIONADO
   const [userLoading, setUserLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(true);
   const [functionsLoading, setFunctionsLoading] = useState(true);
+  const [memberPermissionsLoading, setMemberPermissionsLoading] = useState(false); // <-- ADICIONADO
 
   useEffect(() => {
     // Busca a configuração do menu/funções uma única vez
@@ -62,15 +66,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     let unsubscribeUserDoc: (() => void) | undefined;
     let unsubscribePlanDoc: (() => void) | undefined;
+    let unsubscribeMemberPermissions: (() => void) | undefined; // <-- ADICIONADO
 
     const unsubscribeAuth = onAuthStateChanged(auth, (authUser) => {
       setUser(authUser);
 
       if (unsubscribeUserDoc) unsubscribeUserDoc();
       if (unsubscribePlanDoc) unsubscribePlanDoc();
+      if (unsubscribeMemberPermissions) unsubscribeMemberPermissions(); // <-- ADICIONADO
       
       setSystemUser(null);
       setUserPlan(null);
+      setEffectiveAllowedFunctions([]); // <-- ADICIONADO: Limpa ao deslogar
 
       if (authUser) {
         setUserLoading(true);
@@ -79,41 +86,66 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           if (userDoc.exists()) {
             const fetchedSystemUser = { uid: userDoc.id, ...userDoc.data() } as SystemUser;
             setSystemUser(fetchedSystemUser);
-
-            // Se o usuário tem um planId, busca os dados do plano
-            const planId = fetchedSystemUser.role === 'team_member' ? fetchedSystemUser.mainAccountId : fetchedSystemUser.uid;
             
-            // Lógica para buscar o plano do dono da conta
-            if (fetchedSystemUser.planId) {
-                setPlanLoading(true);
-                const planDocRef = doc(db, 'plans', fetchedSystemUser.planId);
-                unsubscribePlanDoc = onSnapshot(planDocRef, (planDoc) => {
-                    if (planDoc.exists()) {
-                        setUserPlan({ id: planDoc.id, ...planDoc.data() } as Plan);
+            // Lógica unificada para determinar permissões
+            // Se for membro da equipe, busca as permissões do seu próprio documento de colaborador
+            if (fetchedSystemUser.role === 'team_member' && fetchedSystemUser.mainAccountId) {
+                setMemberPermissionsLoading(true);
+                const collaboratorsQuery = query(collection(db, 'collaborators'), where('teamMemberUid', '==', fetchedSystemUser.uid), limit(1));
+                
+                unsubscribeMemberPermissions = onSnapshot(collaboratorsQuery, (snapshot) => {
+                    if (!snapshot.empty) {
+                        const collaboratorDoc = snapshot.docs[0];
+                        const collaboratorData = collaboratorDoc.data();
+                        setEffectiveAllowedFunctions(collaboratorData.allowedFunctions || []);
                     } else {
-                        setUserPlan(null);
+                        setEffectiveAllowedFunctions([]); // Nenhuma permissão se não encontrar o colaborador
                     }
-                    setPlanLoading(false);
+                    setMemberPermissionsLoading(false);
                 });
+                setPlanLoading(false); // Membros de equipe não carregam plano diretamente
             } else {
-                 setUserPlan(null);
-                 setPlanLoading(false);
+                // Se for o dono (owner) ou um admin navegando no dashboard, busca as permissões do plano
+                if (fetchedSystemUser.planId) {
+                    setPlanLoading(true);
+                    const planDocRef = doc(db, 'plans', fetchedSystemUser.planId);
+                    unsubscribePlanDoc = onSnapshot(planDocRef, (planDoc) => {
+                        if (planDoc.exists()) {
+                            const planData = { id: planDoc.id, ...planDoc.data() } as Plan;
+                            setUserPlan(planData);
+                            setEffectiveAllowedFunctions(planData.allowedFunctions || []);
+                        } else {
+                            setUserPlan(null);
+                            setEffectiveAllowedFunctions([]);
+                        }
+                        setPlanLoading(false);
+                    });
+                } else {
+                    setUserPlan(null);
+                    setEffectiveAllowedFunctions([]); // Sem plano, sem permissões baseadas em plano
+                    setPlanLoading(false);
+                }
+                setMemberPermissionsLoading(false); // Não é membro, não carrega permissões de membro
             }
           } else {
             setSystemUser(null);
             setPlanLoading(false);
+            setMemberPermissionsLoading(false);
           }
           setUserLoading(false);
         }, (error) => {
           console.error("Error fetching user data:", error);
           setSystemUser(null);
           setUserPlan(null);
+          setEffectiveAllowedFunctions([]);
           setUserLoading(false);
           setPlanLoading(false);
+          setMemberPermissionsLoading(false);
         });
       } else {
         setUserLoading(false);
         setPlanLoading(false);
+        setMemberPermissionsLoading(false);
       }
     });
 
@@ -122,6 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       unsubscribeFunctions();
       if (unsubscribeUserDoc) unsubscribeUserDoc();
       if (unsubscribePlanDoc) unsubscribePlanDoc();
+      if (unsubscribeMemberPermissions) unsubscribeMemberPermissions(); // <-- ADICIONADO
     };
   }, []);
 
@@ -136,7 +169,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     systemUser, 
     userPlan,
     availableFunctions,
-    loading: userLoading || planLoading || functionsLoading, 
+    effectiveAllowedFunctions, // <-- ADICIONADO
+    loading: userLoading || planLoading || functionsLoading || memberPermissionsLoading, // <-- ATUALIZADO
     isAdmin, 
     isOwner, 
     isTeamMember, 

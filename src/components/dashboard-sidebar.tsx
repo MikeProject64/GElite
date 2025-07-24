@@ -224,7 +224,7 @@ const NavActionButton: React.FC<{
 function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolean, onLinkClick?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { systemUser, loading: authLoading, userPlan, availableFunctions } = useAuth();
+  const { systemUser, loading: authLoading, userPlan, availableFunctions, effectiveAllowedFunctions } = useAuth(); // <-- ATUALIZADO
   const { setTheme } = useTheme();
   const { settings } = useSettings();
   const iconKey = (settings.iconName && settings.iconName in availableIcons) ? settings.iconName : 'Wrench';
@@ -232,55 +232,26 @@ function DashboardNavContent({ isCollapsed, onLinkClick }: { isCollapsed: boolea
   const [navMenu, setNavMenu] = useState<any[]>([]);
   const [systemNavItems, setSystemNavItems] = useState<any[]>([]);
   const [footerNavMenu, setFooterNavMenu] = useState<NavMenuItem[]>([]);
-  const [effectiveAllowedFunctions, setEffectiveAllowedFunctions] = useState<string[]>([]);
+  // const [effectiveAllowedFunctions, setEffectiveAllowedFunctions] = useState<string[]>([]); <-- REMOVIDO
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (authLoading) return; // Aguarda a autenticação e o carregamento dos dados base
-    if (!systemUser) {
-        setIsLoading(false);
-        return;
-    }
+    setIsLoading(true); // Começa a carregar o menu
 
-    const unsubscribes: (() => void)[] = [];
-
-    // 1. Carregar configuração do menu
     const menuConfigRef = doc(db, 'siteConfig', 'menu');
-    unsubscribes.push(onSnapshot(menuConfigRef, (docSnap) => {
+    const unsubscribe = onSnapshot(menuConfigRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
         setNavMenu(data.navMenu || []);
         setSystemNavItems(data.systemNavItems || []);
         setFooterNavMenu(data.footerNavMenu || []);
       }
-    }));
+      setIsLoading(false); // Termina de carregar o menu
+    });
 
-    // 2. Determinar as funções permitidas
-    // Se for membro da equipe, busca as permissões do seu próprio documento de colaborador
-    if (systemUser.role === 'team_member' && systemUser.mainAccountId) {
-        // A lógica de encontrar o 'collaboratorId' correto pode variar.
-        // A forma mais robusta é buscar na coleção 'collaborators' pelo teamMemberUid.
-        const collaboratorsQuery = query(collection(db, 'collaborators'), where('teamMemberUid', '==', systemUser.uid), limit(1));
-        
-        unsubscribes.push(onSnapshot(collaboratorsQuery, (snapshot) => {
-            if (!snapshot.empty) {
-                const collaboratorDoc = snapshot.docs[0];
-                const collaboratorData = collaboratorDoc.data();
-                setEffectiveAllowedFunctions(collaboratorData.allowedFunctions || []);
-            } else {
-                 setEffectiveAllowedFunctions([]); // Nenhuma permissão se não encontrar o colaborador
-            }
-             setIsLoading(false);
-        }));
-
-    } else {
-        // Se for o dono (ou admin), usa as permissões do plano
-        setEffectiveAllowedFunctions(userPlan?.allowedFunctions || []);
-        setIsLoading(false);
-    }
-
-    return () => unsubscribes.forEach(unsub => unsub());
-  }, [systemUser, authLoading, userPlan]);
+    return () => unsubscribe();
+  }, [authLoading]);
 
 
   const handleLogout = async () => {

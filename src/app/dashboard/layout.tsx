@@ -13,6 +13,7 @@ import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { WelcomeModal } from '@/components/dashboard/welcome-modal';
 import { SettingsProvider, useSettings } from '@/components/settings-provider';
+import { PagePermissionGuard } from '@/components/security/page-permission-guard';
 
 
 function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
@@ -76,7 +77,9 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         <div className="flex flex-row flex-1 w-full overflow-hidden">
           <DashboardSidebar />
           <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
-            {children}
+            <PagePermissionGuard>
+              {children}
+            </PagePermissionGuard>
           </main>
         </div>
       </div>
@@ -114,6 +117,8 @@ export default function DashboardLayout({
     );
   }
 
+  // AuthProvider já está no layout raiz, então não precisa ser aninhado novamente.
+  // Envolvemos o conteúdo com SettingsProvider, que é necessário para o Dashboard.
   return (
     <SettingsProvider>
       <DashboardLayoutContent>{children}</DashboardLayoutContent>

@@ -451,7 +451,10 @@ export default function ServicosPersonalizarPage() {
     return (
         <Card>
             <CardHeader>
-                <CardTitle>Personalização de Serviços</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                    <Wrench className="h-5 w-5" />
+                    Personalização de Serviços
+                </CardTitle>
                 <CardDescription>
                     Ajuste os campos, tipos e status para adaptar o sistema ao seu fluxo de trabalho.
                 </CardDescription>
