@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Package, BarChart2 } from "lucide-react";
 import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
@@ -12,8 +12,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { ItemForm } from '@/components/forms/item-form'; // Precisaremos criar este form
 
 const TABS_DATA = [
-    { name: "Lista de Itens", path: "/dashboard/inventario", functionId: "inventario" },
-    { name: "Estatísticas", path: "/dashboard/inventario/estatisticas", functionId: "inventario_estatisticas" },
+    { name: "Lista de Itens", path: "/dashboard/inventario", functionId: "inventario", icon: Package },
+    { name: "Estatísticas", path: "/dashboard/inventario/estatisticas", functionId: "inventario_estatisticas", icon: BarChart2 },
 ];
 
 export default function InventarioLayout({ children }: { children: React.ReactNode }) {
@@ -41,7 +41,10 @@ export default function InventarioLayout({ children }: { children: React.ReactNo
                         <TabsList>
                             {TABS_DATA.map(tab => (
                                 <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
-                                    <TabsTrigger value={tab.path}>{tab.name}</TabsTrigger>
+                                    <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                        <tab.icon className="h-4 w-4" />
+                                        <span>{tab.name}</span>
+                                    </TabsTrigger>
                                 </ProtectedComponent>
                             ))}
                         </TabsList>

@@ -4,15 +4,15 @@ import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, FileText, BarChart2 } from "lucide-react";
 import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
 import { CreateContractModal } from '@/components/create-contract-modal';
 
 const TABS_DATA = [
-    { name: "Lista de Contratos", path: "/dashboard/contratos", functionId: "contratos" },
-    { name: "Estatísticas", path: "/dashboard/contratos/estatisticas", functionId: "contratos_estatisticas" },
+    { name: "Lista de Contratos", path: "/dashboard/contratos", functionId: "contratos", icon: FileText },
+    { name: "Estatísticas", path: "/dashboard/contratos/estatisticas", functionId: "contratos_estatisticas", icon: BarChart2 },
 ];
 
 export default function ContratosLayout({ children }: { children: React.ReactNode }) {
@@ -40,7 +40,10 @@ export default function ContratosLayout({ children }: { children: React.ReactNod
                         <TabsList>
                             {TABS_DATA.map(tab => (
                                 <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
-                                    <TabsTrigger value={tab.path}>{tab.name}</TabsTrigger>
+                                    <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                        <tab.icon className="h-4 w-4" />
+                                        <span>{tab.name}</span>
+                                    </TabsTrigger>
                                 </ProtectedComponent>
                             ))}
                         </TabsList>

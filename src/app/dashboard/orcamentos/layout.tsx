@@ -5,7 +5,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePathname, useRouter } from "next/navigation";
 import Link from 'next/link';
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, List, ClipboardList, Wrench, BarChart2 } from "lucide-react";
 import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
@@ -13,10 +13,10 @@ import { CreateQuoteModal } from "@/components/create-quote-modal";
 
 // Configuração do menu para a seção de Orçamentos
 const TABS_DATA = [
-    { name: "Lista de Orçamentos", path: "/dashboard/orcamentos", functionId: "orcamentos" },
-    { name: "Modelos", path: "/dashboard/orcamentos/modelos", functionId: "orcamentos_modelos" },
-    { name: "Personalizar", path: "/dashboard/orcamentos/personalizar", functionId: "orcamentos_personalizar" },
-    { name: "Estatísticas", path: "/dashboard/orcamentos/estatisticas", functionId: "orcamentos_estatisticas" },
+    { name: "Lista", path: "/dashboard/orcamentos", functionId: "orcamentos", icon: List },
+    { name: "Modelos", path: "/dashboard/orcamentos/modelos", functionId: "orcamentos_modelos", icon: ClipboardList },
+    { name: "Personalizar", path: "/dashboard/orcamentos/personalizar", functionId: "orcamentos_personalizar", icon: Wrench },
+    { name: "Estatísticas", path: "/dashboard/orcamentos/estatisticas", functionId: "orcamentos_estatisticas", icon: BarChart2 },
 ];
 
 // O "href" para a ação de criar, como definido no catálogo de funções do admin.
@@ -51,7 +51,10 @@ export default function OrcamentosLayout({ children }: { children: React.ReactNo
                         <TabsList>
                             {TABS_DATA.map(tab => (
                                 <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
-                                    <TabsTrigger value={tab.path}>{tab.name}</TabsTrigger>
+                                     <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                        <tab.icon className="h-4 w-4" />
+                                        <span>{tab.name}</span>
+                                    </TabsTrigger>
                                 </ProtectedComponent>
                             ))}
                         </TabsList>

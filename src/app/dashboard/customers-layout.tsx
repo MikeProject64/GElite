@@ -9,12 +9,13 @@ import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { CustomerForm } from '@/components/forms/customer-form';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, BarChart2, Users } from 'lucide-react';
 
 const TABS_DATA = [
-    { name: "Lista de Clientes", path: "/dashboard/base-de-clientes", functionId: "clientes" },
-    { name: "WhatsApp", path: "/dashboard/whatsapp", functionId: "whatsapp" },
-    { name: "Personalizar Campos", path: "/dashboard/base-de-clientes/personalizar", functionId: "clientes_personalizar" },
+    { name: "Lista", path: "/dashboard/base-de-clientes", functionId: "clientes", icon: Users },
+    { name: "WhatsApp", path: "/dashboard/whatsapp", functionId: "whatsapp", icon: MessageSquare },
+    { name: "Estatísticas", path: "/dashboard/base-de-clientes/estatisticas", functionId: "clientes_estatisticas", icon: BarChart2 },
+    { name: "Personalizar", path: "/dashboard/base-de-clientes/personalizar", functionId: "clientes_personalizar", icon: Wrench },
 ];
 
 export function CustomersLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export function CustomersLayout({ children }: { children: React.ReactNode }) {
     
     const createFuncId = getFunctionIdByPath("/dashboard/base-de-clientes") || 'clientes_criar';
     const customizeFuncId = getFunctionIdByPath("/dashboard/base-de-clientes/personalizar") || 'clientes_personalizar';
+    const statsFuncId = getFunctionIdByPath("/dashboard/base-de-clientes/estatisticas") || 'clientes_estatisticas';
 
     const handleSuccess = () => {
         setIsModalOpen(false);
@@ -46,20 +48,14 @@ export function CustomersLayout({ children }: { children: React.ReactNode }) {
                 <div className="flex-1">
                     <Tabs value={currentTab} onValueChange={(value) => router.push(value)}>
                         <TabsList>
-                            <ProtectedComponent functionId={getFunctionIdByPath("/dashboard/base-de-clientes") || 'clientes'}>
-                                <TabsTrigger value="/dashboard/base-de-clientes">Lista de Clientes</TabsTrigger>
-                            </ProtectedComponent>
-                             <ProtectedComponent functionId={getFunctionIdByPath("/dashboard/whatsapp") || 'whatsapp'}>
-                                <TabsTrigger value="/dashboard/whatsapp">
-                                    <div className="flex items-center gap-2">
-                                        <MessageSquare className="h-4 w-4" />
-                                        <span>WhatsApp</span>
-                                    </div>
-                                </TabsTrigger>
-                            </ProtectedComponent>
-                            <ProtectedComponent functionId={customizeFuncId}>
-                                <TabsTrigger value="/dashboard/base-de-clientes/personalizar">Personalizar</TabsTrigger>
-                            </ProtectedComponent>
+                            {TABS_DATA.map(tab => (
+                                <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
+                                    <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                        <tab.icon className="h-4 w-4" />
+                                        <span>{tab.name}</span>
+                                    </TabsTrigger>
+                                </ProtectedComponent>
+                            ))}
                         </TabsList>
                     </Tabs>
                 </div>

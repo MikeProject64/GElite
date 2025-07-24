@@ -4,18 +4,18 @@ import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePathname, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, List, CalendarDays, ClipboardList, Wrench, BarChart2 } from "lucide-react";
 import { CreateServiceOrderModal } from '@/components/create-service-order-modal';
 import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
 
 const TABS_DATA = [
-    { path: '/dashboard/servicos', label: 'Lista de serviços', functionId: 'servicos' },
-    { path: '/dashboard/prazos', label: 'Agenda', functionId: 'prazos' },
-    { path: '/dashboard/servicos/modelos', label: 'Modelos', functionId: 'servicos_modelos' },
-    { path: '/dashboard/servicos/personalizar', label: 'Personalizar', functionId: 'servicos_personalizar' },
-    { path: '/dashboard/servicos/estatisticas', label: 'Estatísticas', functionId: 'servicos_estatisticas' },
+    { path: '/dashboard/servicos', label: 'Lista', functionId: 'servicos', icon: List },
+    { path: '/dashboard/prazos', label: 'Agenda', functionId: 'prazos', icon: CalendarDays },
+    { path: '/dashboard/servicos/modelos', label: 'Modelos', functionId: 'servicos_modelos', icon: ClipboardList },
+    { path: '/dashboard/servicos/personalizar', label: 'Personalizar', functionId: 'servicos_personalizar', icon: Wrench },
+    { path: '/dashboard/servicos/estatisticas', label: 'Estatísticas', functionId: 'servicos_estatisticas', icon: BarChart2 },
 ];
 
 const CREATE_ACTION_HREF = '/dashboard/servicos/criar';
@@ -44,7 +44,10 @@ export default function ServicosLayout({ children }: { children: React.ReactNode
                         <TabsList>
                             {TABS_DATA.map((tab) => (
                                 <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
-                                    <TabsTrigger value={tab.path}>{tab.label}</TabsTrigger>
+                                    <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                        <tab.icon className="h-4 w-4" />
+                                        <span>{tab.label}</span>
+                                    </TabsTrigger>
                                 </ProtectedComponent>
                             ))}
                         </TabsList>
