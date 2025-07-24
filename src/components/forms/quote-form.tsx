@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
@@ -20,6 +21,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -91,13 +93,23 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
         setIsInitializing(true);
     
         const loadTemplateData = (templateData: Quote) => {
+            const customFieldsWithDate = Object.entries(templateData.customFields || {}).reduce((acc, [key, value]) => {
+                const fieldType = settings.quoteCustomFields?.find(f => f.id === key)?.type;
+                if (value && fieldType === 'date' && value.toDate) {
+                    (acc as any)[key] = value.toDate();
+                } else {
+                    (acc as any)[key] = value;
+                }
+                return acc;
+            }, {});
+
             form.reset({
                 title: templateData.title,
                 description: templateData.description,
                 totalValue: templateData.totalValue,
-                customFields: templateData.customFields || {},
-                validUntil: addDays(new Date(), 7),
-                clientId: '',
+                customFields: customFieldsWithDate,
+                validUntil: templateData.validUntil ? templateData.validUntil.toDate() : addDays(new Date(), 7),
+                clientId: clientId || '',
             });
             toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
         }
@@ -111,7 +123,7 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
         } else if (!baseQuoteId) {
             setIsInitializing(false);
         }
-      }, [template, clientId, baseQuoteId, user, form, toast]);
+      }, [template, clientId, baseQuoteId, user, form, toast, settings.quoteCustomFields]);
     
       useEffect(() => {
         const fetchBaseQuote = async () => {
