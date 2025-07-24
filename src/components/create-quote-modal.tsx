@@ -4,14 +4,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { QuoteForm } from './forms/quote-form';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
+import type { Quote } from '@/types';
 
 interface CreateQuoteModalProps {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
     clientId?: string;
+    template?: Quote | null;
 }
 
-export function CreateQuoteModal({ isOpen, onOpenChange, clientId }: CreateQuoteModalProps) {
+export function CreateQuoteModal({ isOpen, onOpenChange, clientId, template }: CreateQuoteModalProps) {
     const router = useRouter();
 
     const handleSuccess = (quoteId: string) => {
@@ -33,9 +35,9 @@ export function CreateQuoteModal({ isOpen, onOpenChange, clientId }: CreateQuote
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[80vh] p-4">
-                    <QuoteForm onSuccess={handleSuccess} clientId={clientId} />
+                    <QuoteForm onSuccess={handleSuccess} clientId={clientId} template={template} />
                 </ScrollArea>
             </DialogContent>
         </Dialog>
     );
-} 
+}

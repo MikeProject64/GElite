@@ -24,6 +24,8 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Customer, Quote } from '@/types';
+import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
+
 
 const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
@@ -47,11 +49,11 @@ type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 interface QuoteFormProps {
   onSuccess?: (quoteId: string) => void;
   baseQuoteId?: string; // Para versionamento
-  templateId?: string; // Para carregar a partir de um modelo
+  template?: Quote | null; // Para carregar a partir de um modelo
   clientId?: string; // Para pré-selecionar um cliente
 }
 
-export function QuoteForm({ onSuccess, baseQuoteId, templateId, clientId }: QuoteFormProps) {
+export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteFormProps) {
     const { user } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
@@ -88,34 +90,28 @@ export function QuoteForm({ onSuccess, baseQuoteId, templateId, clientId }: Quot
         if (!user) return;
         setIsInitializing(true);
     
-        const fetchTemplate = async (id: string) => {
-            const templateRef = doc(db, 'quotes', id);
-            const templateSnap = await getDoc(templateRef);
-            if(templateSnap.exists()) {
-                const templateData = templateSnap.data() as Quote;
-                 form.reset({
-                    title: templateData.title,
-                    description: templateData.description,
-                    totalValue: templateData.totalValue,
-                    customFields: templateData.customFields || {},
-                    validUntil: addDays(new Date(), 7),
-                    clientId: '',
-                });
-                toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
-            } else {
-                toast({ variant: 'destructive', title: 'Erro', description: 'Modelo não encontrado.'});
-            }
+        const loadTemplateData = (templateData: Quote) => {
+            form.reset({
+                title: templateData.title,
+                description: templateData.description,
+                totalValue: templateData.totalValue,
+                customFields: templateData.customFields || {},
+                validUntil: addDays(new Date(), 7),
+                clientId: '',
+            });
+            toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
         }
     
-        if (templateId) {
-            fetchTemplate(templateId).finally(() => setIsInitializing(false));
+        if (template) {
+            loadTemplateData(template);
+            setIsInitializing(false);
         } else if (clientId) {
             form.setValue('clientId', clientId, { shouldValidate: true });
             setIsInitializing(false);
         } else if (!baseQuoteId) {
             setIsInitializing(false);
         }
-      }, [templateId, clientId, baseQuoteId, user, form, toast]);
+      }, [template, clientId, baseQuoteId, user, form, toast]);
     
       useEffect(() => {
         const fetchBaseQuote = async () => {
@@ -445,4 +441,4 @@ export function QuoteForm({ onSuccess, baseQuoteId, templateId, clientId }: Quot
         </Dialog>
         </>
       );
-} 
+}

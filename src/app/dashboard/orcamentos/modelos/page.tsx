@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
@@ -184,7 +183,7 @@ export default function OrcamentoModelosPage() {
       <CreateQuoteModal 
         isOpen={isModalOpen}
         onOpenChange={setIsModalOpen}
-        templateId={selectedTemplate?.id}
+        template={selectedTemplate}
       />
     </>
   );
