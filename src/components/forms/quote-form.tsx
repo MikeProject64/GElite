@@ -1,11 +1,11 @@
 
 'use client';
 
-import { useState, useEffect, useRef, useMemo, Suspense } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -28,7 +28,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Customer, Quote } from '@/types';
 import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
 
-
 const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
@@ -38,15 +37,7 @@ const quoteSchema = z.object({
   customFields: z.record(z.any()).optional(),
 });
 
-const newCustomerSchema = z.object({
-  name: z.string().min(3, "O nome deve ter pelo menos 3 caracteres."),
-  phone: z.string().refine(val => val.replace(/\D/g, '').length >= 10, {
-    message: "O telefone deve conter entre 10 e 11 dígitos numéricos."
-  }),
-});
-
 type QuoteFormValues = z.infer<typeof quoteSchema>;
-type NewCustomerValues = z.infer<typeof newCustomerSchema>;
 
 interface QuoteFormProps {
   onSuccess?: (quoteId: string) => void;
@@ -56,7 +47,7 @@ interface QuoteFormProps {
 }
 
 export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteFormProps) {
-    const { user } = useAuth();
+    const { user, activeAccountId } = useAuth();
     const { toast } = useToast();
     const router = useRouter();
     const { settings } = useSettings();
@@ -81,11 +72,6 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
         validUntil: addDays(new Date(), 7),
         customFields: {},
       },
-    });
-  
-    const newCustomerForm = useForm<NewCustomerValues>({
-      resolver: zodResolver(newCustomerSchema),
-      defaultValues: { name: '', phone: '' },
     });
   
      useEffect(() => {
@@ -179,12 +165,6 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
       }, [user, toast]);
     
       useEffect(() => {
-        if(!isNewClientDialogOpen) {
-          newCustomerForm.reset();
-        }
-      }, [isNewClientDialogOpen, newCustomerForm]);
-    
-      useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
           if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
             setIsDropdownOpen(false);
@@ -194,25 +174,45 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
         return () => document.removeEventListener("mousedown", handleClickOutside);
       }, [dropdownRef]);
       
-      const onNewClientSubmit = async (data: NewCustomerValues) => {
-        if (!user) return;
+      const handleNewClientSubmit = async (data: CustomerFormValues) => {
+        if (!user || !activeAccountId) return;
         try {
-          const q = query(collection(db, 'customers'), where('userId', '==', user.uid), where('phone', '==', data.phone));
+          const q = query(collection(db, 'customers'), where('userId', '==', activeAccountId), where('phone', '==', data.phone));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
             toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este telefone." });
             return;
           }
-          const docRef = await addDoc(collection(db, 'customers'), {
+
+          const customFieldsData = { ...data.customFields };
+           settings.customerCustomFields?.forEach(field => {
+                if (field.type === 'date' && customFieldsData[field.id]) {
+                    customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+                }
+           });
+    
+          const payload = {
             ...data,
-            userId: user.uid,
+            userId: activeAccountId,
+              tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [],
+              birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
+              customFields: customFieldsData,
             createdAt: Timestamp.now(),
-          });
+              activityLog: [{
+                  timestamp: Timestamp.now(),
+                  userEmail: user.email || 'Sistema',
+                  description: 'Cliente cadastrado.',
+                  entityName: data.name,
+              }],
+          };
+          delete (payload as any).tagId;
+    
+          const docRef = await addDoc(collection(db, 'customers'), payload);
           toast({ title: "Sucesso!", description: "Cliente cadastrado." });
           form.setValue('clientId', docRef.id, { shouldValidate: true, shouldTouch: true });
           setIsNewClientDialogOpen(false);
         } catch (error) {
-          toast({ variant: "destructive", title: "Erro", description: "Falha ao cadastrar o cliente." });
+          toast({ variant: "destructive", title: "Erro", description: `Falha ao cadastrar o cliente. ${error instanceof Error ? error.message : ''}` });
         }
       };
     
@@ -296,48 +296,19 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                         </Button>
                       </div>
                       <div className="relative">
-                        <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} onClick={() => setIsDropdownOpen(prev => !prev)} disabled={isVersioning || !!clientId}>
-                          <span className='truncate'>
-                            {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
-                          </span>
-                          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                        {isDropdownOpen && (
-                          <div ref={dropdownRef} className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg">
-                            <div className="p-2">
-                              <Input
-                                placeholder="Buscar cliente..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                autoFocus
-                              />
-                            </div>
-                            <ScrollArea className="h-48">
-                              {filteredCustomers.length > 0 ? (
-                                filteredCustomers.map((customer) => (
-                                  <button
-                                    type="button"
-                                    key={customer.id}
-                                    className="flex items-center w-full text-left p-2 text-sm hover:bg-accent"
-                                    onClick={() => {
-                                      field.onChange(customer.id);
-                                      setIsDropdownOpen(false);
-                                      setSearchTerm('');
-                                    }}
-                                  >
-                                    <Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} />
-                                    <div>
-                                      <p>{customer.name}</p>
-                                      <p className="text-xs text-muted-foreground">{customer.phone}</p>
-                                    </div>
-                                  </button>
-                                ))
-                              ) : (
-                                <p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
-                              )}
-                            </ScrollArea>
-                          </div>
-                        )}
+                        <Popover open={isDropdownOpen} onOpenChange={setIsDropdownOpen}>
+                            <PopoverTrigger asChild>
+                                <Button type="button" variant="outline" role="combobox" className={cn("w-full justify-between", !field.value && "text-muted-foreground")} disabled={isVersioning || !!clientId}>
+                                <span className='truncate'>
+                                    {field.value ? customers.find(c => c.id === field.value)?.name : "Selecione um cliente"}
+                                </span>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                            <Command><CommandInput placeholder="Buscar cliente..." value={searchTerm} onValueChange={setSearchTerm} /><CommandList><CommandEmpty>Nenhum cliente encontrado.</CommandEmpty><CommandGroup><ScrollArea className="h-48">{filteredCustomers.length > 0 ? (filteredCustomers.map((customer) => (<CommandItem key={customer.id} value={customer.id} onSelect={(currentValue) => {form.setValue('clientId', currentValue === field.value ? '' : currentValue, { shouldValidate: true }); setIsDropdownOpen(false);}}><Check className={cn("mr-2 h-4 w-4", field.value === customer.id ? "opacity-100" : "opacity-0")} /><div><p>{customer.name}</p><p className="text-xs text-muted-foreground">{customer.phone}</p></div></CommandItem>))) : (<p className="p-2 text-center text-sm text-muted-foreground">Nenhum cliente encontrado.</p>)}</ScrollArea></CommandGroup></CommandList></Command>
+                            </PopoverContent>
+                        </Popover>
                       </div>
                       <FormMessage />
                     </FormItem>
@@ -434,23 +405,16 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
             </Form>
     
           <Dialog open={isNewClientDialogOpen} onOpenChange={setIsNewClientDialogOpen}>
-            <DialogContent className="sm:max-w-md">
-                <DialogHeader><DialogTitle>Cadastrar Novo Cliente</DialogTitle><DialogDescription>Preencha os detalhes para um cadastro rápido.</DialogDescription></DialogHeader>
-                <Form {...newCustomerForm}>
-                  <form onSubmit={newCustomerForm.handleSubmit(onNewClientSubmit)} className="space-y-4">
-                    <FormField control={newCustomerForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Nome Completo *</FormLabel><FormControl><Input placeholder="Ex: Maria Oliveira" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                    <FormField control={newCustomerForm.control} name="phone" render={({ field }) => ( <FormItem><FormLabel>Telefone *</FormLabel><FormControl><Input placeholder="Ex: (11) 99999-8888" {...field} /></FormControl><FormMessage /></FormItem> )}/>
-                    <DialogFooter className="pt-4">
-                      <Button type="button" variant="ghost" onClick={() => setIsNewClientDialogOpen(false)}>Cancelar</Button>
-                      <Button type="submit" disabled={newCustomerForm.formState.isSubmitting}>
-                          {newCustomerForm.formState.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                          Salvar Cliente
-                      </Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
+            <DialogContent className="sm:max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Cadastrar Novo Cliente</DialogTitle>
+                <DialogDescription>Preencha os detalhes para um cadastro completo.</DialogDescription>
+              </DialogHeader>
+              <div className="max-h-[70vh] overflow-y-auto p-1">
+                <CustomerForm onSubmit={handleNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
+              </div>
             </DialogContent>
-        </Dialog>
+          </Dialog>
         </>
       );
 }
