@@ -28,6 +28,7 @@ import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loade
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { CreateQuoteModal } from '@/components/create-quote-modal';
 
 
 const templateFormSchema = z.object({
@@ -72,6 +73,8 @@ export default function OrcamentoDetailPage() {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isRecusarAlertOpen, setIsRecusarAlertOpen] = useState(false);
   const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
 
   const quoteId = Array.isArray(id) ? id[0] : id;
   
@@ -310,7 +313,7 @@ export default function OrcamentoDetailPage() {
         </Button>
         <h1 className="flex-1 shrink-0 whitespace-nowrap text-xl font-semibold flex items-center gap-2">
             <FileText className='h-5 w-5' />
-            Detalhes do Orçamento (v{quote.version || 1})
+            Orçamento nº {quote.id.substring(0, 6).toUpperCase()} (v{quote.version || 1})
         </h1>
         {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
             <Button asChild variant="secondary" size="sm" className="font-medium">
@@ -389,11 +392,9 @@ export default function OrcamentoDetailPage() {
                     <WhatsAppIcon />
                     Enviar por WhatsApp
                 </Button>
-                <Button variant="outline" size="sm" disabled={!canCreateNewVersion} asChild>
-                    <Link href={`/dashboard/orcamentos/criar?versionOf=${quote.id}`}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Editar
-                    </Link>
+                <Button variant="outline" size="sm" disabled={!canCreateNewVersion} onClick={() => setIsEditModalOpen(true)}>
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
                   <Save className="mr-2 h-4 w-4" />
@@ -550,10 +551,16 @@ export default function OrcamentoDetailPage() {
                     </DialogDescription>
                 </DialogHeader>
                 <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
-                    <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />
+                    {previewQuote && <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
                 </div>
             </DialogContent>
         </Dialog>
+
+        <CreateQuoteModal
+            isOpen={isEditModalOpen}
+            onOpenChange={setIsEditModalOpen}
+            baseQuoteId={quote.id}
+        />
     </div>
   );
 }

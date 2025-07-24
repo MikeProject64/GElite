@@ -11,9 +11,10 @@ interface CreateQuoteModalProps {
     onOpenChange: (isOpen: boolean) => void;
     clientId?: string;
     template?: Quote | null;
+    baseQuoteId?: string; // Adicionado para suportar versionamento
 }
 
-export function CreateQuoteModal({ isOpen, onOpenChange, clientId, template }: CreateQuoteModalProps) {
+export function CreateQuoteModal({ isOpen, onOpenChange, clientId, template, baseQuoteId }: CreateQuoteModalProps) {
     const router = useRouter();
 
     const handleSuccess = (quoteId: string) => {
@@ -29,13 +30,13 @@ export function CreateQuoteModal({ isOpen, onOpenChange, clientId, template }: C
                 onEscapeKeyDown={(e) => e.preventDefault()}
             >
                 <DialogHeader>
-                    <DialogTitle>Criar Novo Orçamento</DialogTitle>
+                    <DialogTitle>{baseQuoteId ? 'Criar Nova Versão do Orçamento' : 'Criar Novo Orçamento'}</DialogTitle>
                     <DialogDescription>
-                        Preencha os detalhes abaixo para criar uma nova proposta rapidamente.
+                        {baseQuoteId ? 'Altere os detalhes para criar uma nova versão. A versão anterior será mantida.' : 'Preencha os detalhes abaixo para criar uma nova proposta rapidamente.'}
                     </DialogDescription>
                 </DialogHeader>
                 <ScrollArea className="max-h-[80vh] p-4">
-                    <QuoteForm onSuccess={handleSuccess} clientId={clientId} template={template} />
+                    <QuoteForm onSuccess={handleSuccess} clientId={clientId} template={template} baseQuoteId={baseQuoteId} />
                 </ScrollArea>
             </DialogContent>
         </Dialog>

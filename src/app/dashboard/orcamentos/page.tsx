@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -9,7 +10,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
-import { Quote, ServiceOrder } from '@/types';
+import { Quote, ServiceOrder, Client } from '@/types';
 import { DateRange } from 'react-day-picker';
 import { cn } from '@/lib/utils';
 import { Calendar } from '@/components/ui/calendar';
@@ -22,11 +23,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil, ChevronsUpDown, Check } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -46,6 +48,54 @@ const formatCurrency = (value: number) => {
     }).format(value);
 };
 
+function SearchableSelect({ value, onValueChange, options, placeholder }: {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: { value: string; label: string; }[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const currentLabel = options.find(option => option.value === value)?.label;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal text-left">
+          <span className="truncate">
+            {currentLabel || placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Pesquisar..." />
+          <CommandEmpty>Nenhum resultado.</CommandEmpty>
+          <CommandList>
+            <CommandGroup>
+               <CommandItem key="all" value="all" onSelect={() => { onValueChange(''); setOpen(false); }}>
+                    <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                    Todos
+                </CommandItem>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  onSelect={() => { onValueChange(option.value === value ? '' : option.value); setOpen(false); }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+
 function OrcamentosPageComponent() {
   const { user, activeAccountId } = useAuth();
   const { toast } = useToast();
@@ -53,12 +103,12 @@ function OrcamentosPageComponent() {
   const searchParams = useSearchParams();
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState<string | null>(null);
   const [filters, setFilters] = useState({ 
     status: '', 
-    clientName: '',
-    createdAt: undefined as DateRange | undefined
+    clientId: '',
   });
   
   const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -95,7 +145,15 @@ function OrcamentosPageComponent() {
         setIsLoading(false);
     });
 
-    return () => unsubscribe();
+    const clientsQuery = query(collection(db, 'customers'), where('userId', '==', activeAccountId), orderBy('name'));
+    const unsubClients = onSnapshot(clientsQuery, (snapshot) => {
+      setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+    });
+
+    return () => {
+        unsubscribe();
+        unsubClients();
+    };
   }, [activeAccountId, toast]);
   
   const handleStatusChange = async (quoteId: string, currentStatus: Quote['status'], newStatus: Quote['status']) => {
@@ -202,16 +260,8 @@ function OrcamentosPageComponent() {
   const filteredQuotes = useMemo(() => {
     return latestQuotes.filter(quote => {
         const statusMatch = filters.status ? quote.status === filters.status : true;
-        const clientMatch = filters.clientName ? quote.clientName.toLowerCase().includes(filters.clientName.toLowerCase()) : true;
-        
-        let dateMatch = true;
-        if (filters.createdAt && quote.createdAt) {
-            const quoteCreationDate = quote.createdAt.toDate();
-            if (filters.createdAt.from) dateMatch &&= (quoteCreationDate >= filters.createdAt.from);
-            if (filters.createdAt.to) dateMatch &&= (quoteCreationDate <= filters.createdAt.to);
-        }
-
-        return statusMatch && clientMatch && dateMatch;
+        const clientMatch = filters.clientId ? quote.clientId === filters.clientId : true;
+        return statusMatch && clientMatch;
     });
   }, [latestQuotes, filters]);
   
@@ -258,59 +308,30 @@ function OrcamentosPageComponent() {
             <CardContent className="grid sm:grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="client-filter">Filtrar por Cliente</Label>
-                  <Input id="client-filter" placeholder="Nome do cliente..." value={filters.clientName} onChange={e => handleFilterChange('clientName', e.target.value)} />
+                   <SearchableSelect
+                        value={filters.clientId}
+                        onValueChange={(value) => handleFilterChange('clientId', value)}
+                        options={clients.map(c => ({ value: c.id, label: c.name }))}
+                        placeholder="Selecione um cliente..."
+                    />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="status-filter">Filtrar por Status</Label>
-                  <Select value={filters.status} onValueChange={value => handleFilterChange('status', value === 'all' ? '' : value)}>
-                      <SelectTrigger id="status-filter">
-                          <SelectValue placeholder="Todos os Status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="all">Todos os Status</SelectItem>
-                          <SelectItem value="Pendente">Pendente</SelectItem>
-                          <SelectItem value="Aprovado">Aprovado</SelectItem>
-                          <SelectItem value="Recusado">Recusado</SelectItem>
-                          <SelectItem value="Convertido">Convertido</SelectItem>
-                      </SelectContent>
-                  </Select>
+                  <SearchableSelect
+                        value={filters.status}
+                        onValueChange={(value) => handleFilterChange('status', value)}
+                        options={[
+                            { value: 'Pendente', label: 'Pendente' },
+                            { value: 'Aprovado', label: 'Aprovado' },
+                            { value: 'Recusado', label: 'Recusado' },
+                            { value: 'Convertido', label: 'Convertido' },
+                        ]}
+                        placeholder="Selecione um status..."
+                    />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="date-filter">Filtrar por Data de Criação</Label>
-                  <Popover>
-                      <PopoverTrigger asChild>
-                          <Button id="date-filter" variant="outline" className={cn("justify-start text-left font-normal", !filters.createdAt && "text-muted-foreground")}>
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {filters.createdAt?.from ? (
-                                  filters.createdAt.to ? (
-                                      <>
-                                          {format(filters.createdAt.from, "dd/MM/yy")} - {format(filters.createdAt.to, "dd/MM/yy")}
-                                      </>
-                                  ) : (
-                                      format(filters.createdAt.from, "dd/MM/yyyy")
-                                  )
-                              ) : (
-                                  <span>Selecione um período</span>
-                              )}
-                          </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="range" selected={filters.createdAt} onSelect={(range) => handleFilterChange('createdAt', range)} numberOfMonths={2} />
-                      </PopoverContent>
-                  </Popover>
-              </div>
             </CardContent>
           </Card>
           
-          {isAnyFilterActive && (
-              <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-sm font-medium">Filtros ativos:</span>
-                  {filters.status && <Badge variant="secondary" className="gap-1">Status: {filters.status} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('status', '')}><X className="h-3 w-3"/></Button></Badge>}
-                  {filters.clientName && <Badge variant="secondary" className="gap-1">Cliente: {filters.clientName} <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('clientName', '')}><X className="h-3 w-3"/></Button></Badge>}
-                  {filters.createdAt && <Badge variant="secondary" className="gap-1">Data <Button variant="ghost" size="icon" className="h-4 w-4" onClick={() => handleFilterChange('createdAt', undefined)}><X className="h-3 w-3"/></Button></Badge>}
-              </div>
-          )}
-
         <Card>
           <CardHeader>
             <CardTitle>Gestão de Propostas e Orçamentos</CardTitle>
