@@ -62,9 +62,9 @@ async function getDynamicFavicon() {
     const settingsSnap = await getDoc(settingsRef);
     if (settingsSnap.exists()) {
       const data = settingsSnap.data();
-      const iconName = data.iconName as keyof typeof availableIcons || 'Wrench';
+      const iconName = data.iconName as keyof typeof availableIcons || 'Rocket';
       const color = data.primaryColorHsl || { h: 210, s: 70, l: 40 };
-      const IconComponent = availableIcons[iconName] || availableIcons.Wrench;
+      const IconComponent = availableIcons[iconName] || availableIcons.Rocket;
 
       const colorString = `hsl(${color.h}, ${color.s}%, ${color.l}%)`;
       // Manually construct the SVG string to avoid importing react-dom/server
