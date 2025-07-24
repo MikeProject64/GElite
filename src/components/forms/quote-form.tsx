@@ -386,6 +386,11 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                                                     <Calendar mode="single" selected={field.value ? new Date(field.value) : undefined} onSelect={field.onChange} initialFocus />
                                                 </PopoverContent>
                                             </Popover>
+                                        ) : customField.type === 'currency' ? (
+                                            <div className="relative">
+                                                <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <Input type="number" step="0.01" className="pl-8" {...field} onChange={e => field.onChange(Number(e.target.value))} value={field.value ?? ''} />
+                                            </div>
                                         ) : (
                                             <Input type={customField.type} {...field} value={field.value || ''} />
                                         )}
