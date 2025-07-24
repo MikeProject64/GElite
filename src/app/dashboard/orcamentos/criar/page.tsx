@@ -114,7 +114,7 @@ function CreateQuoteForm() {
                 description: templateData.description,
                 totalValue: templateData.totalValue,
                 customFields: customFieldsWithDate,
-                validUntil: addDays(new Date(), 7),
+                validUntil: templateData.validUntil ? templateData.validUntil.toDate() : addDays(new Date(), 7),
                 clientId: '',
             });
             toast({ title: 'Modelo Carregado', description: `Modelo "${templateData.templateName}" preenchido. Selecione um cliente.`});
