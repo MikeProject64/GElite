@@ -8,8 +8,10 @@ import { GA_TRACKING_ID } from '@/lib/utils';
 import MetaPixel from '@/components/meta-pixel';
 import { Suspense } from 'react';
 import { CookieBanner } from '@/components/cookie-banner';
-// REMOVIDO: import { db } from '@/lib/firebase';
-// REMOVIDO: import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { availableIcons } from '@/components/icon-map';
+
 
 const fontSans = Inter({
   subsets: ['latin'],
@@ -23,36 +25,74 @@ export async function generateMetadata(): Promise<Metadata> {
   let siteDescription = 'Otimize sua gestão de serviços com a plataforma completa para prestadores de serviço.';
   let imageUrl = 'https://gestorelite.app/og-image.png'; // Uma imagem de fallback genérica
 
-  // Se quiser buscar dados do site, use fetch para uma API ou arquivo estático, nunca o SDK client do Firebase aqui.
-  // Exemplo:
-  // try {
-  //   const res = await fetch('https://api.seusite.com/site-config');
-  //   const data = await res.json();
-  //   siteName = data.siteName || siteName;
-  //   imageUrl = data.heroImage || imageUrl;
-  // } catch (error) {
-  //   // Loga o erro, mas não impede a build, usando os valores de fallback
-  //   console.error("Failed to fetch settings for metadata:", error);
-  // }
+  try {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const settingsSnap = await getDoc(settingsRef);
+
+    if (settingsSnap.exists()) {
+        const data = settingsSnap.data();
+        siteName = data.siteName || siteName;
+        // Se houver uma imagem de logo ou hero, podemos usá-la para o OpenGraph
+        imageUrl = data.logoURL || data.landingPageImages?.heroImage || imageUrl;
+    }
+  } catch (error) {
+    // Loga o erro, mas não impede a build, usando os valores de fallback
+    console.error("Failed to fetch settings for metadata:", error);
+  }
 
   return {
-    title: siteName,
+    title: {
+      default: siteName,
+      template: `%s | ${siteName}`,
+    },
     description: siteDescription,
     openGraph: {
+      title: siteName,
+      description: siteDescription,
       images: [imageUrl],
+      type: 'website',
+      siteName: siteName,
     },
   };
 }
 
+async function getDynamicFavicon() {
+  try {
+    const settingsRef = doc(db, 'siteConfig', 'main');
+    const settingsSnap = await getDoc(settingsRef);
+    if (settingsSnap.exists()) {
+      const data = settingsSnap.data();
+      const iconName = data.iconName as keyof typeof availableIcons || 'Wrench';
+      const color = data.primaryColorHsl || { h: 210, s: 70, l: 40 };
+      const IconComponent = availableIcons[iconName] || availableIcons.Wrench;
 
-export default function RootLayout({
+      const colorString = `hsl(${color.h}, ${color.s}%, ${color.l}%)`;
+      // Manually construct the SVG string to avoid importing react-dom/server
+      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="${colorString}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">${IconComponent({}).props.children}</svg>`;
+
+      const faviconUrl = `data:image/svg+xml,${encodeURIComponent(svgString)}`;
+      
+      return <link rel="icon" href={faviconUrl} sizes="any" />;
+    }
+  } catch (error) {
+    console.error("Failed to generate dynamic favicon:", error);
+  }
+  // Fallback para um favicon padrão se a busca falhar
+  return <link rel="icon" href="/favicon.ico" sizes="any" />;
+}
+
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const favicon = await getDynamicFavicon();
+
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <head>
+        {favicon}
         {/* Google Tag Manager */}
         <script dangerouslySetInnerHTML={{ __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
         new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
