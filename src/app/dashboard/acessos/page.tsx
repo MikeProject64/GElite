@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy, addDoc, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
@@ -387,9 +387,20 @@ export default function AcessosEquipePage() {
     defaultValues: { name: '', description: '', type: 'collaborator' },
   });
   const handleCollaboratorSubmit = async (data: CollaboratorFormValues) => {
-    // Implemente aqui a lógica de cadastro igual à de colaboradores
-    setIsDialogOpen(false);
-    setEditingCollaborator(null);
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'collaborators'), {
+        ...data,
+        userId: user.uid,
+        createdAt: Timestamp.now(),
+      });
+      toast({ title: 'Sucesso!', description: 'Colaborador adicionado.' });
+      setIsDialogOpen(false);
+      setEditingCollaborator(null);
+      collaboratorForm.reset({ name: '', description: '', type: 'collaborator' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao salvar', description: 'Falha ao salvar o colaborador.' });
+    }
   };
 
   if (isLoading) {
