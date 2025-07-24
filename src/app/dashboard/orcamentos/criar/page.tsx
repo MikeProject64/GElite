@@ -410,7 +410,7 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                 <DialogDescription>Preencha os detalhes para um cadastro completo.</DialogDescription>
               </DialogHeader>
               <div className="max-h-[70vh] overflow-y-auto p-1">
-                <CustomerForm onFormSubmit={handleNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
+                <CustomerForm onSubmit={handleNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
               </div>
             </DialogContent>
           </Dialog>

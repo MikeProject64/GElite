@@ -40,11 +40,11 @@ export type CustomerFormValues = z.infer<typeof customerFormSchema>;
 
 interface CustomerFormProps {
     customer?: Customer | null;
-    onFormSubmit: (data: CustomerFormValues) => Promise<void>; // Renomeado de onSubmit para onFormSubmit
+    onSubmit: (data: CustomerFormValues) => Promise<void>; 
     onCancel?: () => void;
 }
 
-export function CustomerForm({ customer, onFormSubmit, onCancel }: CustomerFormProps) {
+export function CustomerForm({ customer, onSubmit, onCancel }: CustomerFormProps) {
     const { settings } = useSettings();
     const [birthDateString, setBirthDateString] = useState('');
 
@@ -109,7 +109,7 @@ export function CustomerForm({ customer, onFormSubmit, onCancel }: CustomerFormP
 
     return (
         <Form {...form}>
-            <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                     <FormItem>
                     <FormLabel>Nome Completo *</FormLabel>

@@ -183,7 +183,7 @@ export default function BaseDeClientesPage() {
             <div className="max-h-[70vh] overflow-y-auto p-1">
                 <CustomerForm 
                     customer={editingCustomer} 
-                    onFormSubmit={handleFormSubmit}
+                    onSubmit={handleFormSubmit}
                     onCancel={() => setIsModalOpen(false)}
                 />
             </div>
