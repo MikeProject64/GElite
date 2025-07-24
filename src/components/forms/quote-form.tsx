@@ -23,7 +23,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus } from 'lucide-react';
+import { Loader2, CalendarIcon, ChevronsUpDown, Check, UserPlus, DollarSign } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Customer, Quote } from '@/types';
 import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
@@ -32,7 +32,9 @@ const quoteSchema = z.object({
   title: z.string().min(5, "O título deve ter pelo menos 5 caracteres."),
   clientId: z.string({ required_error: "Por favor, selecione um cliente." }).min(1, "Por favor, selecione um cliente."),
   description: z.string().min(10, "A descrição deve ter pelo menos 10 caracteres."),
-  totalValue: z.coerce.number().min(0.01, "O valor total deve ser maior que zero."),
+  totalValue: z.coerce.number({
+    errorMap: () => ({ message: "O valor total é obrigatório." })
+  }).min(0.01, "O valor total deve ser maior que zero."),
   validUntil: z.date({ required_error: "A data de validade é obrigatória." }),
   customFields: z.record(z.any()).optional(),
 });
@@ -324,8 +326,8 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                           <FormLabel>Valor Total *</FormLabel>
                           <FormControl>
                             <div className="relative">
-                              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-muted-foreground">R$</span>
-                              <Input type="number" step="0.01" placeholder="250,00" className="pl-9" {...field} />
+                              <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                              <Input type="number" step="0.01" placeholder="250,00" className="pl-8" {...field} />
                             </div>
                           </FormControl>
                           <FormMessage />

@@ -3,7 +3,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, notFound } from 'next/navigation';
 import { doc, onSnapshot, updateDoc, addDoc, collection, Timestamp, query, where, orderBy, getDoc, arrayUnion, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import Link from 'next/link';
@@ -24,7 +24,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History, Eye } from 'lucide-react';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -71,6 +71,7 @@ export default function OrcamentoDetailPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isRecusarAlertOpen, setIsRecusarAlertOpen] = useState(false);
+  const [isPreviewModalOpen, setIsPreviewModalOpen] = useState(false);
 
   const quoteId = Array.isArray(id) ? id[0] : id;
   
@@ -332,7 +333,7 @@ export default function OrcamentoDetailPage() {
                 </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-                <div className="grid md:grid-cols-2 gap-4">
+                <div className="grid sm:grid-cols-2 gap-4">
                     <div className="flex items-center gap-3">
                         <User className="h-5 w-5 text-muted-foreground" />
                         <div>
@@ -397,6 +398,10 @@ export default function OrcamentoDetailPage() {
                 <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
                   <Save className="mr-2 h-4 w-4" />
                   Salvar como Modelo
+                </Button>
+                 <Button variant="secondary" size="sm" onClick={() => setIsPreviewModalOpen(true)}>
+                  <Eye className="mr-2 h-4 w-4"/>
+                  Visualizar
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => window.open(`/print/orcamento/${quote.id}`, '_blank')}>
                   <Printer className="mr-2 h-4 w-4"/>
@@ -533,6 +538,17 @@ export default function OrcamentoDetailPage() {
                         </DialogFooter>
                     </form>
                 </Form>
+            </DialogContent>
+        </Dialog>
+        
+        <Dialog open={isPreviewModalOpen} onOpenChange={setIsPreviewModalOpen}>
+            <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                <DialogHeader>
+                    <DialogTitle>Visualização do Orçamento</DialogTitle>
+                </DialogHeader>
+                <div className="flex-grow rounded-lg border overflow-hidden">
+                    <iframe src={`/print/orcamento/${quote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />
+                </div>
             </DialogContent>
         </Dialog>
     </div>

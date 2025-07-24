@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -25,6 +26,7 @@ import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -62,6 +64,7 @@ function OrcamentosPageComponent() {
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [currentPage, setCurrentPage] = useState(1);
   const [conversionAlertData, setConversionAlertData] = useState<Quote | null>(null);
+  const [previewQuote, setPreviewQuote] = useState<Quote | null>(null);
 
   useEffect(() => {
     const statusFromUrl = searchParams.get('status');
@@ -372,8 +375,11 @@ function OrcamentosPageComponent() {
                           <DropdownMenu>
                           <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
                           <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel>
+                              <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}>
+                                  <Eye className="mr-2 h-4 w-4" /> Visualizar
+                              </DropdownMenuItem>
                               <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
-                                  <Eye className="mr-2 h-4 w-4" /> Ver / Gerenciar
+                                  <Pencil className="mr-2 h-4 w-4" /> Gerenciar
                               </DropdownMenuItem>
                               {quote.status === 'Aprovado' && (
                                   <DropdownMenuItem onSelect={() => setConversionAlertData(quote)} disabled={isConverting === quote.id}>
@@ -449,6 +455,17 @@ function OrcamentosPageComponent() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={!!previewQuote} onOpenChange={(isOpen) => !isOpen && setPreviewQuote(null)}>
+        <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle>Visualização do Orçamento</DialogTitle>
+          </DialogHeader>
+          <div className="flex-grow rounded-lg border overflow-hidden">
+            {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

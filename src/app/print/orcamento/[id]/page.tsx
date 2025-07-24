@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useParams, notFound } from 'next/navigation';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { Quote, UserSettings } from '@/types';
+import { Quote, UserSettings, SystemUser } from '@/types';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Wrench, Loader2 } from 'lucide-react';
@@ -19,7 +19,8 @@ const formatCurrency = (value: number) => {
 export default function PrintOrcamentoPage() {
     const { id } = useParams();
     const [quote, setQuote] = useState<Quote | null>(null);
-    const [settings, setSettings] = useState<UserSettings | null>(null);
+    const [settings, setSettings] = useState<Partial<UserSettings>>({});
+    const [accountOwner, setAccountOwner] = useState<SystemUser | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
@@ -31,34 +32,39 @@ export default function PrintOrcamentoPage() {
         const quoteId = Array.isArray(id) ? id[0] : id;
 
         const fetchQuoteAndSettings = async () => {
-            const quoteRef = doc(db, 'quotes', quoteId);
-            const quoteSnap = await getDoc(quoteRef);
+            try {
+                const quoteRef = doc(db, 'quotes', quoteId);
+                const quoteSnap = await getDoc(quoteRef);
 
-            if (!quoteSnap.exists()) {
-                setIsLoading(false);
-                notFound();
-                return;
-            }
-
-            const quoteData = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
-            setQuote(quoteData);
-
-            let userSettings: UserSettings = { siteName: 'Gestor Elite', iconName: 'Wrench' };
-            if (quoteData.userId) {
-                const settingsRef = doc(db, 'userSettings', quoteData.userId);
-                const settingsSnap = await getDoc(settingsRef);
-                if (settingsSnap.exists()) {
-                    userSettings = { ...userSettings, ...settingsSnap.data() };
+                if (!quoteSnap.exists()) {
+                    notFound();
+                    return;
                 }
+
+                const quoteData = { id: quoteSnap.id, ...quoteSnap.data() } as Quote;
+                setQuote(quoteData);
+
+                if (quoteData.userId) {
+                    const settingsRef = doc(db, 'siteConfig', 'main');
+                    const settingsSnap = await getDoc(settingsRef);
+                    if (settingsSnap.exists()) {
+                        setSettings(settingsSnap.data());
+                    }
+
+                    const ownerRef = doc(db, 'users', quoteData.userId);
+                    const ownerSnap = await getDoc(ownerRef);
+                    if(ownerSnap.exists()) {
+                        setAccountOwner(ownerSnap.data() as SystemUser);
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+            } finally {
+                setIsLoading(false);
             }
-            setSettings(userSettings);
-            setIsLoading(false);
         };
 
-        fetchQuoteAndSettings().catch(err => {
-            console.error(err);
-            setIsLoading(false);
-        });
+        fetchQuoteAndSettings();
 
     }, [id]);
 
@@ -70,12 +76,12 @@ export default function PrintOrcamentoPage() {
         );
     }
     
-    if (!quote || !settings) {
+    if (!quote) {
         return null;
     }
     
     const Icon = availableIcons[settings.iconName as keyof typeof availableIcons] || Wrench;
-    const siteName = settings.siteName || 'Gestor Elite';
+    const siteName = accountOwner?.companyName || accountOwner?.name || settings.siteName || 'Gestor Elite';
 
 
     return (
