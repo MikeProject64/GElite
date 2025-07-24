@@ -40,8 +40,6 @@ export default function PerfilPage() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(user?.photoURL || null);
-  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [savedFields, setSavedFields] = useState<string[]>([]);
   const formRef = useRef<HTMLFormElement>(null);
@@ -132,51 +130,6 @@ export default function PerfilPage() {
     }
   };
 
-  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!user || !systemUser || !e.target.files?.length) return;
-    const file = e.target.files[0];
-    setIsUploadingPhoto(true);
-    try {
-      if (user.photoURL) {
-        try {
-          const oldRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
-          await deleteObject(oldRef);
-        } catch (err: any) {
-          if (err.code !== 'storage/object-not-found') console.warn('Erro ao remover foto antiga:', err);
-        }
-      }
-      const fileRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
-      await uploadBytes(fileRef, file, { customMetadata: { userId: user.uid } });
-      const url = await getDownloadURL(fileRef);
-      setPhotoPreview(url);
-      await updateProfile(user, { photoURL: url });
-      await updateDoc(doc(db, 'users', user.uid), { photoURL: url });
-      toast({ title: 'Foto atualizada', description: 'Sua foto de perfil foi alterada.' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível atualizar a foto.' });
-    } finally {
-      setIsUploadingPhoto(false);
-      e.target.value = '';
-    }
-  };
-
-  const handleRemovePhoto = async () => {
-    if (!user) return;
-    setIsUploadingPhoto(true);
-    try {
-      const fileRef = storageRef(storage, `users/${user.uid}/profile.jpg`);
-      await deleteObject(fileRef);
-      await updateProfile(user, { photoURL: '' });
-      await updateDoc(doc(db, 'users', user.uid), { photoURL: '' });
-      setPhotoPreview(null);
-      toast({ title: 'Foto removida', description: 'Sua foto de perfil foi removida.' });
-    } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível remover a foto.' });
-    } finally {
-      setIsUploadingPhoto(false);
-    }
-  };
-
   const handlePerfilSubmit = async (values: PerfilFormValues) => {
     if (!user) return;
     setIsSaving(true);
@@ -205,10 +158,6 @@ export default function PerfilPage() {
           <div className="h-8 bg-muted rounded w-1/3 mb-8" />
           <div className="bg-white dark:bg-card rounded-lg shadow p-6">
             <div className="h-6 bg-muted rounded w-1/4 mb-4" />
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-20 h-20 rounded-full bg-muted" />
-              <div className="h-4 w-24 bg-muted rounded" />
-            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="h-10 bg-muted rounded" />
@@ -260,28 +209,8 @@ export default function PerfilPage() {
             </DropdownMenu>
           </div>
           <h2 className="text-xl font-semibold mb-4">Informações do Perfil</h2>
-          <div className="flex items-center gap-4 mb-6">
-            {photoPreview ? (
-              <Image src={photoPreview} alt="Foto de perfil" width={80} height={80} className="w-20 h-20 rounded-full object-cover border" />
-            ) : (
-              <div className="w-20 h-20 rounded-full bg-muted flex items-center justify-center text-3xl font-bold">
-                {systemUser?.name?.[0]?.toUpperCase() || 'U'}
-              </div>
-            )}
-            <div className="flex flex-col gap-2">
-              <label htmlFor="profile-photo-upload" className="text-primary underline cursor-pointer">
-                {isUploadingPhoto ? 'Enviando...' : 'Alterar Foto'}
-              </label>
-              <input id="profile-photo-upload" type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} disabled={isUploadingPhoto} />
-              {photoPreview && (
-                <button type="button" className="text-xs text-destructive underline" onClick={handleRemovePhoto} disabled={isUploadingPhoto}>
-                  Remover Foto
-                </button>
-              )}
-            </div>
-          </div>
           <Form {...form}>
-            <form ref={formRef} className="grid gap-4 flex-1" onSubmit={form.handleSubmit(handlePerfilSubmit)}>
+            <form ref={formRef} className="space-y-4" onSubmit={form.handleSubmit(handlePerfilSubmit)}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="name" render={({ field }) => (
                   <FormItem>
@@ -317,15 +246,15 @@ export default function PerfilPage() {
                     <FormMessage />
                   </FormItem>
                 )} />
-                <FormField control={form.control} name="endereco" render={({ field }) => (
-                  <FormItem>
+                 <FormField control={form.control} name="endereco" render={({ field }) => (
+                  <FormItem className="md:col-span-2">
                     <FormLabel>Endereço</FormLabel>
                     <FormControl><Input placeholder="Endereço completo" {...field} /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
               </div>
-              <Button type="submit" className="mt-4 w-full" disabled={isSaving || !form.formState.isDirty} aria-label="Salvar Alterações">
+              <Button type="submit" className="mt-4" disabled={isSaving || !form.formState.isDirty} aria-label="Salvar Alterações">
                 {isSaving ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
             </form>
@@ -408,4 +337,6 @@ export default function PerfilPage() {
       </div>
     </div>
   );
-} 
+}
+
+    
