@@ -8,7 +8,6 @@ import { UserPlus, Wrench } from "lucide-react";
 import { ProtectedComponent } from '@/components/security/protected-component';
 import { useAuth } from '@/components/auth-provider';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { CustomerForm } from '@/components/forms/customer-form';
 import { MessageSquare } from 'lucide-react';
 
 const TABS_DATA = [
@@ -21,7 +20,6 @@ export default function CustomersLayout({ children }: { children: React.ReactNod
     const pathname = usePathname();
     const router = useRouter();
     const { availableFunctions } = useAuth();
-    const [isModalOpen, setIsModalOpen] = useState(false);
     
     const getFunctionIdByPath = (path: string) => {
         return availableFunctions.find(f => f.href === path)?.id || '';
@@ -34,10 +32,6 @@ export default function CustomersLayout({ children }: { children: React.ReactNod
     
     const createFuncId = getFunctionIdByPath("/dashboard/base-de-clientes") || 'clientes_criar';
     const customizeFuncId = getFunctionIdByPath("/dashboard/base-de-clientes/personalizar") || 'clientes_personalizar';
-
-    const handleSuccess = () => {
-        setIsModalOpen(false);
-    }
 
     return (
         <div className="flex flex-col h-full">
@@ -63,7 +57,8 @@ export default function CustomersLayout({ children }: { children: React.ReactNod
                     </Tabs>
                 </div>
                 <ProtectedComponent functionId={createFuncId}>
-                    <Button size="sm" className="gap-1" onClick={() => setIsModalOpen(true)}>
+                    {/* O botão agora despacha um evento global que a página /base-de-clientes irá ouvir */}
+                    <Button size="sm" className="gap-1" onClick={() => window.dispatchEvent(new CustomEvent('open-new-customer-modal'))}>
                         <UserPlus className="h-4 w-4" />
                         <span>Novo Cliente</span>
                     </Button>
@@ -72,20 +67,6 @@ export default function CustomersLayout({ children }: { children: React.ReactNod
             <main className="p-4 sm:p-6 flex-1">
                 {children}
             </main>
-
-            <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-                <DialogContent className="sm:max-w-lg">
-                    <DialogHeader>
-                        <DialogTitle>Adicionar Novo Cliente</DialogTitle>
-                        <DialogDescription>
-                            Preencha os dados abaixo para cadastrar um novo cliente.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="max-h-[70vh] overflow-y-auto p-1">
-                        <CustomerForm onSuccess={handleSuccess} onCancel={() => setIsModalOpen(false)} />
-                    </div>
-                </DialogContent>
-            </Dialog>
         </div>
     );
-} 
+}

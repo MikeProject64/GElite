@@ -1,10 +1,8 @@
-
-
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { collection, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, updateDoc, deleteDoc, arrayUnion, addDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -16,21 +14,16 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, UserPlus, Users, Search, CalendarIcon, Trash2, BookOpen, Check, X, ChevronsUpDown, Tag as TagIcon, Filter, DollarSign, Wrench } from 'lucide-react';
+import { Loader2, MoreHorizontal, Users, Search, Tag as TagIcon, Filter, BookOpen, Trash2, Check, ChevronsUpDown } from 'lucide-react';
 import { Customer } from '@/types';
-import { Separator } from '@/components/ui/separator';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator } from '@/components/ui/command';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { CustomerForm, CustomerFormValues } from '@/components/forms/customer-form';
 
 export default function BaseDeClientesPage() {
@@ -43,7 +36,7 @@ export default function BaseDeClientesPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [deletingCustomerId, setDeletingCustomerId] = useState<string | null>(null);
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false); // State para controlar o modal
 
   const [searchTerm, setSearchTerm] = useState('');
   const [tagFilter, setTagFilter] = useState<string[]>([]);
@@ -72,6 +65,16 @@ export default function BaseDeClientesPage() {
 
     return () => unsubscribe();
   }, [activeAccountId, toast]);
+  
+  // Efeito para ouvir o evento de abrir o modal
+  useEffect(() => {
+    const handleOpenModal = () => {
+        setEditingCustomer(null); // Reseta para garantir que é um novo cadastro
+        setIsModalOpen(true);
+    };
+    window.addEventListener('open-new-customer-modal', handleOpenModal);
+    return () => window.removeEventListener('open-new-customer-modal', handleOpenModal);
+  }, []);
 
   const filteredCustomers = useMemo(() => {
     return customers.filter(customer => {
@@ -91,7 +94,7 @@ export default function BaseDeClientesPage() {
   
   const handleEdit = (customer: Customer) => {
     setEditingCustomer(customer);
-    setIsEditModalOpen(true);
+    setIsModalOpen(true);
   };
 
   const handleDelete = (customerId: string) => {
@@ -116,28 +119,72 @@ export default function BaseDeClientesPage() {
     }
   };
 
-  const handleUpdateSuccess = () => {
-    setIsEditModalOpen(false);
-    setEditingCustomer(null);
-  }
+  const handleFormSubmit = async (data: CustomerFormValues) => {
+    if (!user || !activeAccountId) return;
+    try {
+        const customFieldsData = { ...data.customFields };
+        settings.customerCustomFields?.forEach(field => {
+            if (field.type === 'date' && customFieldsData[field.id]) {
+                customFieldsData[field.id] = Timestamp.fromDate(new Date(customFieldsData[field.id]));
+            }
+        });
+
+        const payload = {
+            ...data,
+            userId: activeAccountId,
+            tagIds: data.tagId && data.tagId !== 'none' ? [data.tagId] : [],
+            birthDate: data.birthDate ? Timestamp.fromDate(data.birthDate) : null,
+            customFields: customFieldsData,
+        };
+        delete (payload as any).tagId;
+
+        if (editingCustomer) { // Editando
+            const customerRef = doc(db, 'customers', editingCustomer.id);
+            await updateDoc(customerRef, payload);
+            toast({ title: "Sucesso!", description: "Cliente atualizado." });
+        } else { // Criando
+            const q = query(collection(db, 'customers'), where('userId', '==', activeAccountId), where('phone', '==', data.phone));
+            const querySnapshot = await getDocs(q);
+            if (!querySnapshot.empty) {
+                toast({ variant: "destructive", title: "Cliente Duplicado", description: "Já existe um cliente com este telefone." });
+                return;
+            }
+            await addDoc(collection(db, 'customers'), {
+                ...payload,
+                createdAt: Timestamp.now(),
+                activityLog: [{
+                    timestamp: Timestamp.now(),
+                    userEmail: user.email || 'Sistema',
+                    description: 'Cliente cadastrado.',
+                    entityName: data.name,
+                }],
+            });
+            toast({ title: "Sucesso!", description: "Cliente cadastrado." });
+        }
+        setIsModalOpen(false);
+        setEditingCustomer(null);
+    } catch (error) {
+        toast({ variant: "destructive", title: "Erro", description: `Falha ao salvar o cliente. ${error instanceof Error ? error.message : ''}` });
+    }
+  };
   
   const getTagById = (id: string) => settings.tags?.find(t => t.id === id);
 
   return (
     <div className="flex flex-col gap-4">
-       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
           <DialogContent className="sm:max-w-lg">
             <DialogHeader>
-              <DialogTitle>Editar Cliente</DialogTitle>
+              <DialogTitle>{editingCustomer ? 'Editar Cliente' : 'Adicionar Novo Cliente'}</DialogTitle>
               <DialogDescription>
-                Atualize os detalhes do cliente abaixo.
+                {editingCustomer ? 'Atualize os detalhes do cliente abaixo.' : 'Preencha os dados abaixo para cadastrar um novo cliente.'}
               </DialogDescription>
             </DialogHeader>
             <div className="max-h-[70vh] overflow-y-auto p-1">
                 <CustomerForm 
                     customer={editingCustomer} 
-                    onSuccess={handleUpdateSuccess}
-                    onCancel={() => setIsEditModalOpen(false)}
+                    onFormSubmit={handleFormSubmit}
+                    onCancel={() => setIsModalOpen(false)}
                 />
             </div>
           </DialogContent>
@@ -195,7 +242,7 @@ export default function BaseDeClientesPage() {
                                 </CommandGroup>
                                 {settings.tags && settings.tags.length > 0 && <CommandSeparator />}
                                 <CommandGroup>
-                                    <CommandItem onSelect={() => router.push('/dashboard/configuracoes')} className="cursor-pointer">
+                                    <CommandItem onSelect={() => router.push('/dashboard/base-de-clientes/personalizar')} className="cursor-pointer">
                                         <TagIcon className="mr-2 h-4 w-4" />
                                         <span>Gerenciar Etiquetas</span>
                                     </CommandItem>
@@ -317,4 +364,3 @@ export default function BaseDeClientesPage() {
     </div>
   );
 }
-

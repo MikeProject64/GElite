@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { Suspense, useEffect, useRef, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { collection, addDoc, query, where, onSnapshot, Timestamp, orderBy, getDocs, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
@@ -410,7 +410,7 @@ export function QuoteForm({ onSuccess, baseQuoteId, template, clientId }: QuoteF
                 <DialogDescription>Preencha os detalhes para um cadastro completo.</DialogDescription>
               </DialogHeader>
               <div className="max-h-[70vh] overflow-y-auto p-1">
-                <CustomerForm onSubmit={handleNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
+                <CustomerForm onFormSubmit={handleNewClientSubmit} onCancel={() => setIsNewClientDialogOpen(false)} />
               </div>
             </DialogContent>
           </Dialog>
