@@ -39,6 +39,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { createCollaboratorAndInvite } from './actions';
+import { usePathname } from 'next/navigation';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 
 // Lista de nomes de permissões que não podem ser delegadas a membros.
@@ -174,32 +177,6 @@ function InviteMemberModal({
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Nome Completo</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Nome do membro da equipe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <Input placeholder="email@exemplo.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
             
             <FormField
               control={form.control}
@@ -265,6 +242,10 @@ export default function AcessosEquipePage() {
   const [showPermissionsModal, setShowPermissionsModal] = useState<Collaborator | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
+  const pathname = usePathname();
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [editingCollaborator, setEditingCollaborator] = useState<Collaborator | null>(null);
+
 
   const isProfileComplete = systemUser &&
     systemUser.name &&
@@ -289,6 +270,15 @@ export default function AcessosEquipePage() {
 
     return () => unsubscribe();
   }, [user, toast]);
+
+  useEffect(() => {
+    function abrirModal() {
+      setEditingCollaborator(null);
+      setIsDialogOpen(true); // Abre o modal de cadastro de colaborador
+    }
+    window.addEventListener('abrir-modal-colaborador', abrirModal);
+    return () => window.removeEventListener('abrir-modal-colaborador', abrirModal);
+  }, []);
 
   const handleGenerateLink = async (collaboratorId: string) => {
     if (!user) return;
@@ -384,6 +374,23 @@ export default function AcessosEquipePage() {
     setShowDeleteConfirm(null);
     setIsSubmittingAction(null);
   }
+
+  // Definições necessárias para o modal de cadastro de colaborador
+  const collaboratorFormSchema = z.object({
+    name: z.string().min(3, { message: 'O nome deve ter pelo menos 3 caracteres.' }),
+    description: z.string().optional(),
+    type: z.enum(['collaborator', 'sector'], { required_error: 'Por favor, selecione um tipo.' }),
+  });
+  type CollaboratorFormValues = z.infer<typeof collaboratorFormSchema>;
+  const collaboratorForm = useForm<CollaboratorFormValues>({
+    resolver: zodResolver(collaboratorFormSchema),
+    defaultValues: { name: '', description: '', type: 'collaborator' },
+  });
+  const handleCollaboratorSubmit = async (data: CollaboratorFormValues) => {
+    // Implemente aqui a lógica de cadastro igual à de colaboradores
+    setIsDialogOpen(false);
+    setEditingCollaborator(null);
+  };
 
   if (isLoading) {
     return (
@@ -611,6 +618,59 @@ export default function AcessosEquipePage() {
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{editingCollaborator ? "Editar" : "Adicionar Novo"}</DialogTitle>
+            <DialogDescription>
+              {editingCollaborator ? "Atualize os detalhes." : "Adicione um novo colaborador ou setor."}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...collaboratorForm}>
+            <form onSubmit={collaboratorForm.handleSubmit(handleCollaboratorSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
+              <FormField control={collaboratorForm.control} name="type" render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Tipo *</FormLabel>
+                  <FormControl>
+                    <RadioGroup onValueChange={field.onChange} defaultValue={field.value} className="flex gap-4">
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl><RadioGroupItem value="collaborator" /></FormControl>
+                        <FormLabel className="font-normal">Colaborador</FormLabel>
+                      </FormItem>
+                      <FormItem className="flex items-center space-x-2 space-y-0">
+                        <FormControl><RadioGroupItem value="sector" /></FormControl>
+                        <FormLabel className="font-normal">Setor</FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}/>
+              <FormField control={collaboratorForm.control} name="name" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome *</FormLabel>
+                  <FormControl><Input placeholder="Ex: João Silva ou Setor de Manutenção" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}/>
+              <FormField control={collaboratorForm.control} name="description" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Descrição</FormLabel>
+                  <FormControl><Textarea placeholder="Descreva brevemente a função ou o setor..." {...field} value={field.value ?? ''} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}/>
+              <DialogFooter className='pt-4'>
+                <Button type="button" variant="ghost" onClick={() => setIsDialogOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={isSubmittingAction === 'add'}>
+                  {isSubmittingAction === 'add' ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Salvar"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );

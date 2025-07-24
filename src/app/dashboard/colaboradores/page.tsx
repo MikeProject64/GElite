@@ -10,6 +10,8 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { cn } from '@/lib/utils';
+import { usePathname } from 'next/navigation';
+import { Users, KeyRound } from 'lucide-react';
 
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -47,6 +49,7 @@ export default function ColaboradoresPage() {
   const [deletingCollaboratorId, setDeletingCollaboratorId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'collaborator' | 'sector'>('all');
+  const pathname = usePathname();
 
   const form = useForm<CollaboratorFormValues>({
     resolver: zodResolver(collaboratorFormSchema),
@@ -98,6 +101,15 @@ export default function ColaboradoresPage() {
       }
     }
   }, [isDialogOpen, editingCollaborator, form]);
+
+  useEffect(() => {
+    function abrirModal() {
+      setEditingCollaborator(null);
+      setIsDialogOpen(true); // Só abre o modal de cadastro de colaborador
+    }
+    window.addEventListener('abrir-modal-colaborador', abrirModal);
+    return () => window.removeEventListener('abrir-modal-colaborador', abrirModal);
+  }, []);
 
   const filteredCollaborators = useMemo(() => {
     return collaborators.filter(c => {
@@ -170,19 +182,6 @@ export default function ColaboradoresPage() {
   
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div >
-         <h1 className="text-lg font-semibold md:text-2xl">Colaboradores e Setores</h1>
-         <p className="text-sm text-muted-foreground">Gerencie as pessoas ou setores que podem ser atribuídos às ordens de serviço.</p>
-        </div>
-        <Button size="sm" className="h-8 gap-1" onClick={handleAddNew}>
-            <PlusCircle className="h-3.5 w-3.5" />
-            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-            Adicionar Novo
-            </span>
-        </Button>
-      </div>
-
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
