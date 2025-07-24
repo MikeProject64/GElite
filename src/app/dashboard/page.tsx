@@ -957,36 +957,10 @@ function ContratosPanel({ accountId }: { accountId: string | null }) {
 // --- COMPONENTE PRINCIPAL DA PÁGINA ---
 
 export default function DashboardPage() {
-  const { user, systemUser, activeAccountId, isTeamMember } = useAuth();
+  const { user, systemUser, activeAccountId, isTeamMember, loading, effectiveAllowedFunctions } = useAuth();
   const { settings } = useSettings();
   const [isMounted, setIsMounted] = useState(false);
   const [visiblePanels, setVisiblePanels] = useState<Record<string, boolean>>({});
-  const [memberPermissions, setMemberPermissions] = useState<string[] | null>(null);
-  const [permissionsLoading, setPermissionsLoading] = useState(true);
-
-  // Efeito para buscar as permissões APENAS se for um membro da equipe
-  useEffect(() => {
-    if (isTeamMember && systemUser?.uid) {
-      const collaboratorsQuery = query(
-        collection(db, 'collaborators'),
-        where('teamMemberUid', '==', systemUser.uid),
-        limit(1)
-      );
-
-      const unsubscribe = onSnapshot(collaboratorsQuery, (snapshot) => {
-        if (!snapshot.empty) {
-          const collaboratorData = snapshot.docs[0].data();
-          setMemberPermissions(collaboratorData.allowedFunctions || []);
-        } else {
-          setMemberPermissions([]);
-        }
-        setPermissionsLoading(false);
-      });
-      return () => unsubscribe();
-    } else {
-      setPermissionsLoading(false);
-    }
-  }, [isTeamMember, systemUser?.uid]);
 
   useEffect(() => {
     setIsMounted(true);
@@ -994,7 +968,6 @@ export default function DashboardPage() {
       const storedVisible = localStorage.getItem('dashboard-feature-panels');
       if (storedVisible) {
         const parsed = JSON.parse(storedVisible);
-        // Garante que os dados do localStorage sejam um objeto, como no código original.
         if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
           setVisiblePanels(parsed);
         }
@@ -1015,16 +988,13 @@ export default function DashboardPage() {
     settings.featureFlags[panel.key as keyof typeof settings.featureFlags]
   ), [settings.featureFlags]);
 
-  if (!isMounted || (isTeamMember && permissionsLoading)) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {[...Array(8)].map((_, i) => <Skeleton key={i} className="h-[350px]" />)}
-      </div>
-    );
+  // Enquanto as permissões carregam, exibe um skeleton.
+  if (loading || !isMounted) {
+    return <DashboardSkeleton />;
   }
 
   // Se for membro da equipe e não tiver nenhuma permissão, mostra a tela de espera.
-  if (isTeamMember && memberPermissions?.length === 0) {
+  if (isTeamMember && effectiveAllowedFunctions.length === 0) {
     return <WaitingForPermissions />;
   }
 

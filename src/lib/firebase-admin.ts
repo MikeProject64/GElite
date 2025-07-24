@@ -108,6 +108,6 @@ export async function getFirebaseAdmin() {
       adminAuth = getAuth(adminApp);
       dbAdmin = getAdminFirestore(adminApp);
   }
-  // Corrigido para retornar os nomes esperados pelas actions
-  return { authAdmin: adminAuth, dbAdmin, adminApp };
+  // Corrigido para retornar o nome que a action `createSessionCookie` espera.
+  return { adminAuth: adminAuth, dbAdmin, adminApp };
 } 

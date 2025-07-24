@@ -76,7 +76,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
         </header>
         <div className="flex flex-row flex-1 w-full overflow-hidden">
           <DashboardSidebar />
-          <main className="flex-1 overflow-y-auto bg-secondary/50 p-4 lg:p-6">
+          <main className="flex-1 overflow-y-auto bg-secondary/50">
             <PagePermissionGuard>
               {children}
             </PagePermissionGuard>

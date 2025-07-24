@@ -3,74 +3,66 @@
 import { useState } from 'react';
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { usePathname, useRouter } from "next/navigation";
-import Link from 'next/link';
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
 import { CreateServiceOrderModal } from '@/components/create-service-order-modal';
 import { usePermissions } from '@/hooks/use-permissions';
 import { ProtectedComponent } from '@/components/security/protected-component';
-import { useAuth, AppFunction } from '@/components/auth-provider';
+import { useAuth } from '@/components/auth-provider';
 
-// A configuração agora define apenas os metadados da UI, não as permissões.
 const TABS_DATA = [
-    { path: '/dashboard/servicos', label: 'Lista de serviços' },
-    { path: '/dashboard/servicos/modelos', label: 'Modelos' },
-    { path: '/dashboard/servicos/personalizar', label: 'Personalizar' },
-    { path: '/dashboard/servicos/estatisticas', label: 'Estatísticas' },
+    { path: '/dashboard/servicos', label: 'Lista de serviços', functionId: 'servicos' },
+    { path: '/dashboard/prazos', label: 'Agenda', functionId: 'prazos' },
+    { path: '/dashboard/servicos/modelos', label: 'Modelos', functionId: 'servicos_modelos' },
+    { path: '/dashboard/servicos/personalizar', label: 'Personalizar', functionId: 'servicos_personalizar' },
+    { path: '/dashboard/servicos/estatisticas', label: 'Estatísticas', functionId: 'servicos_estatisticas' },
 ];
 
-// O "href" para a ação de criar, como definido no catálogo de funções do admin.
-const CREATE_ACTION_HREF = '/actions/servicos/criar';
+const CREATE_ACTION_HREF = '/dashboard/servicos/criar';
 
-export default function ServicosLayout({
-    children,
-}: {
-    children: React.ReactNode;
-}) {
+export default function ServicosLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const router = useRouter();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const { availableFunctions } = useAuth();
+    const { hasPermission } = usePermissions();
 
-    // Encontra o ID da função de criação pelo seu href.
-    const createFuncId = availableFunctions.find(f => f.href === CREATE_ACTION_HREF)?.id || '';
+    const getFunctionIdByPath = (path: string) => {
+        const func = availableFunctions.find(f => f.href === path);
+        return func?.id || '';
+    };
 
-    // Filtra as abas que existem no catálogo de funções E para as quais o usuário tem permissão.
-    const visibleTabs = TABS_DATA.map(tab => {
-        const func = availableFunctions.find(f => f.href === tab.path);
-        return func ? { ...tab, functionId: func.id } : null;
-    }).filter((tab): tab is { path: string; label: string; functionId: string; } => tab !== null);
+    const createFuncId = getFunctionIdByPath(CREATE_ACTION_HREF) || 'servicos_criar';
 
-    const currentTab = visibleTabs.find(tab => pathname === tab.path)?.path || (visibleTabs.length > 0 ? visibleTabs[0].path : '/dashboard');
+    const currentTab = TABS_DATA.find(tab => pathname.startsWith(tab.path))?.path || TABS_DATA[0].path;
 
     return (
-        <>
-            <div className="flex flex-col gap-4 w-full">
-                <div className="flex justify-center items-center gap-4">
+        <div className="flex flex-col h-full">
+            <header className="flex h-14 lg:h-[60px] items-center gap-4 border-b bg-card px-6 sticky top-0 z-30 shrink-0">
+                <div className="flex-1">
                     <Tabs value={currentTab} onValueChange={(value) => router.push(value)}>
                         <TabsList>
-                            {visibleTabs.map((tab) => (
-                                <ProtectedComponent key={tab.path} functionId={tab.functionId}>
-                                    <TabsTrigger value={tab.path} asChild>
-                                        <Link href={tab.path}>{tab.label}</Link>
-                                    </TabsTrigger>
+                            {TABS_DATA.map((tab) => (
+                                <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
+                                    <TabsTrigger value={tab.path}>{tab.label}</TabsTrigger>
                                 </ProtectedComponent>
                             ))}
                         </TabsList>
                     </Tabs>
-                    <ProtectedComponent functionId={createFuncId}>
-                        <Button size="sm" className="h-8 gap-1" onClick={() => setIsCreateModalOpen(true)}>
-                            <PlusCircle className="h-3.5 w-3.5" />
-                            <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Ordem de Serviço</span>
-                        </Button>
-                    </ProtectedComponent>
                 </div>
-
-                <div className="mt-4">
-                    {children}
-                </div>
+                <ProtectedComponent functionId={createFuncId} fallback={null}>
+                    <Button size="sm" className="gap-1" onClick={() => setIsCreateModalOpen(true)}>
+                        <PlusCircle className="h-4 w-4" />
+                        <span>Ordem de Serviço</span>
+                    </Button>
+                </ProtectedComponent>
+            </header>
+            
+            <div className="p-4 sm:px-6 sm:py-6">
+                {children}
             </div>
+            
             <CreateServiceOrderModal isOpen={isCreateModalOpen} onOpenChange={setIsCreateModalOpen} />
-        </>
+        </div>
     );
 } 

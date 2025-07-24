@@ -213,9 +213,6 @@ export default function OrcamentosPersonalizarPage() {
         <div className="flex flex-col gap-4">
             <div className="flex items-center justify-between">
                 <h1 className="text-lg font-semibold md:text-2xl">Personalizar Opções de Orçamentos</h1>
-                <Button variant="outline" asChild>
-                    <Link href="/dashboard/orcamentos">Voltar para Orçamentos</Link>
-                </Button>
             </div>
             
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -120,8 +120,18 @@ export type ServiceOrder = {
 
 export interface ServiceAgreement {
   id: string;
-  nextDueDate?: Timestamp;
-  // ... other fields
+  userId: string;
+  title: string;
+  clientId: string;
+  clientName: string;
+  serviceOrderTemplateId: string;
+  serviceOrderTemplateName: string;
+  frequency: 'monthly' | 'quarterly' | 'semiannually' | 'annually';
+  startDate: Timestamp;
+  nextDueDate: Timestamp;
+  status: 'active' | 'paused' | 'finished';
+  notes?: string;
+  createdAt: Timestamp;
 }
 
 export type InventoryItem = {

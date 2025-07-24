@@ -413,7 +413,7 @@ export function DashboardSidebar() {
   
   return (
     <TooltipProvider delayDuration={0}>
-      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[300px]", "transition-all duration-300 ease-in-out relative group")}> 
+      <div className={cn("hidden border-r bg-card md:flex md:flex-col", isCollapsed ? "w-[80px]" : "w-[300px]", "transition-all duration-300 ease-in-out relative group z-40")}> 
         {/* Topo com nome e ícone do site - apenas uma vez! */}
         <DashboardNavContent isCollapsed={isCollapsed} />
         <Button onClick={toggleSidebar} variant="ghost" size="icon" className="absolute top-[14px] -right-4 h-8 w-8 rounded-full border bg-card hover:bg-muted">

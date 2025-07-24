@@ -6,7 +6,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, User, Building2, LinkIcon, Copy, CheckCircle, Clock, AlertTriangle, MoreVertical, Trash2, Play, Pause, Settings } from 'lucide-react';
+import { Loader2, User, Building2, LinkIcon, Copy, CheckCircle, Clock, AlertTriangle, MoreVertical, Trash2, Play, Pause, Settings, PlusCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Collaborator } from '@/types';
 import { generateInviteLink, toggleUserAccess, deleteTeamMemberAccess, updateMemberPermissions } from './actions';
@@ -34,6 +34,11 @@ import {
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { AppFunction } from '@/components/auth-provider';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { createCollaboratorAndInvite } from './actions';
 
 
 // Lista de nomes de permissões que não podem ser delegadas a membros.
@@ -128,6 +133,126 @@ function PermissionsModal({
   );
 }
 
+const inviteFormSchema = z.object({
+  name: z.string().min(3, { message: "O nome é obrigatório." }),
+  email: z.string().email({ message: "Por favor, insira um e-mail válido." }),
+  allowedFunctions: z.array(z.string()).min(1, { message: "Selecione pelo menos uma permissão." }),
+});
+
+function InviteMemberModal({
+  open,
+  onOpenChange,
+  ownerPlanFunctions,
+  allAvailableFunctions,
+  onSubmit,
+  isSubmitting,
+}: {
+  open: boolean,
+  onOpenChange: (open: boolean) => void,
+  ownerPlanFunctions: string[],
+  allAvailableFunctions: AppFunction[],
+  onSubmit: (data: z.infer<typeof inviteFormSchema>) => void,
+  isSubmitting: boolean,
+}) {
+  const form = useForm<z.infer<typeof inviteFormSchema>>({
+    resolver: zodResolver(inviteFormSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      allowedFunctions: [],
+    },
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Convidar Novo Membro</DialogTitle>
+          <DialogDescription>
+            Insira os dados do membro, defina suas permissões e gere o link de convite.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Nome Completo</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Nome do membro da equipe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>E-mail</FormLabel>
+                  <FormControl>
+                    <Input placeholder="email@exemplo.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <FormField
+              control={form.control}
+              name="allowedFunctions"
+              render={({ field }) => (
+                <FormItem>
+                   <FormLabel>Permissões</FormLabel>
+                   <div className="max-h-48 overflow-y-auto space-y-2 rounded-md border p-4">
+                     {allAvailableFunctions
+                        .filter(func => ownerPlanFunctions.includes(func.id))
+                        .filter(func => !FORBIDDEN_MEMBER_PERMISSIONS.includes(func.name))
+                        .map((func) => (
+                           <FormField
+                            key={func.id}
+                            control={form.control}
+                            name="allowedFunctions"
+                            render={({ field }) => {
+                              return (
+                                <FormItem key={func.id} className="flex flex-row items-start space-x-3 space-y-0">
+                                  <FormControl>
+                                    <Checkbox
+                                      checked={field.value.includes(func.id)}
+                                      onCheckedChange={(checked) => {
+                                        return checked
+                                          ? field.onChange([...field.value, func.id])
+                                          : field.onChange(field.value?.filter((value) => value !== func.id));
+                                      }}
+                                    />
+                                  </FormControl>
+                                  <FormLabel className="font-normal">{func.name}</FormLabel>
+                                </FormItem>
+                              );
+                            }}
+                          />
+                        ))}
+                   </div>
+                   <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Gerar Convite"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 
 export default function AcessosEquipePage() {
   const { user, systemUser, userPlan, availableFunctions } = useAuth();
@@ -138,6 +263,8 @@ export default function AcessosEquipePage() {
   const [isSubmittingAction, setIsSubmittingAction] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<Collaborator | null>(null);
   const [showPermissionsModal, setShowPermissionsModal] = useState<Collaborator | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [generatedInviteLink, setGeneratedInviteLink] = useState<string | null>(null);
 
   const isProfileComplete = systemUser &&
     systemUser.name &&
@@ -181,6 +308,27 @@ export default function AcessosEquipePage() {
     navigator.clipboard.writeText(inviteLink);
     toast({ title: 'Link Copiado!' });
   }
+
+  const handleInviteSubmit = async (data: z.infer<typeof inviteFormSchema>) => {
+    if (!user) return;
+    setIsSubmittingAction('invite');
+    const result = await createCollaboratorAndInvite(user.uid, data.name, data.email, data.allowedFunctions);
+    if (result.success && result.link) {
+      setGeneratedInviteLink(result.link);
+      setShowInviteModal(false);
+    } else {
+      toast({ variant: 'destructive', title: 'Erro ao Convidar', description: result.message });
+    }
+    setIsSubmittingAction(null);
+  };
+
+  const copyAndCloseInviteLinkModal = () => {
+    if (generatedInviteLink) {
+      navigator.clipboard.writeText(generatedInviteLink);
+      toast({ title: 'Link Copiado!' });
+      setGeneratedInviteLink(null);
+    }
+  };
 
   const getStatus = (collaborator: Collaborator) => {
     if (collaborator.type === 'sector') return { text: 'N/A', color: 'text-muted-foreground', Icon: null };
@@ -297,8 +445,15 @@ export default function AcessosEquipePage() {
       )}
 
       <Card>
-        <CardHeader>
-          <CardTitle>Membros</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Membros</CardTitle>
+            <CardDescription>Gerencie os membros da sua equipe e seus respectivos acessos.</CardDescription>
+          </div>
+          <Button onClick={() => setShowInviteModal(true)} disabled={!isProfileComplete}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Convidar Novo Membro
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -405,6 +560,35 @@ export default function AcessosEquipePage() {
         onSubmit={handleUpdatePermissions}
         isSubmitting={!!isSubmittingAction}
       />
+
+      <InviteMemberModal
+        open={showInviteModal}
+        onOpenChange={setShowInviteModal}
+        ownerPlanFunctions={userPlan?.allowedFunctions || []}
+        allAvailableFunctions={availableFunctions}
+        onSubmit={handleInviteSubmit}
+        isSubmitting={isSubmittingAction === 'invite'}
+      />
+
+      <Dialog open={!!generatedInviteLink} onOpenChange={() => setGeneratedInviteLink(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convite Gerado com Sucesso!</DialogTitle>
+            <DialogDescription>
+              Compartilhe este link com o novo membro da equipe. Ele é válido por 7 dias.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2 mt-4">
+            <Input readOnly value={generatedInviteLink || ''} className="bg-muted" />
+            <Button variant="outline" size="icon" onClick={copyAndCloseInviteLinkModal}>
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setGeneratedInviteLink(null)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!showDeleteConfirm} onOpenChange={(open) => !open && setShowDeleteConfirm(null)}>
         <AlertDialogContent>

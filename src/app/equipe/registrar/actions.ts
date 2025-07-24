@@ -72,7 +72,7 @@ export async function registerTeamMember(formData: unknown): Promise<{ success: 
   const { token, name, email, password } = result.data;
 
   try {
-    const { dbAdmin, authAdmin } = await getFirebaseAdmin();
+    const { dbAdmin, adminAuth } = await getFirebaseAdmin();
 
     // Re-valida o token no servidor para segurança
     const collaboratorsRef = dbAdmin.collection('collaborators');
@@ -94,7 +94,7 @@ export async function registerTeamMember(formData: unknown): Promise<{ success: 
     }
 
     // Cria o usuário no Firebase Auth
-    const newUserRecord = await authAdmin.createUser({
+    const newUserRecord = await adminAuth.createUser({
       email: email,
       password: password,
       displayName: name,

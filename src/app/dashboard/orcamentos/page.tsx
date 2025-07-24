@@ -241,30 +241,6 @@ function OrcamentosPageComponent() {
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold md:text-2xl">Orçamentos</h1>
-          <div className='flex gap-2'>
-              <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
-                  <Link href="/dashboard/orcamentos/modelos">
-                      <LayoutTemplate className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                          Modelos
-                      </span>
-                  </Link>
-              </Button>
-               <Button size="sm" variant="outline" className="h-8 gap-1" asChild>
-                <Link href="/dashboard/orcamentos/personalizar">
-                    <Wrench className="h-3.5 w-3.5" />
-                    <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">Personalizar</span>
-                </Link>
-            </Button>
-              <Button size="sm" className="h-8 gap-1" asChild>
-                  <Link href="/dashboard/orcamentos/criar">
-                      <PlusCircle className="h-3.5 w-3.5" />
-                      <span className="sr-only sm:not-sr-only sm:whitespace-nowrap">
-                          Novo Orçamento
-                      </span>
-                  </Link>
-              </Button>
-          </div>
         </div>
 
         <Card>

@@ -2,8 +2,9 @@
 
 import { getFirebaseAdmin } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
-import crypto from 'crypto';
-import { Timestamp } from 'firebase-admin/firestore'; // Corrigido: Importar Timestamp do SDK de Admin
+import { randomBytes } from 'crypto';
+import { FieldValue, Timestamp } from 'firebase-admin/firestore';
+import { Collaborator, SystemUser } from '@/types';
 
 /**
  * Gera um token de convite único para um colaborador e o salva no banco de dados.
@@ -18,7 +19,7 @@ export async function generateInviteLink(collaboratorId: string, mainAccountId: 
     // A chamada a `authAdmin.verifyIdToken()` ou similar seria ideal aqui
     // mas por enquanto, confiamos que a sessão do Next.js é segura.
 
-    const token = crypto.randomBytes(20).toString('hex');
+    const token = randomBytes(20).toString('hex');
     const expiresAt = Timestamp.fromDate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)); // Expira em 7 dias
 
     const collaboratorRef = dbAdmin.collection('collaborators').doc(collaboratorId);
@@ -57,7 +58,7 @@ export async function toggleUserAccess(
   shouldDisable: boolean
 ): Promise<{ success: boolean; message: string }> {
   try {
-    const { authAdmin, dbAdmin } = await getFirebaseAdmin();
+    const { dbAdmin, adminAuth } = await getFirebaseAdmin();
 
     const collaboratorRef = dbAdmin.collection('collaborators').doc(collaboratorId);
     const docSnap = await collaboratorRef.get();
@@ -65,7 +66,7 @@ export async function toggleUserAccess(
       throw new Error("Permissão negada ou dados inconsistentes.");
     }
     
-    await authAdmin.updateUser(teamMemberUid, { disabled: shouldDisable });
+    await adminAuth.updateUser(teamMemberUid, { disabled: shouldDisable });
     
     // Atualiza o status no documento do colaborador
     await collaboratorRef.update({
@@ -89,7 +90,7 @@ export async function deleteTeamMemberAccess(
   mainAccountId: string
 ): Promise<{ success: boolean; message: string }> {
     try {
-        const { authAdmin, dbAdmin } = await getFirebaseAdmin();
+        const { dbAdmin, adminAuth } = await getFirebaseAdmin();
 
         const collaboratorRef = dbAdmin.collection('collaborators').doc(collaboratorId);
         const docSnap = await collaboratorRef.get();
@@ -98,7 +99,7 @@ export async function deleteTeamMemberAccess(
         }
 
         // 1. Exclui o usuário do Firebase Authentication
-        await authAdmin.deleteUser(teamMemberUid);
+        await adminAuth.deleteUser(teamMemberUid);
 
         // 2. Exclui o documento 'user' do membro da equipe no Firestore
         await dbAdmin.collection('users').doc(teamMemberUid).delete();
@@ -143,4 +144,52 @@ export async function updateMemberPermissions(
         console.error("Erro ao atualizar permissões:", error);
         return { success: false, message: error.message || "Falha ao atualizar as permissões." };
     }
+} 
+
+// Nova Action Unificada
+export async function createCollaboratorAndInvite(
+  ownerId: string,
+  name: string,
+  email: string,
+  allowedFunctions: string[]
+): Promise<{ success: boolean; message: string; link?: string }> {
+  try {
+    const { dbAdmin } = await getFirebaseAdmin();
+
+    // 1. Verificar se já existe um colaborador com este e-mail para esta conta
+    const existingCollabQuery = dbAdmin.collection('collaborators')
+      .where('userId', '==', ownerId)
+      .where('email', '==', email);
+    const existingCollabSnap = await existingCollabQuery.get();
+    if (!existingCollabSnap.empty) {
+      return { success: false, message: 'Já existe um convite ou membro com este e-mail.' };
+    }
+
+    // 2. Gerar Token de Convite
+    const token = randomBytes(20).toString('hex');
+    const expiresAt = FieldValue.serverTimestamp(); // Temporário, será atualizado abaixo
+
+    // 3. Criar o documento do colaborador
+    const collaboratorRef = dbAdmin.collection('collaborators').doc();
+    await collaboratorRef.set({
+      userId: ownerId,
+      name,
+      email,
+      type: 'collaborator',
+      allowedFunctions,
+      createdAt: FieldValue.serverTimestamp(),
+      inviteToken: token,
+      // Define a expiração para 7 dias a partir de agora
+      inviteExpiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    });
+
+    // 4. Construir e retornar o link
+    const inviteLink = `${process.env.NEXT_PUBLIC_BASE_URL}/equipe/registrar?token=${token}`;
+    
+    return { success: true, message: 'Convite gerado com sucesso!', link: inviteLink };
+
+  } catch (error: any) {
+    console.error("Erro ao criar colaborador e convite:", error);
+    return { success: false, message: error.message || 'Falha ao processar o convite.' };
+  }
 } 
