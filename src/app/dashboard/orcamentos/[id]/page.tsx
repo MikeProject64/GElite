@@ -84,9 +84,11 @@ export default function OrcamentoDetailPage() {
   });
 
   useEffect(() => {
-    if (!quoteId || !user) return;
+    if (!quoteId || !user) {
+        setIsLoading(false);
+        return;
+    }
     
-    setIsLoading(true);
     const quoteRef = doc(db, 'quotes', quoteId);
     const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -114,10 +116,14 @@ export default function OrcamentoDetailPage() {
         toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento não encontrado.' });
         router.push('/dashboard/orcamentos');
       }
-      setIsLoading(false);
+      if(isLoading) setIsLoading(false);
+    }, (error) => {
+        console.error("Error fetching quote:", error);
+        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar dados do orçamento.' });
+        setIsLoading(false);
     });
     return () => unsubscribe();
-  }, [quoteId, router, toast, user]);
+  }, [quoteId, user, router, toast, isLoading]);
 
   useEffect(() => {
     if (quote?.clientId) {
@@ -385,7 +391,7 @@ export default function OrcamentoDetailPage() {
                 
             </CardContent>
             <CardFooter className="flex flex-wrap items-center justify-center gap-2">
-                 {quote.status === 'Pendente' && (
+                {quote.status === 'Pendente' && (
                   <Button variant="destructive" className="flex-1 min-w-[150px]" onClick={() => setIsRecusarAlertOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Recusar
                   </Button>
@@ -396,7 +402,7 @@ export default function OrcamentoDetailPage() {
                         Converter em OS
                     </Button>
                 )}
-                {quote.status !== 'Convertido' && (
+                {quote.status !== 'Convertido' ? (
                     <>
                          <Button variant="outline" className="flex-1 min-w-[150px]" onClick={handleSendWhatsApp} disabled={!customerPhone}>
                             <WhatsAppIcon />
@@ -413,8 +419,7 @@ export default function OrcamentoDetailPage() {
                           </Link>
                         </Button>
                     </>
-                )}
-                 {quote.status === 'Convertido' && (
+                ) : (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="outline" className="flex-1 min-w-[150px]">
@@ -502,7 +507,7 @@ export default function OrcamentoDetailPage() {
         </div>
 
         <div className="lg:col-span-3 border rounded-lg overflow-hidden">
-            <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border-0" title="Pré-visualização do Orçamento" />
+            <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full border-0" title="Pré-visualização do Orçamento" />
         </div>
       </div>
 
