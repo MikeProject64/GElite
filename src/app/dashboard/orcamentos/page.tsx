@@ -9,7 +9,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
-import { Quote, ServiceOrder, Client } from '@/types';
+import { Quote, ServiceOrder, Client as Customer } from '@/types';
 import { cn } from '@/lib/utils';
 import { bulkConvertQuotesToServiceOrders, bulkDeleteQuotes, bulkUpdateQuoteStatus } from './actions';
 
@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CheckCircle2, ChevronsUpDown, Check, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CheckCircle2, ChevronsUpDown, Check, BookOpen, ChevronLeft, ChevronRight, Pencil } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
@@ -55,7 +55,7 @@ function OrcamentosPageComponent() {
   const searchParams = useSearchParams();
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
+  const [clients, setClients] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isBulkActionLoading, setIsBulkActionLoading] = useState(false);
   const [isConverting, setIsConverting] = useState<string | null>(null);
@@ -99,7 +99,7 @@ function OrcamentosPageComponent() {
 
     const clientsQuery = query(collection(db, 'customers'), where('userId', '==', activeAccountId), orderBy('name'));
     const unsubClients = onSnapshot(clientsQuery, (snapshot) => {
-      setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Client)));
+      setClients(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Customer)));
     });
 
     return () => {
@@ -192,6 +192,12 @@ function OrcamentosPageComponent() {
   const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
   const numSelected = Object.keys(selectedRows).filter(id => selectedRows[id]).length;
 
+  const canBulkConvert = useMemo(() => {
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id]);
+    if (selectedIds.length === 0) return false;
+    return selectedIds.some(id => quotes.find(q => q.id === id)?.status === 'Aprovado');
+  }, [selectedRows, quotes]);
+
   return (
     <>
     <TooltipProvider>
@@ -221,7 +227,7 @@ function OrcamentosPageComponent() {
                                 <DropdownMenuItem onSelect={() => handleBulkAction('change_status', 'Recusado')}>Recusado</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="outline" size="sm" onClick={() => handleBulkAction('convert')} disabled={isBulkActionLoading}>Converter em OS</Button>
+                        <Button variant="outline" size="sm" onClick={() => handleBulkAction('convert')} disabled={!canBulkConvert || isBulkActionLoading}>Converter em OS</Button>
                         <Button variant="destructive" size="sm" onClick={() => handleBulkAction('delete')} disabled={isBulkActionLoading}>Excluir</Button>
                     </div>
                 </div>
@@ -292,25 +298,17 @@ function OrcamentosPageComponent() {
                               <Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge>
                           )}
                       </TableCell>
-                      <TableCell>
-                          <div className="flex items-center justify-end gap-1">
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
-                                            <BookOpen className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Abrir</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                    <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewQuote(quote)}>
-                                            <Eye className="h-4 w-4" />
-                                        </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent><p>Visualizar</p></TooltipContent>
-                                </Tooltip>
-                          </div>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0"><MoreHorizontal className="h-4 w-4" /></Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => handleEditQuote(quote.id)}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                       </TableRow>
                   ))}
@@ -322,7 +320,7 @@ function OrcamentosPageComponent() {
           <CardFooter>
               <div className="flex w-full items-center justify-between text-xs text-muted-foreground">
                   <div className="flex-1">
-                    {numSelected > 0 ? `${numSelected} de ${filteredQuotes.length} selecionado(s)` : `Total de ${filteredQuotes.length} orçamentos`}
+                    {numSelected > 0 ? `${numSelected} de ${filteredQuotes.length} linha(s) selecionada(s).` : `Total de ${filteredQuotes.length} orçamentos`}
                   </div>
                   <div className="flex items-center gap-2"><span>Linhas por página:</span><Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}><SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem></SelectContent></Select></div>
                   <div className='flex-1 text-center'>Página {currentPage} de {totalPages}</div>
