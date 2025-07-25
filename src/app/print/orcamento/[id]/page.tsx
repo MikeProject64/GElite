@@ -45,12 +45,18 @@ export default function PrintOrcamentoPage() {
                 setQuote(quoteData);
 
                 if (quoteData.userId) {
-                    // Fetch global settings
-                    const settingsRef = doc(db, 'siteConfig', 'main');
-                    const settingsSnap = await getDoc(settingsRef);
-                    if (settingsSnap.exists()) {
-                        setSettings(settingsSnap.data());
-                    }
+                    // Fetch global settings from siteConfig
+                    const globalSettingsRef = doc(db, 'siteConfig', 'main');
+                    const globalSettingsSnap = await getDoc(globalSettingsRef);
+                    const globalSettingsData = globalSettingsSnap.exists() ? globalSettingsSnap.data() : {};
+
+                    // Fetch user-specific settings (which includes custom fields)
+                    const userSettingsRef = doc(db, 'userSettings', quoteData.userId);
+                    const userSettingsSnap = await getDoc(userSettingsRef);
+                    const userSettingsData = userSettingsSnap.exists() ? userSettingsSnap.data() : {};
+
+                    // Merge settings, giving user settings precedence
+                    setSettings({ ...globalSettingsData, ...userSettingsData });
 
                     // Fetch account owner details
                     const ownerRef = doc(db, 'users', quoteData.userId);
@@ -69,7 +75,7 @@ export default function PrintOrcamentoPage() {
                 }
 
             } catch (err) {
-                console.error(err);
+                console.error("Error fetching print data:", err);
             } finally {
                 setIsLoading(false);
             }
