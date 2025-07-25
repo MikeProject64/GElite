@@ -1,3 +1,4 @@
+
 import { Hero } from '@/components/landing/hero';
 import { KeyFeatures } from '@/components/landing/key-features';
 import { Features } from '@/components/landing/features';
@@ -43,7 +44,7 @@ export default async function Home() {
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background text-foreground font-sans">
+    <div className="dark flex flex-col min-h-screen bg-background text-foreground font-sans">
       <Header siteName={siteName} iconName={iconName} />
       <main className="flex-grow">
         <Hero landingPageImages={landingPageImages} />
