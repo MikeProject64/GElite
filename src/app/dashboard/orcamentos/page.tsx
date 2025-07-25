@@ -338,7 +338,7 @@ function OrcamentosPageComponent() {
                       <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                       <TableHead className="hidden lg:table-cell">Criação</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead><span className="sr-only">Ações</span></TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -356,15 +356,43 @@ function OrcamentosPageComponent() {
                          <TableCell className="hidden lg:table-cell">{quote.createdAt ? format(quote.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
                          <TableCell className="text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-48">
-                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir Detalhes</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar PDF</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar / Criar Versão</DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
+                            <div className="flex items-center justify-end gap-2">
+                                <TooltipProvider>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
+                                                <BookOpen className="h-4 w-4" />
+                                                <span className="sr-only">Abrir Detalhes</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Abrir Detalhes</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <Button variant="ghost" size="icon" onClick={() => setPreviewQuote(quote)}>
+                                                <Eye className="h-4 w-4" />
+                                                <span className="sr-only">Visualizar PDF</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Visualizar PDF</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                     <Tooltip>
+                                        <TooltipTrigger asChild>
+                                             <Button variant="ghost" size="icon" onClick={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}>
+                                                <Pencil className="h-4 w-4" />
+                                                <span className="sr-only">Editar / Criar Versão</span>
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                            <p>Editar / Criar Versão</p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            </div>
                          </TableCell>
                       </TableRow>
                   ))}
@@ -422,3 +450,55 @@ export default function OrcamentosPage() {
     );
 }
 
+function SearchableSelect({ value, onValueChange, options, placeholder }: {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: { value: string; label: string; }[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const currentLabel = options.find(option => option.value === value)?.label;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal text-left">
+          <span className="truncate">
+            {currentLabel || placeholder}
+          </span>
+          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
+        <Command>
+          <CommandInput placeholder="Pesquisar..." />
+          <CommandEmpty>Nenhum resultado.</CommandEmpty>
+          <CommandList>
+            <CommandGroup>
+               <CommandItem key="all" value="all" onSelect={() => {
+                    onValueChange('');
+                    setOpen(false);
+                  }}>
+                    <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
+                    Todos
+                </CommandItem>
+              {options.map((option) => (
+                <CommandItem
+                  key={option.value}
+                  value={option.label}
+                  onSelect={() => {
+                    onValueChange(option.value === value ? '' : option.value);
+                    setOpen(false);
+                  }}
+                >
+                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
+                  {option.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
