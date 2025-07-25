@@ -1,10 +1,11 @@
 
+
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, runTransaction, addDoc, arrayUnion } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, Timestamp, orderBy, doc, updateDoc, writeBatch, getDocs, addDoc, arrayUnion } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
@@ -270,7 +271,7 @@ function OrcamentosPageComponent() {
   const canBulkConvert = selectedQuotes.some(q => q.status === 'Aprovado');
 
   return (
-    <>
+    <TooltipProvider>
       <div className="flex flex-col gap-4">
         <Card>
             <CardHeader>
@@ -344,7 +345,7 @@ function OrcamentosPageComponent() {
                   <TableBody>
                   {paginatedQuotes.map((quote) => (
                       <TableRow key={quote.id} data-state={selectedRows[quote.id] && "selected"}>
-                         <TableCell><Checkbox checked={!!selectedRows[quote.id]} onCheckedChange={(checked) => handleRowSelect(quote.id, !!checked)} /></TableCell>
+                         <TableCell><Checkbox checked={!!selectedRows[quote.id]} onCheckedChange={checked => handleRowSelect(quote.id, !!checked)} /></TableCell>
                          <TableCell><Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">#{quote.id.substring(0, 6).toUpperCase()} (v{quote.version || 1})</Link></TableCell>
                          <TableCell>
                             <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title={quote.title}>{quote.title}</Link>
@@ -357,7 +358,6 @@ function OrcamentosPageComponent() {
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
-                                <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
@@ -391,7 +391,6 @@ function OrcamentosPageComponent() {
                                             <p>Editar / Criar Versão</p>
                                         </TooltipContent>
                                     </Tooltip>
-                                </TooltipProvider>
                             </div>
                          </TableCell>
                       </TableRow>
@@ -438,7 +437,7 @@ function OrcamentosPageComponent() {
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
     
     </div>
-  </>
+  </TooltipProvider>
   );
 }
 
@@ -450,55 +449,3 @@ export default function OrcamentosPage() {
     );
 }
 
-function SearchableSelect({ value, onValueChange, options, placeholder }: {
-  value: string;
-  onValueChange: (value: string) => void;
-  options: { value: string; label: string; }[];
-  placeholder: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const currentLabel = options.find(option => option.value === value)?.label;
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="outline" role="combobox" aria-expanded={open} className="w-full justify-between font-normal text-left">
-          <span className="truncate">
-            {currentLabel || placeholder}
-          </span>
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
-          <CommandInput placeholder="Pesquisar..." />
-          <CommandEmpty>Nenhum resultado.</CommandEmpty>
-          <CommandList>
-            <CommandGroup>
-               <CommandItem key="all" value="all" onSelect={() => {
-                    onValueChange('');
-                    setOpen(false);
-                  }}>
-                    <Check className={cn("mr-2 h-4 w-4", !value ? "opacity-100" : "opacity-0")} />
-                    Todos
-                </CommandItem>
-              {options.map((option) => (
-                <CommandItem
-                  key={option.value}
-                  value={option.label}
-                  onSelect={() => {
-                    onValueChange(option.value === value ? '' : option.value);
-                    setOpen(false);
-                  }}
-                >
-                  <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
-                  {option.label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
-  );
-}
