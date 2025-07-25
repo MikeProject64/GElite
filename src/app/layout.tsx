@@ -11,6 +11,7 @@ import { CookieBanner } from '@/components/cookie-banner';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { availableIcons } from '@/components/icon-map';
+import React from 'react';
 
 
 const fontSans = Inter({
@@ -21,8 +22,8 @@ const fontSans = Inter({
 // generateMetadata busca as configurações do site e cria as metatags para SEO e compartilhamento.
 export async function generateMetadata(): Promise<Metadata> {
   // Valores padrão como fallback
-  let siteName = 'Gestor Elite';
-  let siteDescription = 'Otimize sua gestão de serviços com a plataforma completa para prestadores de serviço.';
+  const siteName = 'Gestor Elite';
+  const siteDescription = 'Otimize sua gestão de serviços com a plataforma completa para prestadores de serviço.';
   let imageUrl = 'https://gestorelite.app/og-image.png'; // Uma imagem de fallback genérica
 
   try {
@@ -31,7 +32,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
     if (settingsSnap.exists()) {
         const data = settingsSnap.data();
-        siteName = data.siteName || siteName;
         // Se houver uma imagem de logo ou hero, podemos usá-la para o OpenGraph
         imageUrl = data.logoURL || data.landingPageImages?.heroImage || imageUrl;
     }
