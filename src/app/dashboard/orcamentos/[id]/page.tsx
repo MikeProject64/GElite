@@ -23,11 +23,12 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History, Eye } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History, Eye, MoreVertical } from 'lucide-react';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { CreateQuoteModal } from '@/components/create-quote-modal';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 
 const templateFormSchema = z.object({
@@ -85,6 +86,7 @@ export default function OrcamentoDetailPage() {
   useEffect(() => {
     if (!quoteId || !user) return;
     
+    setIsLoading(true);
     const quoteRef = doc(db, 'quotes', quoteId);
     const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -382,36 +384,62 @@ export default function OrcamentoDetailPage() {
                 </div>
                 
             </CardContent>
-            <CardFooter className="justify-end gap-2 flex-wrap">
+            <CardFooter className="flex flex-wrap items-center justify-center gap-2">
                  {quote.status === 'Pendente' && (
-                  <Button variant="destructive" size="sm" onClick={() => setIsRecusarAlertOpen(true)}>
+                  <Button variant="destructive" className="flex-1 min-w-[150px]" onClick={() => setIsRecusarAlertOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Recusar
                   </Button>
                 )}
-                 <Button variant="outline" size="sm" onClick={handleSendWhatsApp} disabled={!customerPhone}>
-                    <WhatsAppIcon />
-                    Enviar por WhatsApp
-                </Button>
-                <Button variant="outline" size="sm" disabled={!canCreateNewVersion} onClick={() => setIsEditModalOpen(true)}>
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => setIsTemplateModalOpen(true)}>
-                  <Save className="mr-2 h-4 w-4" />
-                  Salvar como Modelo
-                </Button>
-                <Button variant="secondary" size="sm" asChild>
-                  <Link href={`/print/orcamento/${quote.id}`} target="_blank">
-                    <Printer className="mr-2 h-4 w-4"/>
-                    Imprimir / PDF
-                  </Link>
-                </Button>
                 {quote.status === 'Aprovado' && (
-                    <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
+                    <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting} className="flex-1 min-w-[150px]">
                         {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
-                        Converter em Ordem de Serviço
+                        Converter em OS
                     </Button>
                 )}
+                {quote.status !== 'Convertido' && (
+                    <>
+                         <Button variant="outline" className="flex-1 min-w-[150px]" onClick={handleSendWhatsApp} disabled={!customerPhone}>
+                            <WhatsAppIcon />
+                            WhatsApp
+                        </Button>
+                        <Button variant="outline" className="flex-1 min-w-[150px]" disabled={!canCreateNewVersion} onClick={() => setIsEditModalOpen(true)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                        </Button>
+                        <Button variant="secondary" className="flex-1 min-w-[150px]" asChild>
+                          <Link href={`/print/orcamento/${quote.id}`} target="_blank">
+                            <Printer className="mr-2 h-4 w-4"/>
+                            Imprimir
+                          </Link>
+                        </Button>
+                    </>
+                )}
+                 {quote.status === 'Convertido' && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="flex-1 min-w-[150px]">
+                          <MoreVertical className="mr-2 h-4 w-4" /> Opções
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onSelect={handleSendWhatsApp} disabled={!customerPhone}>
+                          <WhatsAppIcon /> Enviar por WhatsApp
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)} disabled={!canCreateNewVersion}>
+                          <Pencil className="mr-2 h-4 w-4" /> Criar Nova Versão
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                            <Link href={`/print/orcamento/${quote.id}`} target="_blank">
+                                <Printer className="mr-2 h-4 w-4"/> Imprimir / PDF
+                            </Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                  <Button variant="secondary" className="flex-1 min-w-[150px]" onClick={() => setIsTemplateModalOpen(true)}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Salvar como Modelo
+                  </Button>
             </CardFooter>
             </Card>
 
@@ -473,10 +501,8 @@ export default function OrcamentoDetailPage() {
             )}
         </div>
 
-        <div className="lg:col-span-3">
-            <div className="border rounded-lg overflow-hidden">
-                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border-0" title="Pré-visualização do Orçamento" />
-            </div>
+        <div className="lg:col-span-3 border rounded-lg overflow-hidden">
+            <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border-0" title="Pré-visualização do Orçamento" />
         </div>
       </div>
 
