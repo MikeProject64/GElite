@@ -65,7 +65,7 @@ export default function OrcamentoDetailPage() {
   const { settings } = useSettings();
 
   const [quote, setQuote] = useState<Quote | null>(null);
-  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  const [customer, setCustomer] = useState<Partial<Customer>>({});
   const [quoteVersions, setQuoteVersions] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
@@ -123,7 +123,7 @@ export default function OrcamentoDetailPage() {
         getDoc(customerRef).then(customerSnap => {
             if (customerSnap.exists()) {
                 const customerData = customerSnap.data() as Customer;
-                setCustomerPhone(customerData.phone || null);
+                setCustomer(customerSnap.data());
             }
         });
     }
@@ -473,12 +473,12 @@ export default function OrcamentoDetailPage() {
         </div>
 
         <div className="lg:col-span-3 flex flex-col gap-6">
-           <Card className="h-[80vh] flex flex-col">
+           <Card className="flex flex-col">
               <CardHeader>
                 <CardTitle>Pré-visualização do Documento</CardTitle>
                 <CardDescription>Esta é uma prévia de como o documento será impresso.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent className="flex-1 min-h-[80vh]">
                 <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full border rounded-md bg-muted" title="Pré-visualização do Orçamento" />
               </CardContent>
            </Card>
