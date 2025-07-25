@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -51,7 +52,7 @@ export default function OrcamentosLayout({ children }: { children: React.ReactNo
                         <TabsList>
                             {TABS_DATA.map(tab => (
                                 <ProtectedComponent key={tab.path} functionId={getFunctionIdByPath(tab.path) || tab.functionId} fallback={null}>
-                                     <TabsTrigger value={tab.path} className="flex items-center gap-2">
+                                     <TabsTrigger value={tab.path} className="flex items-center gap-2 w-full md:w-[150px] justify-center">
                                         <tab.icon className="h-4 w-4" />
                                         <span>{tab.name}</span>
                                     </TabsTrigger>
@@ -63,7 +64,7 @@ export default function OrcamentosLayout({ children }: { children: React.ReactNo
                 <ProtectedComponent functionId={createFunctionId} fallback={null}>
                      <Button size="sm" className="gap-1" onClick={() => setCreateModalOpen(true)}>
                         <PlusCircle className="h-4 w-4" />
-                        <span>Orçamento</span>
+                        <span className="hidden sm:inline">Novo Orçamento</span>
                     </Button>
                 </ProtectedComponent>
             </header>
@@ -73,4 +74,4 @@ export default function OrcamentosLayout({ children }: { children: React.ReactNo
             <CreateQuoteModal isOpen={isCreateModalOpen} onOpenChange={setCreateModalOpen} />
         </div>
     );
-} 
+}

@@ -10,7 +10,7 @@ import { db } from '@/lib/firebase';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { format } from 'date-fns';
-import { Quote, ServiceOrder, Client, Collaborator } from '@/types';
+import { Quote, Client, Collaborator } from '@/types';
 import { cn } from '@/lib/utils';
 import { addDays, startOfDay, isAfter, isBefore } from 'date-fns';
 
@@ -345,24 +345,27 @@ function OrcamentosPageComponent() {
                       <TableRow key={quote.id} data-state={selectedRows[quote.id] && "selected"}>
                          <TableCell><Checkbox checked={!!selectedRows[quote.id]} onCheckedChange={(checked) => handleRowSelect(quote.id, !!checked)} /></TableCell>
                          <TableCell><Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">#{quote.id.substring(0, 6).toUpperCase()} (v{quote.version || 1})</Link></TableCell>
-                         <TableCell><Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title={quote.title}>{quote.title}</Link><div className="text-sm text-muted-foreground"><Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="hover:underline" title="Ver detalhes do cliente">{quote.clientName}</Link></div></TableCell>
+                         <TableCell>
+                            <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-medium hover:underline" title={quote.title}>{quote.title}</Link>
+                            <div className="text-sm text-muted-foreground">
+                                <Link href={`/dashboard/base-de-clientes/${quote.clientId}`} className="hover:underline" title="Ver detalhes do cliente">{quote.clientName}</Link>
+                            </div>
+                         </TableCell>
                          <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                          <TableCell className="hidden lg:table-cell">{quote.createdAt ? format(quote.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
                          <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-1">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-40">
-                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
-                                        <DropdownMenuSeparator />
-                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Copy className="mr-2 h-4 w-4" />Criar Nova Versão</DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                          </div>
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="w-40">
+                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Copy className="mr-2 h-4 w-4" />Criar Nova Versão</DropdownMenuItem>
+                                </DropdownMenuContent>
+                            </DropdownMenu>
                          </TableCell>
                       </TableRow>
                   ))}
@@ -383,9 +386,8 @@ function OrcamentosPageComponent() {
             </div>
         </CardFooter>
       </Card>
-      </div>
 
-       <AlertDialog open={isBulkConvertAlertOpen} onOpenChange={setIsBulkConvertAlertOpen}>
+      <AlertDialog open={isBulkConvertAlertOpen} onOpenChange={setIsBulkConvertAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>Confirmar Conversão em Massa</AlertDialogTitle><AlertDialogDescription>Você está prestes a converter os orçamentos APROVADOS selecionados em Ordens de Serviço. Orçamentos com outros status serão ignorados. Deseja continuar?</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={handleBulkConvert} disabled={isUpdating}>Sim, Converter</AlertDialogAction></AlertDialogFooter>
@@ -418,5 +420,3 @@ export default function OrcamentosPage() {
         </Suspense>
     );
 }
-
-    
