@@ -10,7 +10,6 @@ import { Suspense } from 'react';
 import { CookieBanner } from '@/components/cookie-banner';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { availableIcons } from '@/components/icon-map';
 import React from 'react';
 
 
@@ -56,25 +55,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+// Corrigido para ser uma função simples que retorna JSX estático
 async function getDynamicHeadElements() {
-  let color = { h: 211, s: 100, l: 50 }; // Cor azul padrão
-  try {
-    const settingsRef = doc(db, 'siteConfig', 'main');
-    const settingsSnap = await getDoc(settingsRef);
-
-    if (settingsSnap.exists()) {
-      const data = settingsSnap.data();
-      if (data.primaryColorHsl) {
-          color = data.primaryColorHsl;
-      }
-    }
-  } catch (error) {
-    console.error("Failed to fetch primary color for head elements:", error);
-  }
+  const color = { h: 210, s: 70, l: 40 }; // Cor azul padrão do foguete
   
-  // SVG do foguete azul, como solicitado pelo usuário
+  // SVG estático do foguete azul, conforme solicitado.
   const rocketSvgString = `
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="32" height="32" fill="none">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
         <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M117.21 230.91a10.29 10.29 0 0 1-10.2-12.83l33.6-100.83a10.29 10.29 0 1 1 19.55 6.51l-33.6 100.83a10.29 10.29 0 0 1-9.35 6.32Z"/>
         <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M152.89 123a43.16 43.16 0 1 0-86.32 0 43.16 43.16 0 0 0 86.32 0Z"/>
         <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M168.16 230.91a10.29 10.29 0 0 1-10.2-12.83l33.6-100.83a10.29 10.29 0 1 1 19.55 6.51l-33.6 100.83a10.29 10.29 0 0 1-9.35 6.32Z"/>
