@@ -271,7 +271,7 @@ function OrcamentosPageComponent() {
   const canBulkConvert = selectedQuotes.some(q => q.status === 'Aprovado');
 
   return (
-    <TooltipProvider>
+    <>
       <div className="flex flex-col gap-4">
         <Card>
             <CardHeader>
@@ -358,6 +358,7 @@ function OrcamentosPageComponent() {
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
                          <TableCell className="text-right">
                             <div className="flex items-center justify-end gap-2">
+                                <TooltipProvider>
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Button variant="ghost" size="icon" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
@@ -391,6 +392,7 @@ function OrcamentosPageComponent() {
                                             <p>Editar / Criar Versão</p>
                                         </TooltipContent>
                                     </Tooltip>
+                                </TooltipProvider>
                             </div>
                          </TableCell>
                       </TableRow>
@@ -437,7 +439,7 @@ function OrcamentosPageComponent() {
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
     
     </div>
-  </TooltipProvider>
+  </>
   );
 }
 
@@ -448,4 +450,3 @@ export default function OrcamentosPage() {
         </Suspense>
     );
 }
-
