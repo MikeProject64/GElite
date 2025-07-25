@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -23,7 +22,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil, ChevronsUpDown, Check } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil, ChevronsUpDown, Check, BookOpen } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
@@ -83,7 +82,10 @@ function SearchableSelect({ value, onValueChange, options, placeholder }: {
                 <CommandItem
                   key={option.value}
                   value={option.label}
-                  onSelect={() => { onValueChange(option.value === value ? '' : option.value); setOpen(false); }}
+                  onSelect={() => {
+                    onValueChange(option.value === value ? '' : option.value);
+                    setOpen(false);
+                  }}
                 >
                   <Check className={cn("mr-2 h-4 w-4", value === option.value ? "opacity-100" : "opacity-0")} />
                   {option.label}
@@ -402,6 +404,14 @@ function OrcamentosPageComponent() {
                           <div className="flex items-center justify-end gap-1">
                                 <Tooltip>
                                     <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
+                                            <BookOpen className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Abrir</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
                                         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewQuote(quote)}>
                                             <Eye className="h-4 w-4" />
                                         </Button>
@@ -506,3 +516,5 @@ export default function OrcamentosPage() {
         </Suspense>
     )
 }
+
+    
