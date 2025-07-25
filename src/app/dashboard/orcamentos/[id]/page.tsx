@@ -72,7 +72,6 @@ export default function OrcamentoDetailPage() {
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isRecusarAlertOpen, setIsRecusarAlertOpen] = useState(false);
-  const [previewQuote, setPreviewQuote] = useState<Quote | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
 
@@ -326,7 +325,7 @@ export default function OrcamentoDetailPage() {
         )}
       </div>
       
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 flex flex-col gap-6">
             <Card>
             <CardHeader>
@@ -400,13 +399,11 @@ export default function OrcamentoDetailPage() {
                   <Save className="mr-2 h-4 w-4" />
                   Salvar como Modelo
                 </Button>
-                 <Button variant="secondary" size="sm" onClick={() => setPreviewQuote(quote)}>
-                  <Eye className="mr-2 h-4 w-4"/>
-                  Visualizar
-                </Button>
-                <Button variant="secondary" size="sm" onClick={() => window.open(`/print/orcamento/${quote.id}`, '_blank')}>
-                  <Printer className="mr-2 h-4 w-4"/>
-                  Imprimir / PDF
+                <Button variant="secondary" size="sm" asChild>
+                  <Link href={`/print/orcamento/${quote.id}`} target="_blank">
+                    <Printer className="mr-2 h-4 w-4"/>
+                    Imprimir / PDF
+                  </Link>
                 </Button>
                 {quote.status === 'Aprovado' && (
                     <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting}>
@@ -416,36 +413,7 @@ export default function OrcamentoDetailPage() {
                 )}
             </CardFooter>
             </Card>
-        </div>
 
-        <div className="lg:col-span-1 flex flex-col gap-6">
-            {settings.quoteCustomFields && quote.customFields && Object.keys(quote.customFields).length > 0 && (
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
-                    </CardHeader>
-                    <CardContent className="grid sm:grid-cols-1 gap-4">
-                       {settings.quoteCustomFields
-                           .filter(field => quote.customFields && quote.customFields[field.id])
-                           .map((field) => {
-                               const value = quote.customFields![field.id];
-                               if (!value) return null;
-                               
-                               const fieldType = field.type;
-                               let displayValue = value;
-                               if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
-                                   displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
-                               }
-                               return (
-                                   <div key={field.id} className="flex flex-col">
-                                       <p className="text-sm font-medium">{field.name}</p>
-                                       <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
-                                   </div>
-                               );
-                       })}
-                    </CardContent>
-                </Card>
-            )}
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><History className="h-5 w-5" /> Histórico de Versões</CardTitle>
@@ -474,6 +442,46 @@ export default function OrcamentoDetailPage() {
                     )}
                 </CardContent>
             </Card>
+
+            {settings.quoteCustomFields && quote.customFields && Object.keys(quote.customFields).length > 0 && (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5"/> Informações Adicionais</CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid sm:grid-cols-1 gap-4">
+                       {settings.quoteCustomFields
+                           .filter(field => quote.customFields && quote.customFields[field.id])
+                           .map((field) => {
+                               const value = quote.customFields![field.id];
+                               if (!value) return null;
+                               
+                               const fieldType = field.type;
+                               let displayValue = value;
+                               if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
+                                   displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
+                               }
+                               return (
+                                   <div key={field.id} className="flex flex-col">
+                                       <p className="text-sm font-medium">{field.name}</p>
+                                       <p className="text-muted-foreground">{String(displayValue) || 'Não informado'}</p>
+                                   </div>
+                               );
+                       })}
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+
+        <div className="lg:col-span-3 flex flex-col gap-6">
+           <Card className="h-[80vh] flex flex-col">
+              <CardHeader>
+                <CardTitle>Pré-visualização do Documento</CardTitle>
+                <CardDescription>Esta é uma prévia de como o documento será impresso.</CardDescription>
+              </CardHeader>
+              <CardContent className="flex-1">
+                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full border rounded-md bg-muted" title="Pré-visualização do Orçamento" />
+              </CardContent>
+           </Card>
         </div>
       </div>
 
@@ -542,20 +550,6 @@ export default function OrcamentoDetailPage() {
             </DialogContent>
         </Dialog>
         
-        <Dialog open={!!previewQuote} onOpenChange={(isOpen) => !isOpen && setPreviewQuote(null)}>
-            <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-4">
-                <DialogHeader>
-                    <DialogTitle>Visualização do Orçamento</DialogTitle>
-                    <DialogDescription>
-                      Prévia de como o orçamento será impresso.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="flex-grow rounded-lg border overflow-hidden bg-muted/20">
-                    {previewQuote && <iframe src={`/print/orcamento/${previewQuote.id}?preview=true`} className="w-full h-full" title="Pré-visualização do Orçamento" />}
-                </div>
-            </DialogContent>
-        </Dialog>
-
         <CreateQuoteModal
             isOpen={isEditModalOpen}
             onOpenChange={setIsEditModalOpen}
