@@ -8,7 +8,7 @@ import { db } from '@/lib/firebase';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Quote, Customer, ServiceOrder } from '@/types';
+import { Quote, Customer, ServiceOrder, UserSettings, SystemUser } from '@/types';
 import { useAuth } from '@/components/auth-provider';
 import { useSettings } from '@/components/settings-provider';
 import { useForm } from 'react-hook-form';
@@ -23,7 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History, Eye, MoreVertical } from 'lucide-react';
+import { ArrowLeft, User, Calendar, FileText, CheckCircle2, XCircle, Copy, Loader2, Thermometer, Info, Printer, DollarSign, Save, Pencil, History, Eye, MoreVertical, ShieldAlert } from 'lucide-react';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent, DialogFooter } from '@/components/ui/dialog';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -66,7 +66,7 @@ export default function OrcamentoDetailPage() {
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [customer, setCustomer] = useState<Partial<Customer>>({});
-  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
+  const [accountOwner, setAccountOwner] = useState<SystemUser | null>(null);
   const [quoteVersions, setQuoteVersions] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
@@ -83,60 +83,79 @@ export default function OrcamentoDetailPage() {
     defaultValues: { templateName: '' },
   });
 
+  // Listener para buscar o orçamento e suas versões
   useEffect(() => {
-    if (!quoteId || !user) {
-        setIsLoading(false);
-        return;
-    }
-    
-    const quoteRef = doc(db, 'quotes', quoteId);
-    const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
-      if (docSnap.exists()) {
-        const quoteData = { id: docSnap.id, ...docSnap.data() } as Quote;
-        if (quoteData.isTemplate) {
-            toast({ variant: 'destructive', title: 'Erro', description: 'Este é um modelo, não um orçamento.' });
-            router.push('/dashboard/orcamentos/modelos');
-            return;
-        }
-        setQuote(quoteData);
+    if (!quoteId || !user) return;
 
-        const originalId = quoteData.originalQuoteId || quoteData.id;
-        const versionsQuery = query(
-            collection(db, 'quotes'),
-            where('userId', '==', user.uid),
-            where('originalQuoteId', '==', originalId),
-            orderBy('version', 'desc')
-        );
-        onSnapshot(versionsQuery, (versionSnap) => {
-            const versions = versionSnap.docs.map(d => ({id: d.id, ...d.data()}) as Quote);
-            setQuoteVersions(versions);
+    let isMounted = true;
+    let unsubQuote: (() => void) | null = null;
+    let unsubVersions: (() => void) | null = null;
+
+    const fetchAllData = async () => {
+        setIsLoading(true);
+
+        const quoteRef = doc(db, 'quotes', quoteId);
+        unsubQuote = onSnapshot(quoteRef, (docSnap) => {
+            if (!isMounted) return;
+            if (docSnap.exists()) {
+                const quoteData = { id: docSnap.id, ...docSnap.data() } as Quote;
+                setQuote(quoteData);
+
+                const originalId = quoteData.originalQuoteId || quoteData.id;
+                const versionsQuery = query(
+                    collection(db, 'quotes'),
+                    where('userId', '==', user.uid),
+                    where('originalQuoteId', '==', originalId),
+                    orderBy('version', 'desc')
+                );
+
+                unsubVersions = onSnapshot(versionsQuery, (versionSnap) => {
+                    if (!isMounted) return;
+                    const versions = versionSnap.docs.map(d => ({id: d.id, ...d.data()}) as Quote);
+                    setQuoteVersions(versions);
+                });
+
+            } else {
+                toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento não encontrado.' });
+                router.push('/dashboard/orcamentos');
+            }
         });
+        
+        // Aguarda a primeira leitura para remover o skeleton
+        await getDoc(quoteRef);
+        if (isMounted) setIsLoading(false);
+    };
 
-      } else {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Orçamento não encontrado.' });
-        router.push('/dashboard/orcamentos');
-      }
-      if(isLoading) setIsLoading(false);
-    }, (error) => {
-        console.error("Error fetching quote:", error);
-        toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao carregar dados do orçamento.' });
-        setIsLoading(false);
-    });
-    return () => unsubscribe();
-  }, [quoteId, user, router, toast, isLoading]);
+    fetchAllData();
+
+    return () => {
+        isMounted = false;
+        if (unsubQuote) unsubQuote();
+        if (unsubVersions) unsubVersions();
+    };
+}, [quoteId, user, router, toast]);
 
   useEffect(() => {
     if (quote?.clientId) {
         const customerRef = doc(db, 'customers', quote.clientId);
         getDoc(customerRef).then(customerSnap => {
             if (customerSnap.exists()) {
-                const customerData = customerSnap.data() as Customer;
-                setCustomer(customerData);
-                setCustomerPhone(customerData.phone || null);
+                setCustomer(customerSnap.data());
             }
         });
     }
   }, [quote?.clientId]);
+
+   useEffect(() => {
+        if (quote?.userId) {
+            const ownerRef = doc(db, 'users', quote.userId);
+            getDoc(ownerRef).then(ownerSnap => {
+                if(ownerSnap.exists()) {
+                    setAccountOwner(ownerSnap.data() as SystemUser);
+                }
+            });
+        }
+    }, [quote?.userId]);
 
   const handleStatusChange = async (newStatus: Quote['status']) => {
     if (!quote || !user) return;
@@ -279,6 +298,7 @@ export default function OrcamentoDetailPage() {
   };
 
   const handleSendWhatsApp = () => {
+    const customerPhone = customer?.phone; // Usando o estado de customer
     if (!quote || !customerPhone) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Número de telefone do cliente não encontrado.' });
         return;
@@ -310,8 +330,13 @@ export default function OrcamentoDetailPage() {
 
   if (!quote) return null;
 
-  const canCreateNewVersion = quote.status === 'Pendente' || quote.status === 'Recusado';
-  const canBeManaged = quote.status !== 'Convertido';
+  const latestVersion = quoteVersions.length > 0 ? quoteVersions[0] : quote;
+  const isLatestVersionApprovedOrConverted = latestVersion.status === 'Aprovado' || latestVersion.status === 'Convertido';
+  const isArchived = quote.id !== latestVersion.id && isLatestVersionApprovedOrConverted;
+
+  const canBeManaged = !isArchived && quote.status !== 'Convertido';
+  const canCreateNewVersion = !isArchived && (quote.status === 'Pendente' || quote.status === 'Recusado');
+  
 
   return (
     <div className="flex flex-col gap-6">
@@ -333,6 +358,22 @@ export default function OrcamentoDetailPage() {
             <Badge variant={getStatusVariant(quote.status)} className="text-base px-3 py-1">{quote.status}</Badge>
         )}
       </div>
+
+       {isArchived && (
+          <div className="p-4 bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 rounded-md">
+            <div className="flex">
+              <div className="py-1">
+                <ShieldAlert className="h-5 w-5 text-yellow-500 mr-3" />
+              </div>
+              <div>
+                <p className="font-bold">Versão Arquivada</p>
+                <p className="text-sm">
+                  Esta é uma versão antiga de um orçamento que já foi aprovado ou convertido em uma versão mais recente. As ações foram desabilitadas.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       
       <div className="grid lg:grid-cols-5 gap-6">
         <div className="lg:col-span-2 flex flex-col gap-6">
@@ -391,12 +432,12 @@ export default function OrcamentoDetailPage() {
                 
             </CardContent>
             <CardFooter className="flex flex-wrap items-center justify-center gap-2">
-                {quote.status === 'Pendente' && (
+                {quote.status === 'Pendente' && canBeManaged && (
                   <Button variant="destructive" className="flex-1 min-w-[150px]" onClick={() => setIsRecusarAlertOpen(true)}>
                     <XCircle className="mr-2 h-4 w-4" /> Recusar
                   </Button>
                 )}
-                {quote.status === 'Aprovado' && (
+                {quote.status === 'Aprovado' && canBeManaged && (
                     <Button onClick={() => setIsAlertOpen(true)} disabled={isConverting} className="flex-1 min-w-[150px]">
                         {isConverting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Copy className="mr-2 h-4 w-4"/>}
                         Converter em OS
@@ -404,13 +445,13 @@ export default function OrcamentoDetailPage() {
                 )}
                 {quote.status !== 'Convertido' ? (
                     <>
-                         <Button variant="outline" className="flex-1 min-w-[150px]" onClick={handleSendWhatsApp} disabled={!customerPhone}>
+                         <Button variant="outline" className="flex-1 min-w-[150px]" onClick={handleSendWhatsApp} disabled={!customer.phone}>
                             <WhatsAppIcon />
                             WhatsApp
                         </Button>
                         <Button variant="outline" className="flex-1 min-w-[150px]" disabled={!canCreateNewVersion} onClick={() => setIsEditModalOpen(true)}>
                             <Pencil className="mr-2 h-4 w-4" />
-                            Editar
+                            {canCreateNewVersion ? "Criar Nova Versão" : "Editar"}
                         </Button>
                         <Button variant="secondary" className="flex-1 min-w-[150px]" asChild>
                           <Link href={`/print/orcamento/${quote.id}`} target="_blank">
@@ -427,7 +468,7 @@ export default function OrcamentoDetailPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        <DropdownMenuItem onSelect={handleSendWhatsApp} disabled={!customerPhone}>
+                        <DropdownMenuItem onSelect={handleSendWhatsApp} disabled={!customer.phone}>
                           <WhatsAppIcon /> Enviar por WhatsApp
                         </DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)} disabled={!canCreateNewVersion}>
@@ -506,7 +547,7 @@ export default function OrcamentoDetailPage() {
             )}
         </div>
 
-        <div className="lg:col-span-3 border rounded-lg overflow-hidden">
+        <div className="lg:col-span-3 border rounded-lg overflow-hidden h-[1123px]">
             <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full border-0" title="Pré-visualização do Orçamento" />
         </div>
       </div>
