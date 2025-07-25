@@ -30,6 +30,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { CreateQuoteModal } from '@/components/create-quote-modal';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -116,6 +117,9 @@ function OrcamentosPageComponent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [conversionAlertData, setConversionAlertData] = useState<Quote | null>(null);
   const [previewQuote, setPreviewQuote] = useState<Quote | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingQuoteId, setEditingQuoteId] = useState<string | null>(null);
+
 
   useEffect(() => {
     const statusFromUrl = searchParams.get('status');
@@ -166,6 +170,11 @@ function OrcamentosPageComponent() {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro', description: 'Falha ao atualizar o status.' });
     }
+  };
+  
+  const handleEditQuote = (quoteId: string) => {
+    setEditingQuoteId(quoteId);
+    setIsEditModalOpen(true);
   };
 
   const handleConvert = async () => {
@@ -308,7 +317,7 @@ function OrcamentosPageComponent() {
                    <SearchableSelect
                         value={filters.clientId}
                         onValueChange={(value) => handleFilterChange('clientId', value)}
-                        options={clients.map(c => ({ value: c.id, label: c.name }))}
+                        options={clients.map(c => ({ value: c.id, label: `${c.name} (${c.phone})` }))}
                         placeholder="Selecione um cliente..."
                     />
                 </div>
@@ -350,7 +359,7 @@ function OrcamentosPageComponent() {
               <Table>
                   <TableHeader>
                   <TableRow>
-                      <TableHead>ID (Versão)</TableHead>
+                      <TableHead>Orçamento (Versão)</TableHead>
                       <TableHead>Título / Cliente</TableHead>
                       <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                       <TableHead className="hidden lg:table-cell">Criação</TableHead>
@@ -377,7 +386,7 @@ function OrcamentosPageComponent() {
                           </div>
                       </TableCell>
                       <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
-                      <TableCell className="hidden lg:table-cell">{format(quote.createdAt.toDate(), 'dd/MM/yyyy')}</TableCell>
+                      <TableCell className="hidden lg:table-cell">{quote.createdAt ? format(quote.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
                       <TableCell>
                           {quote.status === 'Convertido' && quote.convertedToServiceOrderId ? (
                               <Button asChild variant="link" className="p-0 h-auto font-medium">
@@ -401,11 +410,11 @@ function OrcamentosPageComponent() {
                                 </Tooltip>
                                 <Tooltip>
                                     <TooltipTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEditQuote(quote.id)}>
                                             <Pencil className="h-4 w-4" />
                                         </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent><p>Gerenciar</p></TooltipContent>
+                                    <TooltipContent><p>Editar</p></TooltipContent>
                                 </Tooltip>
                                 {quote.status === 'Aprovado' && (
                                      <Tooltip>
@@ -479,6 +488,12 @@ function OrcamentosPageComponent() {
             </div>
         </DialogContent>
       </Dialog>
+      
+      <CreateQuoteModal
+        isOpen={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        baseQuoteId={editingQuoteId}
+      />
     </TooltipProvider>
     </>
   );
