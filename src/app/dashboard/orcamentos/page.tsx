@@ -25,7 +25,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil, ChevronsUpDown, Check, BookOpen } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -269,7 +269,6 @@ function OrcamentosPageComponent() {
   const canBulkConvert = selectedQuotes.some(q => q.status === 'Aprovado');
 
   return (
-    <>
     <TooltipProvider>
       <div className="flex flex-col gap-4">
         <Card>
@@ -301,7 +300,7 @@ function OrcamentosPageComponent() {
                     />
                 </div>
             </CardContent>
-          </Card>
+        </Card>
           
       <Card>
         <CardHeader>
@@ -354,10 +353,11 @@ function OrcamentosPageComponent() {
                           <div className="flex items-center justify-end gap-1">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-48">
+                                    <DropdownMenuContent align="end" className="w-40">
+                                        <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                         <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
                                         <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
                                         <DropdownMenuSeparator />
                                         <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Copy className="mr-2 h-4 w-4" />Criar Nova Versão</DropdownMenuItem>
                                     </DropdownMenuContent>
@@ -408,7 +408,6 @@ function OrcamentosPageComponent() {
       
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
     </TooltipProvider>
-    </>
   );
 }
 
@@ -420,21 +419,4 @@ export default function OrcamentosPage() {
     );
 }
 
-```
-  <change>
-    <file>src/app/dashboard/inventario/page.tsx</file>
-    <content><![CDATA[
-
-import { InventoryClient } from "./inventory-client";
-
-// This is now a Server Component by default
-export default function InventarioPage() {
-  return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold md:text-2xl">Gestão de Inventário</h1>
-      </div>
-      <InventoryClient />
-    </div>
-  );
-}
+    
