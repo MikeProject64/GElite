@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CalendarIcon, CheckCircle2, Thermometer, ChevronLeft, ChevronRight, Paperclip, FileSignature, Wrench, Pencil, ChevronsUpDown, Check, BookOpen } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, ChevronLeft, ChevronRight, AlertTriangle, LayoutTemplate, X, CalendarIcon, Paperclip, CheckCircle2, ArrowUp, ArrowDown, ChevronsUpDown, Minus, FileSignature, Check, BookOpen, Pencil } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -106,9 +106,11 @@ function OrcamentosPageComponent() {
   const { toast } = useToast();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { settings } = useSettings();
 
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUpdating, setIsUpdating] = useState(false);
   const [filters, setFilters] = useState({ 
@@ -268,7 +270,7 @@ function OrcamentosPageComponent() {
   const canBulkConvert = selectedQuotes.some(q => q.status === 'Aprovado');
 
   return (
-    
+    <>
       <div className="flex flex-col gap-4">
         <Card>
             <CardHeader>
@@ -356,13 +358,11 @@ function OrcamentosPageComponent() {
                          <TableCell className="text-right">
                             <DropdownMenu>
                                 <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-40">
+                                <DropdownMenuContent align="end" className="w-48">
                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Copy className="mr-2 h-4 w-4" />Criar Nova Versão</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir Detalhes</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar PDF</DropdownMenuItem>
+                                    <DropdownMenuItem onSelect={() => {setEditingQuoteId(quote.id); setIsEditModalOpen(true);}}><Pencil className="mr-2 h-4 w-4" />Editar / Criar Versão</DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                          </TableCell>
@@ -409,7 +409,8 @@ function OrcamentosPageComponent() {
       
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
     
-    
+    </div>
+  </>
   );
 }
 
@@ -420,3 +421,4 @@ export default function OrcamentosPage() {
         </Suspense>
     );
 }
+
