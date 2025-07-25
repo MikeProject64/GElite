@@ -143,10 +143,13 @@ export default function PrintOrcamentoPage() {
                                 .filter(field => quote.customFields && quote.customFields[field.id])
                                 .map(field => {
                                     const value = quote.customFields![field.id];
+                                    if (!value) return null;
+                                    
+                                    const fieldType = field.type;
                                     let displayValue = value;
-                                    if (field.type === 'date' && value && typeof value === 'object' && 'seconds' in value) {
+                                    if (fieldType === 'date' && value && typeof value === 'object' && 'seconds' in value) {
                                         displayValue = format((value as any).toDate(), 'dd/MM/yyyy');
-                                    } else if (field.type === 'currency' && typeof value === 'number') {
+                                    } else if (fieldType === 'currency' && typeof value === 'number') {
                                         displayValue = formatCurrency(value);
                                     }
                                     return (
