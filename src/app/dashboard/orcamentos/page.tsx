@@ -29,6 +29,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 
 const getStatusVariant = (status: Quote['status']) => {
@@ -279,18 +280,14 @@ function OrcamentosPageComponent() {
     setFilters(prev => ({ ...prev, [filterName]: value }));
   };
   
-  const handleNextPage = () => {
-    if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  };
-
-  const handlePrevPage = () => {
-    if (currentPage > 1) setCurrentPage(currentPage - 1);
-  };
+  const handleNextPage = () => { if (currentPage < totalPages) setCurrentPage(currentPage + 1); };
+  const handlePrevPage = () => { if (currentPage > 1) setCurrentPage(currentPage - 1); };
   
   const isAnyFilterActive = Object.values(filters).some(value => value !== '' && value !== undefined);
 
   return (
     <>
+    <TooltipProvider>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold md:text-2xl">Orçamentos</h1>
@@ -358,7 +355,7 @@ function OrcamentosPageComponent() {
                       <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                       <TableHead className="hidden lg:table-cell">Criação</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead><span className="sr-only">Ações</span></TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -393,36 +390,34 @@ function OrcamentosPageComponent() {
                           )}
                       </TableCell>
                       <TableCell>
-                          <DropdownMenu>
-                          <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /><span className="sr-only">Toggle menu</span></Button></DropdownMenuTrigger>
-                          <DropdownMenuContent align="end"><DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}>
-                                  <Eye className="mr-2 h-4 w-4" /> Visualizar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
-                                  <Pencil className="mr-2 h-4 w-4" /> Gerenciar
-                              </DropdownMenuItem>
-                              {quote.status === 'Aprovado' && (
-                                  <DropdownMenuItem onSelect={() => setConversionAlertData(quote)} disabled={isConverting === quote.id}>
-                                      {isConverting === quote.id ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
-                                      Converter em OS
-                                  </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSub>
-                                  <DropdownMenuSubTrigger disabled={quote.status === 'Convertido'}>
-                                      <CheckCircle2 className="mr-2 h-4 w-4"/>
-                                      <span>Alterar Status</span>
-                                  </DropdownMenuSubTrigger>
-                                  <DropdownMenuPortal>
-                                      <DropdownMenuSubContent>
-                                          <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Pendente')} disabled={quote.status === 'Pendente'}>Pendente</DropdownMenuItem>
-                                          <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Aprovado')} disabled={quote.status === 'Aprovado'}>Aprovado</DropdownMenuItem>
-                                          <DropdownMenuItem onClick={() => handleStatusChange(quote.id, quote.status, 'Recusado')} disabled={quote.status === 'Recusado'}>Recusado</DropdownMenuItem>
-                                      </DropdownMenuSubContent>
-                                  </DropdownMenuPortal>
-                              </DropdownMenuSub>
-                          </DropdownMenuContent>
-                          </DropdownMenu>
+                          <div className="flex items-center justify-end gap-1">
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setPreviewQuote(quote)}>
+                                            <Eye className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Visualizar</p></TooltipContent>
+                                </Tooltip>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => router.push(`/dashboard/orcamentos/${quote.id}`)}>
+                                            <Pencil className="h-4 w-4" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent><p>Gerenciar</p></TooltipContent>
+                                </Tooltip>
+                                {quote.status === 'Aprovado' && (
+                                     <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setConversionAlertData(quote)} disabled={isConverting === quote.id}>
+                                                {isConverting === quote.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Converter em OS</p></TooltipContent>
+                                    </Tooltip>
+                                )}
+                          </div>
                       </TableCell>
                       </TableRow>
                   ))}
@@ -436,14 +431,8 @@ function OrcamentosPageComponent() {
                   <div className="flex items-center gap-2">
                       <span>Linhas por página:</span>
                       <Select value={String(itemsPerPage)} onValueChange={(value) => setItemsPerPage(Number(value))}>
-                          <SelectTrigger className="h-8 w-[70px]">
-                              <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                              <SelectItem value="10">10</SelectItem>
-                              <SelectItem value="20">20</SelectItem>
-                              <SelectItem value="50">50</SelectItem>
-                          </SelectContent>
+                          <SelectTrigger className="h-8 w-[70px]"><SelectValue /></SelectTrigger>
+                          <SelectContent><SelectItem value="10">10</SelectItem><SelectItem value="20">20</SelectItem><SelectItem value="50">50</SelectItem></SelectContent>
                       </Select>
                   </div>
                   <span>Página {currentPage} de {totalPages}</span>
@@ -490,6 +479,7 @@ function OrcamentosPageComponent() {
             </div>
         </DialogContent>
       </Dialog>
+    </TooltipProvider>
     </>
   );
 }
