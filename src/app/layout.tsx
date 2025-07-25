@@ -57,47 +57,36 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 async function getDynamicHeadElements() {
+  let color = { h: 211, s: 100, l: 50 }; // Cor azul padrão
   try {
     const settingsRef = doc(db, 'siteConfig', 'main');
     const settingsSnap = await getDoc(settingsRef);
 
     if (settingsSnap.exists()) {
       const data = settingsSnap.data();
-      const iconName = (data.iconName || 'Rocket') as keyof typeof availableIcons;
-      const IconComponent = availableIcons[iconName] || availableIcons.Rocket;
-      const color = data.primaryColorHsl || { h: 211, s: 100, l: 50 };
-
-      // Manually create the SVG string from the icon's children props
-      const iconChildren = (IconComponent as any)({}).props.children;
-      const paths = React.Children.map(iconChildren, child => {
-          if (React.isValidElement(child)) {
-              // This is a simplified approach; may need adjustment for complex icons
-              return child.props.d ? `<path d="${child.props.d}" />` : '';
-          }
-          return '';
-      }).join('');
-
-      const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="hsl(${color.h}, ${color.s}%, ${color.l}%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32">${paths}</svg>`;
-      const faviconUrl = `data:image/svg+xml,${encodeURIComponent(svgString)}`;
-
-      return (
-        <>
-          <style dangerouslySetInnerHTML={{ __html: `:root { --primary: ${color.h} ${color.s}% ${color.l}%; }` }} />
-          <link id="dynamic-favicon" rel="icon" href={faviconUrl} sizes="any" />
-        </>
-      );
+      if (data.primaryColorHsl) {
+          color = data.primaryColorHsl;
+      }
     }
   } catch (error) {
-    console.error("Failed to generate dynamic head elements:", error);
+    console.error("Failed to fetch primary color for head elements:", error);
   }
   
-  // Fallback to a static Rocket icon if fetching fails
-  const fallbackSvgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="hsl(211, 100%, 50%)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="32" height="32"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.3.05-3.05A5.79 5.79 0 0 0 5.58 13a5.79 5.79 0 0 0-1.03 3.5c.01.21.02.42.05.63"/><path d="M12 15.5V18c0 1.1.9 2 2 2h1.5a2 2 0 0 0 2-2v-1.5a2 2 0 0 0-2-2h-1.5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.5a2 2 0 0 1 2 2v1.5a2 2 0 0 1-2 2h-2.87"/><path d="M9 15a6.47 6.47 0 0 1-2 5l-2.7-2.7a8.52 8.52 0 0 1 5-2.3"/><path d="m9.5 4.5-1.04 1.04a5.79 5.79 0 0 0-3.05.05c-.75.75-.79 2.21-.05 3.05s2.3.7 3.05.05A5.79 5.79 0 0 0 9.5 5.58C9.33 5.35 9.17 5.17 9 5a5.79 5.79 0 0 0-.42-1.03C8.37 3.26 7.5 3 6.5 3c0 0-1.26 1.5-2 5s.5 3.74 2 5"/></svg>`;
-  const fallbackFaviconUrl = `data:image/svg+xml,${encodeURIComponent(fallbackSvgString)}`;
+  // SVG do foguete azul, como solicitado pelo usuário
+  const rocketSvgString = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="32" height="32" fill="none">
+        <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M117.21 230.91a10.29 10.29 0 0 1-10.2-12.83l33.6-100.83a10.29 10.29 0 1 1 19.55 6.51l-33.6 100.83a10.29 10.29 0 0 1-9.35 6.32Z"/>
+        <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M152.89 123a43.16 43.16 0 1 0-86.32 0 43.16 43.16 0 0 0 86.32 0Z"/>
+        <path fill="hsl(${color.h} ${color.s}% ${color.l}%)" d="M168.16 230.91a10.29 10.29 0 0 1-10.2-12.83l33.6-100.83a10.29 10.29 0 1 1 19.55 6.51l-33.6 100.83a10.29 10.29 0 0 1-9.35 6.32Z"/>
+    </svg>
+  `.trim();
+  
+  const faviconUrl = `data:image/svg+xml,${encodeURIComponent(rocketSvgString)}`;
+
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `:root { --primary: 211 100% 50%; }` }} />
-      <link rel="icon" href={fallbackFaviconUrl} sizes="any" />
+      <style dangerouslySetInnerHTML={{ __html: `:root { --primary: ${color.h} ${color.s}% ${color.l}%; }` }} />
+      <link id="dynamic-favicon" rel="icon" href={faviconUrl} sizes="any" />
     </>
   );
 }

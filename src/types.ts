@@ -255,8 +255,8 @@ export type RegistrationInvite = {
 }
 
 export const defaultSettings: UserSettings = {
-    siteName: "Seu App",
-    iconName: "LayoutGrid",
+    siteName: "Gestor Elite",
+    iconName: "Rocket",
     logoURL: "",
     primaryColorHsl: { h: 221.2, s: 83.2, l: 53.3 },
     serviceStatuses: [
