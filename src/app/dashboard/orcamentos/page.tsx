@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -269,7 +268,7 @@ function OrcamentosPageComponent() {
   const canBulkConvert = selectedQuotes.some(q => q.status === 'Aprovado');
 
   return (
-    <TooltipProvider>
+    
       <div className="flex flex-col gap-4">
         <Card>
             <CardHeader>
@@ -356,7 +355,7 @@ function OrcamentosPageComponent() {
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
                          <TableCell className="text-right">
                             <DropdownMenu>
-                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
+                                <DropdownMenuTrigger asChild><Button aria-haspopup="true" size="icon" variant="ghost"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="w-40">
                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                     <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
@@ -409,7 +408,8 @@ function OrcamentosPageComponent() {
       </Dialog>
       
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
-    </TooltipProvider>
+    
+    
   );
 }
 
