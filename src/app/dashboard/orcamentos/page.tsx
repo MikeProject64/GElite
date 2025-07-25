@@ -21,7 +21,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuPortal, DropdownMenuSubContent, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CheckCircle2, ChevronsUpDown, Check, BookOpen } from 'lucide-react';
+import { Loader2, MoreHorizontal, PlusCircle, FileText, Filter, Eye, Copy, Trash2, LayoutTemplate, X, CheckCircle2, ChevronsUpDown, Check, BookOpen, ChevronLeft, ChevronRight } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 import { Dialog, DialogHeader, DialogTitle, DialogDescription, DialogContent } from '@/components/ui/dialog';
@@ -263,10 +263,7 @@ function OrcamentosPageComponent() {
                   <TableBody>
                   {paginatedQuotes.map((quote) => (
                       <TableRow key={quote.id} data-state={selectedRows[quote.id] && "selected"}>
-                        <TableCell><Checkbox 
-                            checked={!!selectedRows[quote.id]}
-                            onCheckedChange={checked => setSelectedRows(prev => ({ ...prev, [quote.id]: !!checked }))}
-                        /></TableCell>
+                        <TableCell><Checkbox checked={!!selectedRows[quote.id]} onCheckedChange={checked => setSelectedRows(prev => ({...prev, [quote.id]: !!checked}))} /></TableCell>
                         <TableCell>
                           <Link href={`/dashboard/orcamentos/${quote.id}`} className="font-mono text-sm font-medium hover:underline">
                             #{quote.id.substring(0, 6).toUpperCase()} (v{quote.version || 1})
