@@ -84,7 +84,7 @@ export default function OrcamentoDetailPage() {
 
   useEffect(() => {
     if (!quoteId || !user) return;
-    setIsLoading(true);
+    
     const quoteRef = doc(db, 'quotes', quoteId);
     const unsubscribe = onSnapshot(quoteRef, (docSnap) => {
       if (docSnap.exists()) {
@@ -473,14 +473,14 @@ export default function OrcamentoDetailPage() {
             )}
         </div>
 
-        <div className="lg:col-span-3 flex flex-col gap-6">
-           <Card className="flex flex-col">
+        <div className="lg:col-span-3">
+           <Card className="flex flex-col h-full">
               <CardHeader>
                 <CardTitle>Pré-visualização do Documento</CardTitle>
                 <CardDescription>Esta é uma prévia de como o documento será impresso.</CardDescription>
               </CardHeader>
-              <CardContent className="flex-1 min-h-[80vh]">
-                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-full border rounded-md bg-muted" title="Pré-visualização do Orçamento" />
+              <CardContent className="flex-1">
+                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border rounded-md bg-muted" title="Pré-visualização do Orçamento" />
               </CardContent>
            </Card>
         </div>
