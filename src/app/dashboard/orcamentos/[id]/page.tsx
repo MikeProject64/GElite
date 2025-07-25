@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -66,6 +65,7 @@ export default function OrcamentoDetailPage() {
 
   const [quote, setQuote] = useState<Quote | null>(null);
   const [customer, setCustomer] = useState<Partial<Customer>>({});
+  const [customerPhone, setCustomerPhone] = useState<string | null>(null);
   const [quoteVersions, setQuoteVersions] = useState<Quote[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConverting, setIsConverting] = useState(false);
@@ -123,7 +123,8 @@ export default function OrcamentoDetailPage() {
         getDoc(customerRef).then(customerSnap => {
             if (customerSnap.exists()) {
                 const customerData = customerSnap.data() as Customer;
-                setCustomer(customerSnap.data());
+                setCustomer(customerData);
+                setCustomerPhone(customerData.phone || null);
             }
         });
     }
