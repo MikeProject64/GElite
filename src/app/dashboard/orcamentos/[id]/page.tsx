@@ -474,15 +474,9 @@ export default function OrcamentoDetailPage() {
         </div>
 
         <div className="lg:col-span-3">
-           <Card className="flex flex-col h-full">
-              <CardHeader>
-                <CardTitle>Pré-visualização do Documento</CardTitle>
-                <CardDescription>Esta é uma prévia de como o documento será impresso.</CardDescription>
-              </CardHeader>
-              <CardContent className="flex-1">
-                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border rounded-md bg-muted" title="Pré-visualização do Orçamento" />
-              </CardContent>
-           </Card>
+            <div className="border rounded-lg overflow-hidden">
+                <iframe src={`/print/orcamento/${quote.id}?preview=true`} className="w-full h-[1123px] border-0" title="Pré-visualização do Orçamento" />
+            </div>
         </div>
       </div>
 
