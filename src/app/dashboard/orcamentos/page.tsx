@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
@@ -281,7 +282,7 @@ function OrcamentosPageComponent() {
                    <SearchableSelect
                         value={filters.clientId}
                         onValueChange={(value) => handleFilterChange('clientId', value)}
-                        options={clients.map(c => ({ value: c.id, label: `${c.name} (${c.phone})` }))}
+                        options={clients.map(c => ({ value: c.id, label: c.name }))}
                         placeholder="Selecione um cliente..."
                     />
                 </div>
@@ -337,7 +338,7 @@ function OrcamentosPageComponent() {
                       <TableHead className="hidden md:table-cell">Valor Total</TableHead>
                       <TableHead className="hidden lg:table-cell">Criação</TableHead>
                       <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ações</TableHead>
+                      <TableHead><span className="sr-only">Ações</span></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -349,16 +350,16 @@ function OrcamentosPageComponent() {
                          <TableCell className="hidden md:table-cell">{formatCurrency(quote.totalValue)}</TableCell>
                          <TableCell className="hidden lg:table-cell">{quote.createdAt ? format(quote.createdAt.toDate(), 'dd/MM/yyyy') : ''}</TableCell>
                          <TableCell><Badge variant={getStatusVariant(quote.status)}>{quote.status}</Badge></TableCell>
-                         <TableCell>
+                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button></DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48">
-                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen />Abrir Detalhes</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye />Visualizar</DropdownMenuItem>
-                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Pencil />Criar Nova Versão</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/${quote.id}`)}><BookOpen className="mr-2 h-4 w-4" />Abrir</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => setPreviewQuote(quote)}><Eye className="mr-2 h-4 w-4" />Visualizar</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)}><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
                                         <DropdownMenuSeparator />
-                                        <DropdownMenuItem onSelect={() => setIsEditModalOpen(true)} disabled><Trash2 />Excluir</DropdownMenuItem>
+                                        <DropdownMenuItem onSelect={() => router.push(`/dashboard/orcamentos/criar?versionOf=${quote.id}`)}><Copy className="mr-2 h-4 w-4" />Criar Nova Versão</DropdownMenuItem>
                                     </DropdownMenuContent>
                                 </DropdownMenu>
                           </div>
@@ -408,5 +409,32 @@ function OrcamentosPageComponent() {
       <CreateQuoteModal isOpen={isEditModalOpen} onOpenChange={setIsEditModalOpen} baseQuoteId={editingQuoteId}/>
     </TooltipProvider>
     </>
+  );
+}
+
+export default function OrcamentosPage() {
+    return (
+        <Suspense fallback={<div className="flex justify-center items-center h-40"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+            <OrcamentosPageComponent />
+        </Suspense>
+    );
+}
+
+```
+  <change>
+    <file>src/app/dashboard/inventario/page.tsx</file>
+    <content><![CDATA[
+
+import { InventoryClient } from "./inventory-client";
+
+// This is now a Server Component by default
+export default function InventarioPage() {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-lg font-semibold md:text-2xl">Gestão de Inventário</h1>
+      </div>
+      <InventoryClient />
+    </div>
   );
 }
